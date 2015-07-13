@@ -108,7 +108,7 @@ PlaneSweep::PlaneSweep()
     n(2,0) = 1;
 }
 
-PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
+bool PlaneSweep::RunAlgorithm(int argc, char **argv)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
 
@@ -118,20 +118,20 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
     depthmap.channels = 1;
     depthmap8u.setSize(HostRef.width, HostRef.height);
 
-    printf("%s Starting plane sweep algorithm...\n\n");
+    printf("Starting plane sweep algorithm...\n\n");
 
         try
         {
             if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
             {
                 cudaDeviceReset();
-                return depthmap;
+                return false;
             }
 
             if (printfNPPinfo() == false)
             {
                 cudaDeviceReset();
-                return depthmap;
+                return false;
             }
 
             // Algorithm here:-------------------------------------
@@ -140,14 +140,19 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
             NppiSize imSize={(int)HostRef.width, (int)HostRef.height};
             npp::ImageNPP_32f_C1 deviceRef(imSize.width, imSize.height);
             deviceRef.copyFrom(HostRef.data, HostRef.pitch);
+            float * temp = new float [imSize.height * imSize.width];
+            uchar * temp8u = new uchar [imSize.height * imSize.width];
 
-            // Create summation kernel on device memory
+            // Create summation kernel on host memory
             Npp32f* hostKernel = new Npp32f [winsize];
-            for (int i = 0; i < winsize; i++) hostKernel[i] = 1.f / winsize;
+            for (int i = 0; i < winsize; i++) {
+                hostKernel[i] = 1.f / winsize;
+            }
 
+            // Transfer the kernel to device memory
             Npp32f* pKernel; //just a regular 1D array on the GPU
-            cudaMalloc((void**)&pKernel, winsize * sizeof(Npp32f));
-            cudaMemcpy(pKernel, hostKernel, winsize * sizeof(Npp32f), cudaMemcpyHostToDevice);
+            NPP_CHECK_CUDA(cudaMalloc((void**)&pKernel, winsize * sizeof(Npp32f)));
+            NPP_CHECK_CUDA(cudaMemcpy(pKernel, hostKernel, winsize * sizeof(Npp32f), cudaMemcpyHostToDevice));
 
             // Create images on the device to hold windowed mean and std for reference image + intermediate images
             // and calculate the images
@@ -157,7 +162,7 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
             WindowedMean32f(deviceRef, winsize, pKernel, deviceRefmean); // windowed mean
             WindowedMeanSquares32f(deviceRef, winsize, pKernel, deviceRefstd); // mean of squares
             Product32f(deviceRefmean, deviceRefmean, devInter1);   // square of means
-            Difference32f(deviceRefstd, devInter1, deviceRefstd); // variance
+            Difference32f(deviceRefstd, devInter1, deviceRefstd); // variance        
             // this variance computation method is quite unstable, therefore we have to check for negative values
             Positive32f(deviceRefstd, deviceRefstd); // set all negative variance values to 0
             SQRT32f(deviceRefstd, deviceRefstd); // standard deviation
@@ -205,8 +210,8 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
             npp::ImageNPP_32f_C1 devy(imSize.width, imSize.height);
 
             // Fill undistorted x and y index images:
-            dim3 threads(512,512);
-            dim3 blocks(ceil(devx.pitch()/threads.x), ceil(devx.height()/threads.y));
+            dim3 threads(64,64);
+            dim3 blocks(ceil(devx.width()/(float)threads.x), ceil(devx.height()/(float)threads.y));
             CreateGrid2D(devX.data(), devY.data(), imSize.width, imSize.height, blocks, threads);
 
             // Create image to hold pixel values after transformation
@@ -250,8 +255,8 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
                     // interpolate pixel values:
                     bilinear_interpolation(devWarped.data(), devSrc.data(),
                                            devx.data(), devy.data(),
-                                           devSrc.pitch(), devSrc.height(),
-                                           devx.pitch(), devx.height(),
+                                           devSrc.width(), devSrc.height(),
+                                           devx.width(), devx.height(),
                                            blocks, threads);
 
                     // We have no more use for devx and devy, we can use them to store intermediate results now
@@ -269,18 +274,24 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
                     // NCC = (mean of products - product of means) / product of standard deviations
                     Product32f(deviceRef, devWarped, devInter1); // element wise multiplication
                     WindowedMean32f(devInter1, winsize, pKernel, devWarped); // windowed mean of products
-                    Product32f(deviceRefmean, devx, devInter1); // product of windowed means, no more use for devx
-                    Product32f(deviceRefstd, devy, devx); // product of STDs stored in devx
-                    Difference32f(devWarped, devInter1, devInter1); // numerator of NCC
-                    RDivide32f(devInter1, devx, devNCC); // NCC at current depth
+                    calcNCC(devNCC.data(), devWarped.data(),
+                            deviceRefmean.data(), devx.data(),
+                            deviceRefstd.data(), devy.data(),
+                            stdthresh, stdthresh,
+                            imSize.width, imSize.height,
+                            blocks, threads);
+//                    Product32f(deviceRefmean, devx, devInter1); // product of windowed means, no more use for devx
+//                    Product32f(deviceRefstd, devy, devx); // product of STDs stored in devx
+//                    Difference32f(devWarped, devInter1, devInter1); // numerator of NCC
+//                    RDivide32f(devInter1, devx, devNCC); // NCC at current depth
 
                     // no use for devInter1 and devx, devy is holding warped image std
                     // find warped image std values above threshold
-                    GreaterEqualC32f(devy, stdthresh, devAbovethresh);
+//                    GreaterEqualC32f(devy, stdthresh, devAbovethresh);
                     // NCC is only valid if both reference and warped image STDs are above threshold
-                    AND8u(devAbovethreshRef, devAbovethresh, devAbovethresh);
-                    Conversion8u32f(devAbovethresh, devInter1);
-                    Product32f(devNCC, devInter1, devNCC);
+//                    AND8u(devAbovethreshRef, devAbovethresh, devAbovethresh);
+//                    Conversion8u32f(devAbovethresh, devInter1);
+//                    Product32f(devNCC, devInter1, devNCC);
 
                     // only keep depth and bestncc values for which best ncc is greater than current
                     GreaterEqual32f(devbestNCC, devNCC, devAbovethresh);
@@ -340,16 +351,17 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
             nppiFree(devAbovethreshRef.data());
             checkCudaErrors(cudaFree(pKernel));
             delete[] hostKernel;
+            delete[] temp;
+            delete[] temp8u;
 
             //-----------------------------------------------------
 
-            cudaDeviceReset();
-
             auto t2 = std::chrono::high_resolution_clock::now();
             std::cout << "Time taken for the algorithm to complete is " <<
-                         std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n";
+                         std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-            return depthmap;
+            cudaDeviceReset();
+            return true;
 
         }
         catch (npp::Exception &rExcep)
@@ -359,7 +371,7 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
             std::cerr << "Aborting." << std::endl;
 
             cudaDeviceReset();
-            return depthmap;
+            return false;
         }
         catch (...)
         {
@@ -367,10 +379,10 @@ PlaneSweep::camImage<float> &PlaneSweep::RunAlgorithm(int argc, char **argv)
             std::cerr << "Aborting." << std::endl;
 
             cudaDeviceReset();
-            return depthmap;
+            return false;
 
         }
-    return depthmap;
+    return false;
 }
 
 void PlaneSweep::Convert8uTo32f(int argc, char **argv)
@@ -397,8 +409,6 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
             int w = HostRef8u.width;
             int h = HostRef8u.height;
 
-            std::cout << HostRef8u.width << '\t' << HostRef8u.pitch << std::endl;
-
             // Create 32f and 8u device images
             npp::ImageNPP_8u_C1 im8u(w, h);
             npp::ImageNPP_32f_C1 im32f(w, h);
@@ -407,7 +417,6 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
             HostRef.setSize(w,h);
             im8u.copyFrom(HostRef8u.data, HostRef8u.pitch);
             Conversion8u32f(im8u, im32f);
-            std::cout << 1 << std::endl;
             im32f.copyTo(HostRef.data, HostRef.pitch);
             HostRef.R = HostRef8u.R;
             HostRef.t = HostRef8u.t;
@@ -419,26 +428,23 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
                 HostSrc[i].setSize(w, h);
                 im8u.copyFrom(HostSrc8u[i].data, HostSrc8u[i].pitch);
                 Conversion8u32f(im8u, im32f);
-                std::cout << i+2 << std::endl;
                 im32f.copyTo(HostSrc[i].data, HostSrc[i].pitch);
                 HostSrc[i].R = HostSrc8u[i].R;
                 HostSrc[i].t = HostSrc8u[i].t;
 
             }
 
+            auto t2 = std::chrono::high_resolution_clock::now();
+            std::cout << "Time taken for the conversion to complete is " <<
+                         std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+
             // Free up resources
             nppiFree(im8u.data());
             nppiFree(im32f.data());
-            HostSrc8u.clear();
 
             //-----------------------------------------------------
 
             cudaDeviceReset();
-
-            auto t2 = std::chrono::high_resolution_clock::now();
-            std::cout << "Time taken for the conversion to complete is " <<
-                         std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n";
-
             return;
 
         }
@@ -460,8 +466,6 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
             return;
 
         }
-
-
 }
 
 void PlaneSweep::invertK()
@@ -537,16 +541,17 @@ PlaneSweep::~PlaneSweep()
 void WindowedMean32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsize, Npp32f* pKernel, npp::ImageNPP_32f_C1 & output)
 {
     NppiSize oSrcSize = {(int)input.width(), (int)input.height()};
+    NppiSize oSizeROI = {(int)input.width(), (int)input.height()};
     NppiPoint oSrcOffset = {0, 0};
     NPP_CHECK_NPP(nppiFilterColumnBorder_32f_C1R(input.data(), input.pitch(),
                                                 oSrcSize, oSrcOffset,
                                                 output.data(), output.pitch(),
-                                                oSrcSize, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
+                                                oSizeROI, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
 
     NPP_CHECK_NPP(nppiFilterRowBorder_32f_C1R(output.data(), output.pitch(),
                                               oSrcSize, oSrcOffset,
                                               output.data(), output.pitch(),
-                                              oSrcSize, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
+                                              oSizeROI, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
 }
 
 void WindowedMeanSquares32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsize, Npp32f *pKernel, npp::ImageNPP_32f_C1 & output)
@@ -557,12 +562,12 @@ void WindowedMeanSquares32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsiz
     NPP_CHECK_NPP(nppiFilterColumnBorder_32f_C1R(output.data(), output.pitch(),
                                                 oSrcSize, oSrcOffset,
                                                 output.data(), output.pitch(),
-                                                oSrcSize, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
+                                                oSrcSize, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
 
     NPP_CHECK_NPP(nppiFilterRowBorder_32f_C1R(output.data(), output.pitch(),
                                               oSrcSize, oSrcOffset,
                                               output.data(), output.pitch(),
-                                              oSrcSize, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
+                                              oSrcSize, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
 }
 
 void Positive32f(npp::ImageNPP_32f_C1 & input, npp::ImageNPP_32f_C1 & output)
@@ -628,7 +633,7 @@ void SumC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output)
 void Difference32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output)
 {
     NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiSub_32f_C1R(A.data(), A.pitch(), B.data(), B.pitch(), output.data(), output.pitch(), oSize));
+    NPP_CHECK_NPP(nppiSub_32f_C1R(B.data(), B.pitch(), A.data(), A.pitch(), output.data(), output.pitch(), oSize));
 }
 
 void DifferenceC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output)

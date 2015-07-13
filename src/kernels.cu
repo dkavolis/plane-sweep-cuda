@@ -43,6 +43,25 @@ __global__ void CreateGrid2D_kernel(float * __restrict__ d_x, float * __restrict
     }
 }
 
+__global__ void calcNCC_kernel(float * __restrict__ d_ncc, float * __restrict d_prod_mean,
+                               float * __restrict__ d_mean1, float * __restrict__ d_mean2,
+                               float * __restrict__ d_std1, float * __restrict__ d_std2,
+                               const float stdthresh1, const float stdthresh2,
+                               const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+
+        if ((d_std1[ind] < stdthresh1) || (d_std2[ind] < stdthresh2)) d_ncc[ind] = 0.f;
+        else {
+            d_ncc[ind] = (d_prod_mean[ind] - d_mean1[ind] * d_mean2[ind]) / (d_std1[ind] * d_std2[ind]);
+        }
+    }
+}
+
 void CreateGrid2D(float * d_x, float *  d_y, const int columns, const int rows, dim3 blocks, dim3 threads)
 {
     CreateGrid2D_kernel<<<blocks, threads>>>(d_x, d_y, rows, columns);
@@ -54,4 +73,18 @@ void bilinear_interpolation(float * d_result, const float * d_data,
                             dim3 blocks, dim3 threads)
 {
     bilinear_interpolation_kernel_GPU<<<blocks, threads>>>(d_result, d_data, d_xout, d_yout, M1, M2, N1, N2);
+}
+
+void calcNCC(float * __restrict__ d_ncc, float * __restrict__ d_prod_mean,
+             float * __restrict__ d_mean1, float * __restrict__ d_mean2,
+             float * __restrict__ d_std1, float * __restrict__ d_std2,
+             const float stdthresh1, const float stdthresh2,
+             const int width, const int height,
+             dim3 blocks, dim3 threads)
+{
+    calcNCC_kernel<<<blocks, threads>>>(d_ncc, d_prod_mean,
+                                        d_mean1, d_mean2,
+                                        d_std1, d_std2,
+                                        stdthresh1, stdthresh2,
+                                        width, height);
 }

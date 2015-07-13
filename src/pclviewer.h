@@ -78,6 +78,8 @@ private:
   void LoadImages();
   QPixmap image;
   QImage  refim;
+  QImage refgray;
+  std::vector<QImage> sources;
   QGraphicsScene *scene;
   PlaneSweep::camImage<float> depth;
 

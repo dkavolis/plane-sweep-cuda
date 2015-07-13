@@ -4,7 +4,7 @@
 #define DEFAULT_Z_NEAR 0.1f
 #define DEFAULT_Z_FAR 1.0f
 #define DEFAULT_NUMBER_OF_PLANES 200
-#define DEFAULT_NUMBER_OF_IMAGES 4
+#define DEFAULT_NUMBER_OF_IMAGES 2
 #define DEFAULT_WINDOW_SIZE 5
 #define DEFAULT_STD_THRESHOLD 0.5
 #define DEFAULT_NCC_THRESHOLD 0.0001
@@ -20,6 +20,7 @@
 #include <fstream>
 #include <cstdio>
 #include <ctime>
+#include <algorithm>
 
 namespace ublas = boost::numeric::ublas;
 typedef unsigned char uchar;
@@ -32,7 +33,8 @@ public:
     // pitch - size in bytes between consecutive rows
     // channels - number of channels (gray - 1, RGB - 3, etc.)
     template <typename T>
-    struct camImage {
+    class camImage {
+    public:
         T * data;
         unsigned int pitch;
         uchar channels;
@@ -43,9 +45,10 @@ public:
 
         camImage() :
 			R(ublas::matrix<double>(3,3)),
-			t(ublas::matrix<double>(3,1))
+            t(ublas::matrix<double>(3,1)),
+            data(nullptr),
+            allocated(false)
 		{
-            data = new T [0];
         }
 
         void setSize(unsigned int w, unsigned int h, bool allocate_data = true){
@@ -54,22 +57,56 @@ public:
             pitch = w * sizeof(T);
 			delete[] data;
             if (allocate_data) data = new T[w * h];
+            allocated = allocate_data;
+		}
+
+		void CopyFrom(const T * d, unsigned int elements){
+			delete[] data;
+			data = new T[elements];
+			std::copy(d, d + elements, data);
+			allocated = true;
+		}
+
+		void CopyFrom(const T *pSrc, size_t nSrcPitch, size_t nWidth, size_t nHeight)
+		{
+			delete[] data;
+			data = new T[nWidth * nHeight];
+			pitch = nWidth * sizeof(T);
+            width = nWidth;
+            height = nHeight;
+
+			for (size_t iLine = 0; iLine < nHeight; ++iLine)
+			{
+				// copy one line worth of data
+				std::copy_n(pSrc, nWidth, data);
+				// move data pointers to next line
+				data += pitch / sizeof(T);
+				pSrc += nSrcPitch / sizeof(T);
+			}
+
+			// return pointer to beginning
+			data -= pitch * height / sizeof(T);
+
+			allocated = true;
 		}
 
         camImage<T>& operator=(const camImage<T>& i){
-            data = i.data;
-            pitch = i.pitch;
+			CopyFrom(i.data, i.pitch, i.width, i.height);
             channels = i.channels;
-            width = i.width;
-            height = i.height;
             R = i.R;
             t = i.t;
             return *this;
         }
 
         ~camImage(){
-            delete[] data;
+			if (allocated) {
+				delete[] data;
+				data = nullptr;
+			}
         }
+
+    private:
+        bool allocated;
     };
 
     // Reference and sensor views stored in float format
@@ -83,7 +120,7 @@ public:
     PlaneSweep();
     ~PlaneSweep ();
 
-    camImage<float>& RunAlgorithm(int argc, char **argv);
+    bool RunAlgorithm(int argc, char **argv);
 
     // Setters:
     void setK(double Km[][3]){ arrayToMatrix(Km, K); invertK(); }

@@ -6,6 +6,7 @@
 #include <QBuffer>
 #include <boost/numeric/ublas/assignment.hpp>
 #include <QPixmap>
+#include <QColor>
 
 PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     QMainWindow (parent),
@@ -133,29 +134,25 @@ void PCLViewer::LoadImages()
             0.095507, -0.833589, -0.544067, -0.250995,
             -0.0881887, 0.53733, -0.838748, 0.796756;
 
-    QImage im;
-    im = refim.convertToFormat(QImage::Format_Grayscale8);
-    ps.HostRef8u.setSize(im.width(), im.height(), 0);
-    ps.HostRef8u.data = im.bits();
+    refgray = refim.convertToFormat(QImage::Format_Grayscale8);
+    ps.HostRef8u.CopyFrom(refgray.constBits(), refgray.bytesPerLine(), refgray.width(), refgray.height());
     ps.CmatrixToRT(Cr, ps.HostRef8u.R, ps.HostRef8u.t);
 
     QString src;
-    QImage isrc[9];
+	sources.resize(9);
     ps.HostSrc8u.resize(9);
-    for (int i = 1; i < 10; i++){
+    for (int i = 0; i < 9; i++){
         src = QDir::currentPath();
         src += loc;
-        src += QString::number(i);
+        src += QString::number(i + 1);
         src += ".png";
-        isrc[i-1].load(src);
-        isrc[i-1] = isrc[i-1].convertToFormat(QImage::Format_Grayscale8);
-        ps.HostSrc8u[i-1].setSize(isrc[i-1].width(), isrc[i-1].height(), 0);
-        ps.HostSrc8u[i-1].data = isrc[i-1].bits();
-        ps.CmatrixToRT(C[i-1], ps.HostSrc8u[i-1].R, ps.HostSrc8u[i-1].t);
+        sources[i].load(src);
+        sources[i] = sources[i].convertToFormat(QImage::Format_Grayscale8);
+        ps.HostSrc8u[i].CopyFrom(sources[i].constBits(), sources[i].bytesPerLine(), sources[i].width(), sources[i].height());
+        ps.CmatrixToRT(C[i], ps.HostSrc8u[i].R, ps.HostSrc8u[i].t);
     }
 
     ps.Convert8uTo32f(argc, argv);
-
 }
 
 PCLViewer::~PCLViewer ()
@@ -166,32 +163,32 @@ PCLViewer::~PCLViewer ()
 
 void PCLViewer::on_pushButton_pressed()
 {
-    depth = ps.RunAlgorithm(argc, argv);
+	if (ps.RunAlgorithm(argc, argv)){
+		depth = *ps.getDepthmap();
+        for (int i = 0; i < depth.width; i++){
+            std::cout << (int)depth.data[depth.width*200 + i] << " ";
+        }
+        std::cout << std::endl;
+		// The number of points in the cloud
+		cloud->points.resize(depth.width * depth.height);
 
-    // Setup the cloud pointer
-    cloud.reset (new PointCloudT);
-    // The number of points in the cloud
-    cloud->points.resize (depth.width * depth.height);
+		QColor c;
 
-    // The default color
-    red   = 128;
-    green = 128;
-    blue  = 128;
+		// Fill the cloud with some points
+		for (size_t i = 0; i < cloud->points.size(); ++i)
+		{
+			cloud->points[i].x = i % depth.width;
+			cloud->points[i].y = depth.width - floor(i / depth.width); // correct for different y orientations (+ve down in matrices, up in PCL)
+			cloud->points[i].z = depth.data[i];
 
-    // Fill the cloud with some points
-    for (size_t i = 0; i < cloud->points.size (); ++i)
-    {
-        cloud->points[i].x = i % depth.width;
-        cloud->points[i].y = floor(i / depth.width);
-        cloud->points[i].z = depth.data[i];
+			c = refim.pixel(i%depth.width, i / depth.width);
+			cloud->points[i].r = c.red();
+			cloud->points[i].g = c.green();
+			cloud->points[i].b = c.blue();
+		}
 
-        cloud->points[i].r = red;
-        cloud->points[i].g = green;
-        cloud->points[i].b = blue;
-    }
-
-    viewer->addPointCloud (cloud, "cloud");
-    pSliderValueChanged (2);
-    viewer->resetCamera ();
-    ui->qvtkWidget->update ();
+		viewer->updatePointCloud(cloud, "cloud");
+		viewer->resetCamera();
+		ui->qvtkWidget->update();
+	}
 }
