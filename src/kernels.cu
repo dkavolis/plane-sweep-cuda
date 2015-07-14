@@ -118,6 +118,72 @@ __global__ void calculate_STD_kernel(float * __restrict__ d_std, const float * _
     }
 }
 
+__global__ void set_value_kernel(float * __restrict__ d_output, const float value, const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        d_output[ind] = value;
+    }
+}
+
+__global__ void element_multiply_kernel(float * __restrict__ d_output, const float * __restrict__ d_input1,
+                                   const float * __restrict__ d_input2,
+                                   const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        d_output[ind] = d_input1[ind] * d_input2[ind];
+    }
+}
+
+__global__ void element_rdivide_kernel(float * __restrict__ d_output, const float * __restrict__ d_input1,
+                                  const float * __restrict__ d_input2,
+                                  const int width, const int height, const float QNaN)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        if (d_input2[ind] != 0) d_output[ind] = d_input1[ind] / d_input2[ind];
+        else d_output[ind] = QNaN;
+    }
+}
+
+__global__ void convert_float_to_uchar_kernel(unsigned char * __restrict__ d_output, const float * __restrict__ d_input,
+                                         const float min, const float max,
+                                         const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+
+        if (max == min) d_output[ind] = (unsigned char)(UCHAR_MAX / 2);
+        else {
+            if (min > max){
+                if (d_input[ind] > min) d_output[ind] = UCHAR_MAX;
+                else if (d_input[ind] < max) d_output[ind] = NULL;
+                else if (d_input[ind] == d_input[ind]) d_output[ind] = (unsigned char)(UCHAR_MAX * (d_input[ind] - max) / (min - max));
+                else d_output[ind] = UCHAR_MAX;
+            }
+            else {
+                if (d_input[ind] > max) d_output[ind] = UCHAR_MAX;
+                else if (d_input[ind] < min) d_output[ind] = NULL;
+                else if (d_input[ind] == d_input[ind]) d_output[ind] = (unsigned char)(UCHAR_MAX * (d_input[ind] - min) / (max - min));
+                else d_output[ind] = UCHAR_MAX;
+            }
+        }
+    }
+}
+
 void affine_transform_indexes(float * d_x, float *  d_y,
                               const float h11, const float h12, const float h13,
                               const float h21, const float h22, const float h23,
@@ -187,4 +253,39 @@ void calculate_STD(float * d_std, const float * d_mean,
                                               d_mean_of_squares,
                                               width, height);
     checkCudaErrors(cudaPeekAtLastError() );
+}
+
+void set_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads)
+{
+    set_value_kernel<<<blocks, threads>>>(d_output, value, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void element_multiply(float * d_output, const float * d_input1,
+                      const float * d_input2,
+                      const int width, const int height,
+                      dim3 blocks, dim3 threads)
+{
+    element_multiply_kernel<<<blocks, threads>>>(d_output, d_input1, d_input2,
+                                                 width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void element_rdivide(float * d_output, const float * d_input1,
+                     const float * d_input2,
+                     const int width, const int height,
+                     dim3 blocks, dim3 threads)
+{
+    const float QNan = std::numeric_limits<float>::quiet_NaN();
+    element_rdivide_kernel<<<blocks, threads>>>(d_output, d_input1, d_input2, width, height, QNan);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void convert_float_to_uchar(unsigned char * d_output, const float * d_input,
+                            const float min, const float max,
+                            const int width, const int height,
+                            dim3 blocks, dim3 threads)
+{
+    convert_float_to_uchar_kernel<<<blocks, threads>>>(d_output, d_input, min, max, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
 }

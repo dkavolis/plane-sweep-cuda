@@ -50,8 +50,8 @@ void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output);
 template <typename T> // T models Any
 struct static_cast_func
 {
-  template <typename T1> // T1 models type statically convertible to T
-  T operator()(const T1& x) const { return static_cast<T>(x); }
+    template <typename T1> // T1 models type statically convertible to T
+    T operator()(const T1& x) const { return static_cast<T>(x); }
 };
 
 int PlaneSweep::cudaDevInit(int argc, const char **argv)
@@ -120,233 +120,217 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
 
     printf("Starting plane sweep algorithm...\n\n");
 
-        try
+    try
+    {
+        if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
         {
-            if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
-            {
-                cudaDeviceReset();
-                return false;
-            }
-
-            if (printfNPPinfo() == false)
-            {
-                cudaDeviceReset();
-                return false;
-            }
-
-            // Algorithm here:-------------------------------------
-
-            // Move reference image to device memory
-            NppiSize imSize={(int)HostRef.width, (int)HostRef.height};
-            npp::ImageNPP_32f_C1 deviceRef(imSize.width, imSize.height);
-            deviceRef.copyFrom(HostRef.data, HostRef.pitch);
-            float * temp = new float [imSize.height * imSize.width];
-            uchar * temp8u = new uchar [imSize.height * imSize.width];
-
-            dim3 threads(32,32);
-            dim3 blocks(ceil(imSize.width/(float)threads.x), ceil(imSize.height/(float)threads.y));
-            printf(" blocks x=%d, y=%d; threads x=%d, y=%d\n", blocks.x, blocks.y, threads.x, threads.y);
-
-            // Create summation kernel on host memory
-            Npp32f* hostKernel = new Npp32f [winsize];
-            for (int i = 0; i < winsize; i++) {
-                hostKernel[i] = 1.f / winsize;
-            }
-
-            // Transfer the kernel to device memory
-            Npp32f* pKernel; //just a regular 1D array on the GPU
-            NPP_CHECK_CUDA(cudaMalloc((void**)&pKernel, winsize * sizeof(Npp32f)));
-            NPP_CHECK_CUDA(cudaMemcpy(pKernel, hostKernel, winsize * sizeof(Npp32f), cudaMemcpyHostToDevice));
-
-            // Create images on the device to hold windowed mean and std for reference image + intermediate images
-            // and calculate the images
-            npp::ImageNPP_32f_C1 deviceRefmean(imSize.width, imSize.height);
-            npp::ImageNPP_32f_C1 deviceRefstd(imSize.width, imSize.height);
-            npp::ImageNPP_32f_C1 devInter1(imSize.width, imSize.height); // intermediate image, will hold square of means in this computation
-            WindowedMean32f(deviceRef, winsize, pKernel, deviceRefmean); // windowed mean
-            WindowedMeanSquares32f(deviceRef, winsize, pKernel, devInter1); // mean of squares
-            calculate_STD(deviceRefstd.data(), deviceRefmean.data(),
-                          devInter1.data(), imSize.width, imSize.height, blocks, threads);
-
-            // calculate depth step size:
-            float dstep = (zfar - znear) / (numberplanes - 1);
-
-            // Create images to hold depthmap values and number of times it exceeded NCC threshold
-            npp::ImageNPP_32f_C1 devDepthmap(imSize.width, imSize.height);
-            npp::ImageNPP_32f_C1 devN(imSize.width, imSize.height);
-            npp::ImageNPP_8u_C1 devN8u(imSize.width, imSize.height);
-            npp::ImageNPP_8u_C1 devAbovethresh(imSize.width, imSize.height); // intermediate image for values above threshold
-            npp::ImageNPP_8u_C1 devAbovethreshRef(imSize.width, imSize.height); // reference std values above threshold
-
-            // set count to 0
-            NPP_CHECK_NPP(nppiSet_8u_C1R(0, devN8u.data(), devN8u.pitch(), imSize));
-            NPP_CHECK_NPP(nppiSet_32f_C1R(0.f, devN.data(), devN.pitch(), imSize));
-
-            // set depthmap values to 0
-            NPP_CHECK_NPP(nppiSet_32f_C1R(0.f, devDepthmap.data(), devDepthmap.pitch(), imSize));
-
-            // Create image to store current source view
-            npp::ImageNPP_32f_C1 devSrc(imSize.width, imSize.height);
-
-            // Create matrices to hold homography and relative rotation and transformation
-            ublas::matrix<double> H(3,3), Rrel(3,3), trel(3,1);
-
-            // Store and calculate inverse reference rotation matrix
-            ublas::matrix<double> invR(3,3);
-            InvertMatrix(HostRef.R, invR);
-
-            // Create intermediate images to store current NCC, best NCC and current depthmap
-            npp::ImageNPP_32f_C1 devNCC(imSize.width, imSize.height);
-            npp::ImageNPP_32f_C1 devbestNCC(imSize.width, imSize.height);
-            npp::ImageNPP_32f_C1 devDepth(imSize.width, imSize.height);
-
-            // Create images of x and y indexes of undistorted image
-            npp::ImageNPP_32f_C1 devX(imSize.width, imSize.height);
-            npp::ImageNPP_32f_C1 devY(imSize.width, imSize.height);
-
-            // Create images to store x and y indexes after transformation
-            npp::ImageNPP_32f_C1 devx(imSize.width, imSize.height);
-            npp::ImageNPP_32f_C1 devy(imSize.width, imSize.height);
-
-            // Create image to hold pixel values after transformation
-            npp::ImageNPP_32f_C1 devWarped(imSize.width, imSize.height);
-
-            for (int i = 0; i < std::min(std::max((int)numberimages, 1), (int)HostSrc.size()); i++){
-
-                // Copy source view to device
-                devSrc.copyFrom(HostSrc[i].data, HostSrc[i].pitch);
-
-                // Reset best ncc and depthmap
-                NPP_CHECK_NPP(nppiSet_32f_C1R(0.f, devbestNCC.data(), devbestNCC.pitch(), imSize));
-                NPP_CHECK_NPP(nppiSet_32f_C1R(0.f, devDepth.data(), devDepth.pitch(), imSize));
-
-                // Calculate relative rotation and translation:
-                Rrel = prod(HostSrc[i].R, invR);
-                trel = HostSrc[i].t - prod(Rrel, HostRef.t);
-
-                // For each depth calculate NCC and update depthmap as required
-                for (float d = znear; d <= zfar; d += dstep){
-
-                    // Calculate homography:
-                    H = Rrel + prod(trel, trans(n)) / d;
-                    H = prod(K, H);
-                    H = prod(H, invK);
-                    H = H / H(2,2);
-
-                    // Calculate transformed pixel coordinates
-                    affine_transform_indexes(devx.data(), devy.data(),
-                                             H(0,0), H(0,1), H(0,2),
-                                             H(1,0), H(1,1), H(1,2),
-                                             imSize.width, imSize.height, blocks, threads);
-
-                    // interpolate pixel values:
-                    bilinear_interpolation(devWarped.data(), devSrc.data(),
-                                           devx.data(), devy.data(),
-                                           devSrc.width(), devSrc.height(),
-                                           devx.width(), devx.height(),
-                                           blocks, threads);
-
-
-                    // We have no more use for devx and devy, we can use them to store intermediate results now
-                    // devx - will hold windowed mean of warped image
-                    // devy - will hold windowed std of warped image
-                    WindowedMean32f(devWarped, winsize, pKernel, devx); // windowed mean
-                    WindowedMeanSquares32f(devWarped, winsize, pKernel, devInter1); // mean of squares
-                    calculate_STD(devy.data(), devx.data(), devInter1.data(),
-                                  imSize.width, imSize.height, blocks, threads);
-
-//                    int y = 100;
-//                    devy.copyTo(temp, imSize.width*4);
-//                    for (int i = 0; i < imSize.height; i++) printf("x = %d, y = %d, val = %f\n", y, i+1, temp[(i)*imSize.width + y-1]);
-
-                    // calculate NCC for each window which is given by
-                    // NCC = (mean of products - product of means) / product of standard deviations
-                    Product32f(deviceRef, devWarped, devInter1); // element wise multiplication
-                    WindowedMean32f(devInter1, winsize, pKernel, devWarped); // windowed mean of products
-                    calcNCC(devNCC.data(), devWarped.data(),
-                            deviceRefmean.data(), devx.data(),
-                            deviceRefstd.data(), devy.data(),
-                            stdthresh, stdthresh,
-                            imSize.width, imSize.height,
-                            blocks, threads);
-
-                    // only keep depth and bestncc values for which best ncc is greater than current
-                    // set other values to current ncc and depth
-                    update_arrays(devDepth.data(), devbestNCC.data(),
-                                  devNCC.data(), d, imSize.width, imSize.height,
-                                  blocks, threads);
-
-                }
-
-                // Sum depth results for later averaging
-                    sum_depthmap_NCC(devDepthmap.data(), devN.data(),
-                                     devDepth.data(), devbestNCC.data(),
-                                     nccthresh, imSize.width, imSize.height,
-                                     blocks, threads);
-            }
-
-
-            // Convert uchar image to float so we can perform calculations with it
-
-            // Calculate averaged depthmap and copy it to host
-            RDivide32f(devDepthmap, devN, devDepthmap);
-            devDepthmap.copyTo(depthmap.data, depthmap.pitch);
-
-            NPP_CHECK_NPP(nppiConvert_32f8u_C1R(devDepthmap.data(), devDepthmap.pitch(), devN8u.data(), devN8u.pitch(), imSize, NPP_RND_NEAR));
-            devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
-
-            // Free up resources
-            nppiFree(deviceRef.data());
-            nppiFree(deviceRefmean.data());
-            nppiFree(deviceRefstd.data());
-            nppiFree(devInter1.data());
-            nppiFree(devDepthmap.data());
-            nppiFree(devN.data());
-            nppiFree(devN8u.data());
-            nppiFree(devAbovethresh.data());
-            nppiFree(devSrc.data());
-            nppiFree(devNCC.data());
-            nppiFree(devbestNCC.data());
-            nppiFree(devDepth.data());
-            nppiFree(devX.data());
-            nppiFree(devY.data());
-            nppiFree(devx.data());
-            nppiFree(devy.data());
-            nppiFree(devWarped.data());
-            nppiFree(devAbovethreshRef.data());
-            checkCudaErrors(cudaFree(pKernel));
-            delete[] hostKernel;
-            delete[] temp;
-            delete[] temp8u;
-
-            //-----------------------------------------------------
-
-            auto t2 = std::chrono::high_resolution_clock::now();
-            std::cout << "Time taken for the algorithm to complete is " <<
-                         std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
-
-            cudaDeviceReset();
-            return true;
-
-        }
-        catch (npp::Exception &rExcep)
-        {
-            std::cerr << "Program error! The following exception occurred: \n";
-            std::cerr << rExcep << std::endl;
-            std::cerr << "Aborting." << std::endl;
-
             cudaDeviceReset();
             return false;
         }
-        catch (...)
-        {
-            std::cerr << "Program error! An unknow type of exception occurred. \n";
-            std::cerr << "Aborting." << std::endl;
 
+        if (printfNPPinfo() == false)
+        {
             cudaDeviceReset();
             return false;
-
         }
+
+        // Algorithm here:-------------------------------------
+
+        // Move reference image to device memory
+        NppiSize imSize={(int)HostRef.width, (int)HostRef.height};
+        npp::ImageNPP_32f_C1 deviceRef(imSize.width, imSize.height);
+        deviceRef.copyFrom(HostRef.data, HostRef.pitch);
+        float * temp = new float [imSize.height * imSize.width];
+
+        dim3 threads(32,32);
+        dim3 blocks(ceil(imSize.width/(float)threads.x), ceil(imSize.height/(float)threads.y));
+
+        // Create summation kernel on host memory
+        Npp32f* hostKernel = new Npp32f [winsize];
+        for (int i = 0; i < winsize; i++) {
+            hostKernel[i] = 1.f / winsize;
+        }
+
+        // Transfer the kernel to device memory
+        Npp32f* pKernel; //just a regular 1D array on the GPU
+        NPP_CHECK_CUDA(cudaMalloc((void**)&pKernel, winsize * sizeof(Npp32f)));
+        NPP_CHECK_CUDA(cudaMemcpy(pKernel, hostKernel, winsize * sizeof(Npp32f), cudaMemcpyHostToDevice));
+
+        // Create images on the device to hold windowed mean and std for reference image + intermediate images
+        // and calculate the images
+        npp::ImageNPP_32f_C1 deviceRefmean(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 deviceRefstd(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devInter1(imSize.width, imSize.height); // intermediate image, will hold square of means in this computation
+        WindowedMean32f(deviceRef, winsize, pKernel, deviceRefmean); // windowed mean
+        WindowedMeanSquares32f(deviceRef, winsize, pKernel, devInter1); // mean of squares
+        calculate_STD(deviceRefstd.data(), deviceRefmean.data(),
+                      devInter1.data(), imSize.width, imSize.height, blocks, threads);
+
+        // calculate depth step size:
+        float dstep = (zfar - znear) / (numberplanes - 1);
+
+        // Create images to hold depthmap values and number of times it exceeded NCC threshold
+        npp::ImageNPP_32f_C1 devDepthmap(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devN(imSize.width, imSize.height);
+        npp::ImageNPP_8u_C1 devN8u(imSize.width, imSize.height);
+
+        // set count to 0
+        set_value(devN.data(), 0.f, imSize.width, imSize.height, blocks, threads);
+
+        // set depthmap values to 0
+        set_value(devDepthmap.data(), 0.f, imSize.width, imSize.height, blocks, threads);
+
+        // Create image to store current source view
+        npp::ImageNPP_32f_C1 devSrc(imSize.width, imSize.height);
+
+        // Create matrices to hold homography and relative rotation and transformation
+        ublas::matrix<double> H(3,3), Rrel(3,3), trel(3,1);
+
+        // Store and calculate inverse reference rotation matrix
+        ublas::matrix<double> invR(3,3);
+        InvertMatrix(HostRef.R, invR);
+
+        // Create intermediate images to store current NCC, best NCC and current depthmap
+        npp::ImageNPP_32f_C1 devNCC(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devbestNCC(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devDepth(imSize.width, imSize.height);
+
+        // Create images to store x and y indexes after transformation
+        npp::ImageNPP_32f_C1 devx(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devy(imSize.width, imSize.height);
+
+        // Create image to hold pixel values after transformation
+        npp::ImageNPP_32f_C1 devWarped(imSize.width, imSize.height);
+
+        for (int i = 0; i < std::min(std::max((int)numberimages, 1), (int)HostSrc.size()); i++){
+
+            // Copy source view to device
+            devSrc.copyFrom(HostSrc[i].data, HostSrc[i].pitch);
+
+            // Reset best ncc and depthmap
+            set_value(devbestNCC.data(), 0.f, imSize.width, imSize.height, blocks, threads);
+            set_value(devDepth.data(), 0.f, imSize.width, imSize.height, blocks, threads);
+
+            // Calculate relative rotation and translation:
+            Rrel = prod(HostSrc[i].R, invR);
+            trel = HostSrc[i].t - prod(Rrel, HostRef.t);
+
+            // For each depth calculate NCC and update depthmap as required
+            for (float d = znear; d <= zfar; d += dstep){
+
+                // Calculate homography:
+                H = Rrel + prod(trel, trans(n)) / d;
+                H = prod(K, H);
+                H = prod(H, invK);
+                H = H / H(2,2);
+
+                // Calculate transformed pixel coordinates
+                affine_transform_indexes(devx.data(), devy.data(),
+                                         H(0,0), H(0,1), H(0,2),
+                                         H(1,0), H(1,1), H(1,2),
+                                         imSize.width, imSize.height, blocks, threads);
+
+                // interpolate pixel values:
+                bilinear_interpolation(devWarped.data(), devSrc.data(),
+                                       devx.data(), devy.data(),
+                                       devSrc.width(), devSrc.height(),
+                                       devx.width(), devx.height(),
+                                       blocks, threads);
+
+
+                // We have no more use for devx and devy, we can use them to store intermediate results now
+                // devx - will hold windowed mean of warped image
+                // devy - will hold windowed std of warped image
+                WindowedMean32f(devWarped, winsize, pKernel, devx); // windowed mean
+                WindowedMeanSquares32f(devWarped, winsize, pKernel, devInter1); // mean of squares
+                calculate_STD(devy.data(), devx.data(), devInter1.data(),
+                              imSize.width, imSize.height, blocks, threads);
+
+                // calculate NCC for each window which is given by
+                // NCC = (mean of products - product of means) / product of standard deviations
+                element_multiply(devInter1.data(), deviceRef.data(), devWarped.data(), imSize.width, imSize.height, blocks, threads);
+                WindowedMean32f(devInter1, winsize, pKernel, devWarped); // windowed mean of products
+                calcNCC(devNCC.data(), devWarped.data(),
+                        deviceRefmean.data(), devx.data(),
+                        deviceRefstd.data(), devy.data(),
+                        stdthresh, stdthresh,
+                        imSize.width, imSize.height,
+                        blocks, threads);
+
+                // only keep depth and bestncc values for which best ncc is greater than current
+                // set other values to current ncc and depth
+                update_arrays(devDepth.data(), devbestNCC.data(),
+                              devNCC.data(), d, imSize.width, imSize.height,
+                              blocks, threads);
+
+            }
+
+            // Sum depth results for later averaging
+            sum_depthmap_NCC(devDepthmap.data(), devN.data(),
+                             devDepth.data(), devbestNCC.data(),
+                             nccthresh, imSize.width, imSize.height,
+                             blocks, threads);
+        }
+
+        // Calculate averaged depthmap and copy it to host
+        element_rdivide(devDepthmap.data(), devDepthmap.data(), devN.data(), imSize.width, imSize.height, blocks, threads);
+        devDepthmap.copyTo(depthmap.data, depthmap.pitch);
+        convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
+        devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
+        printf("%d pitch, %d width, %d height, %f znear, %f zfar, %d imwidth, %d imheight\n", depthmap8u.pitch, depthmap8u.width,
+               depthmap8u.height, znear, zfar, imSize.width, imSize.height);
+        int y = 100;
+        //devDepthmap.copyTo(temp, imSize.width*4);
+        for (int i = 0; i < imSize.height; i++) printf("x = %d, y = %d, val uchar = %d, val float = %f\n",
+                                                       y, i+1, depthmap8u.data[(i)*imSize.width + y-1], depthmap.data[(i)*imSize.width + y-1]);
+
+        // Free up resources
+        nppiFree(deviceRef.data());
+        nppiFree(deviceRefmean.data());
+        nppiFree(deviceRefstd.data());
+        nppiFree(devInter1.data());
+        nppiFree(devDepthmap.data());
+        nppiFree(devN.data());
+        nppiFree(devN8u.data());
+        nppiFree(devSrc.data());
+        nppiFree(devNCC.data());
+        nppiFree(devbestNCC.data());
+        nppiFree(devDepth.data());
+        nppiFree(devx.data());
+        nppiFree(devy.data());
+        nppiFree(devWarped.data());
+        checkCudaErrors(cudaFree(pKernel));
+        delete[] hostKernel;
+        delete[] temp;
+
+        //-----------------------------------------------------
+
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::cout << "Time taken for the algorithm to complete is " <<
+                     std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+
+        cudaDeviceReset();
+        return true;
+
+    }
+    catch (npp::Exception &rExcep)
+    {
+        std::cerr << "Program error! The following exception occurred: \n";
+        std::cerr << rExcep << std::endl;
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return false;
+    }
+    catch (...)
+    {
+        std::cerr << "Program error! An unknow type of exception occurred. \n";
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return false;
+
+    }
     return false;
 }
 
@@ -355,82 +339,82 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
     auto t1 = std::chrono::high_resolution_clock::now();
     printf("Starting conversion...\n\n");
 
-        try
+    try
+    {
+
+        if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
         {
+            cudaDeviceReset();
+            return;
+        }
 
-            if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
-            {
-                cudaDeviceReset();
-                return;
-            }
+        if (printfNPPinfo() == false)
+        {
+            cudaDeviceReset();
+            return;
+        }
+        // Algorithm here:-------------------------------------
 
-            if (printfNPPinfo() == false)
-            {
-                cudaDeviceReset();
-                return;
-            }
-            // Algorithm here:-------------------------------------
+        int w = HostRef8u.width;
+        int h = HostRef8u.height;
 
-            int w = HostRef8u.width;
-            int h = HostRef8u.height;
+        // Create 32f and 8u device images
+        npp::ImageNPP_8u_C1 im8u(w, h);
+        npp::ImageNPP_32f_C1 im32f(w, h);
 
-            // Create 32f and 8u device images
-            npp::ImageNPP_8u_C1 im8u(w, h);
-            npp::ImageNPP_32f_C1 im32f(w, h);
+        // convert reference image
+        HostRef.setSize(w,h);
+        im8u.copyFrom(HostRef8u.data, HostRef8u.pitch);
+        Conversion8u32f(im8u, im32f);
+        im32f.copyTo(HostRef.data, HostRef.pitch);
+        HostRef.R = HostRef8u.R;
+        HostRef.t = HostRef8u.t;
 
-            // convert reference image
-            HostRef.setSize(w,h);
-            im8u.copyFrom(HostRef8u.data, HostRef8u.pitch);
+        HostSrc.resize(HostSrc8u.size());
+
+        // convert source views
+        for (int i = 0; i < HostSrc8u.size(); i++){
+            HostSrc[i].setSize(w, h);
+            im8u.copyFrom(HostSrc8u[i].data, HostSrc8u[i].pitch);
             Conversion8u32f(im8u, im32f);
-            im32f.copyTo(HostRef.data, HostRef.pitch);
-            HostRef.R = HostRef8u.R;
-            HostRef.t = HostRef8u.t;
-
-            HostSrc.resize(HostSrc8u.size());
-
-            // convert source views
-            for (int i = 0; i < HostSrc8u.size(); i++){
-                HostSrc[i].setSize(w, h);
-                im8u.copyFrom(HostSrc8u[i].data, HostSrc8u[i].pitch);
-                Conversion8u32f(im8u, im32f);
-                im32f.copyTo(HostSrc[i].data, HostSrc[i].pitch);
-                HostSrc[i].R = HostSrc8u[i].R;
-                HostSrc[i].t = HostSrc8u[i].t;
-
-            }
-
-            auto t2 = std::chrono::high_resolution_clock::now();
-            std::cout << "Time taken for the conversion to complete is " <<
-                         std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
-
-            // Free up resources
-            nppiFree(im8u.data());
-            nppiFree(im32f.data());
-
-            //-----------------------------------------------------
-
-            cudaDeviceReset();
-            return;
+            im32f.copyTo(HostSrc[i].data, HostSrc[i].pitch);
+            HostSrc[i].R = HostSrc8u[i].R;
+            HostSrc[i].t = HostSrc8u[i].t;
 
         }
-        catch (npp::Exception &rExcep)
-        {
-            std::cerr << "Program error! The following exception occurred: \n";
-            std::cerr << rExcep << std::endl;
-            std::cerr << "Aborting." << std::endl;
 
-            cudaDeviceReset();
-            return;
-        }
-        catch (...)
-        {
-            std::cerr << "Program error! An unknow type of exception occurred. \n";
-            std::cerr << "Aborting." << std::endl;
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::cout << "Time taken for the conversion to complete is " <<
+                     std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-            cudaDeviceReset();
-            return;
+        // Free up resources
+        nppiFree(im8u.data());
+        nppiFree(im32f.data());
 
-        }
+        //-----------------------------------------------------
+
+        cudaDeviceReset();
+        return;
+
+    }
+    catch (npp::Exception &rExcep)
+    {
+        std::cerr << "Program error! The following exception occurred: \n";
+        std::cerr << rExcep << std::endl;
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return;
+    }
+    catch (...)
+    {
+        std::cerr << "Program error! An unknow type of exception occurred. \n";
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return;
+
+    }
 }
 
 void PlaneSweep::invertK()
@@ -454,9 +438,9 @@ void PlaneSweep::invertK()
 
 /* Matrix inversion routine.
     Uses lu_factorize and lu_substitute in uBLAS to invert a matrix */
- template<class T>
- bool PlaneSweep::InvertMatrix (const ublas::matrix<T>& input, ublas::matrix<T>& inverse)
- {
+template<class T>
+bool PlaneSweep::InvertMatrix (const ublas::matrix<T>& input, ublas::matrix<T>& inverse)
+{
     using namespace boost::numeric::ublas;
     typedef permutation_matrix<std::size_t> pmatrix;
     // create a working copy of the input
@@ -466,7 +450,7 @@ void PlaneSweep::invertK()
 
     // perform LU-factorization
     int res = lu_factorize(A,pm);
-        if( res != 0 ) return false;
+    if( res != 0 ) return false;
 
     // create identity matrix of "inverse"
     inverse.assign(ublas::identity_matrix<T>(A.size1()));
@@ -475,28 +459,28 @@ void PlaneSweep::invertK()
     lu_substitute(A, pm, inverse);
 
     return true;
- }
+}
 
- void PlaneSweep::CtoRT(double C[][4], ublas::matrix<double> &R, ublas::matrix<double> &t)
- {
-     R.resize(3,3);
-     for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) R(i,j) = C[i][j];
-     t.resize(3,1);
-     t(0,0) = C[0][3];
-     t(1,0) = C[1][3];
-     t(2,0) = C[2][3];
- }
+void PlaneSweep::CtoRT(double C[][4], ublas::matrix<double> &R, ublas::matrix<double> &t)
+{
+    R.resize(3,3);
+    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) R(i,j) = C[i][j];
+    t.resize(3,1);
+    t(0,0) = C[0][3];
+    t(1,0) = C[1][3];
+    t(2,0) = C[2][3];
+}
 
- void PlaneSweep::CmatrixToRT(ublas::matrix<double> &C, ublas::matrix<double> &R, ublas::matrix<double> &t)
- {
-     R.resize(3,3);
-     t.resize(3,1);
+void PlaneSweep::CmatrixToRT(ublas::matrix<double> &C, ublas::matrix<double> &R, ublas::matrix<double> &t)
+{
+    R.resize(3,3);
+    t.resize(3,1);
 
-     t <<= C(0,3), C(1,3), C(2,3);
-     R <<= C(0,0), C(0,1), C(0,2),
-             C(1,0), C(1,1), C(1,2),
-             C(2,0), C(2,1), C(2,2);
- }
+    t <<= C(0,3), C(1,3), C(2,3);
+    R <<= C(0,0), C(0,1), C(0,2),
+            C(1,0), C(1,1), C(1,2),
+            C(2,0), C(2,1), C(2,2);
+}
 
 PlaneSweep::~PlaneSweep()
 {
@@ -509,9 +493,9 @@ void WindowedMean32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsize, Npp3
     NppiSize oSizeROI = {(int)input.width(), (int)input.height()};
     NppiPoint oSrcOffset = {0, 0};
     NPP_CHECK_NPP(nppiFilterColumnBorder_32f_C1R(input.data(), input.pitch(),
-                                                oSrcSize, oSrcOffset,
-                                                output.data(), output.pitch(),
-                                                oSizeROI, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
+                                                 oSrcSize, oSrcOffset,
+                                                 output.data(), output.pitch(),
+                                                 oSizeROI, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
 
     NPP_CHECK_NPP(nppiFilterRowBorder_32f_C1R(output.data(), output.pitch(),
                                               oSrcSize, oSrcOffset,
@@ -525,9 +509,9 @@ void WindowedMeanSquares32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsiz
     NppiPoint oSrcOffset = {0, 0};
     NPP_CHECK_NPP(nppiSqr_32f_C1R(input.data(), input.pitch(), output.data(), output.pitch(), oSrcSize));
     NPP_CHECK_NPP(nppiFilterColumnBorder_32f_C1R(output.data(), output.pitch(),
-                                                oSrcSize, oSrcOffset,
-                                                output.data(), output.pitch(),
-                                                oSrcSize, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
+                                                 oSrcSize, oSrcOffset,
+                                                 output.data(), output.pitch(),
+                                                 oSrcSize, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
 
     NPP_CHECK_NPP(nppiFilterRowBorder_32f_C1R(output.data(), output.pitch(),
                                               oSrcSize, oSrcOffset,

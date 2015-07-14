@@ -104,3 +104,34 @@ void calculate_STD(float * d_std, const float * d_mean,
                    const float * d_mean_of_squares,
                    const int width, const int height,
                    dim3 blocks, dim3 threads);
+
+/*------------------------------------------------------------------------
+ * Sets all values in d_output to 'value'
+ * ---------------------------------------------------------------------*/
+void set_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*-----------------------------------------------------------------------
+ * Element wise multiplication
+ * --------------------------------------------------------------------*/
+void element_multiply(float * d_output, const float * d_input1,
+                      const float * d_input2,
+                      const int width, const int height,
+                      dim3 blocks, dim3 threads);
+
+/*-----------------------------------------------------------------------
+ * Element wise divisiont d_input1 ./ d_input2
+ * --------------------------------------------------------------------*/
+void element_rdivide(float * d_output, const float * d_input1,
+                     const float * d_input2,
+                     const int width, const int height,
+                     dim3 blocks, dim3 threads);
+
+/*-----------------------------------------------------------------------
+ * Float to uchar conversion, using bounds
+ * all values below min are set to 0, all above - UCHAR_MAX, rest
+ * are set to UCHAR_MAX * (d_input - min) / (max - min)
+ * --------------------------------------------------------------------*/
+void convert_float_to_uchar(unsigned char *d_output, const float * d_input,
+                            const float min, const float max,
+                            const int width, const int height,
+                            dim3 blocks, dim3 threads);
