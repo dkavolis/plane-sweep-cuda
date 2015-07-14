@@ -76,7 +76,7 @@ void PCLViewer::LoadImages()
     ui->refView->setScene(scene);
 
     double K[3][3] = {
-        {0.709874*640, (1-0.977786)*640, 0.493648},
+        {0.709874*640, (1-0.977786)*640, 0.493648*640},
         {0, 0.945744*480, 0.514782*480},
         {0, 0, 1}
     };
@@ -165,10 +165,10 @@ void PCLViewer::on_pushButton_pressed()
 {
 	if (ps.RunAlgorithm(argc, argv)){
 		depth = *ps.getDepthmap();
-        for (int i = 0; i < depth.width; i++){
-            std::cout << (int)depth.data[depth.width*200 + i] << " ";
-        }
-        std::cout << std::endl;
+//        for (int i = 0; i < depth.width; i++){
+//            std::cout << (int)depth.data[depth.width*200 + i] << " ";
+//        }
+//        std::cout << std::endl;
 		// The number of points in the cloud
 		cloud->points.resize(depth.width * depth.height);
 
@@ -179,7 +179,7 @@ void PCLViewer::on_pushButton_pressed()
 		{
 			cloud->points[i].x = i % depth.width;
 			cloud->points[i].y = depth.width - floor(i / depth.width); // correct for different y orientations (+ve down in matrices, up in PCL)
-			cloud->points[i].z = depth.data[i];
+            cloud->points[i].z = i % depth.width;
 
 			c = refim.pixel(i%depth.width, i / depth.width);
 			cloud->points[i].r = c.red();

@@ -27,13 +27,19 @@ void bilinear_interpolation(float * d_result, const float * d_data,
                             dim3 blocks, dim3 threads);
 
 /*---------------------------------------------------------------------
- * Creates a 2D mesh grid, same as using [x, y] = meshgrid(0:colums-1, 0:rows-1) in MATLAB
- * x and y values are stored in 1D array with indexes equal to y*columns+x
- * x and y must be large enough to store rows * columns elements
- * columns same as width
- * rows same as height
+ * Calculates affine transformation x and y indexes, indexes returned
+ * are 0 based indexed but calculation performed is based on 1 based indexing, i.e.
+ * [x' + 1] = [h11 h12 h13]   [x + 1]
+ * [y' + 1] = [h21 h22 h23] x [y + 1]
+ * [   1  ] = [ 0   0   1 ]   [  1  ]
+ * d_x - output x indexes, 0 based indexing
+ * d_y - output y indexes, 0 based indexing
+ * width and height - dimensions of arrays
  * ------------------------------------------------------------------*/
-void CreateGrid2D(float * d_x, float * d_y, const int columns, const int rows, dim3 blocks, dim3 threads);
+void affine_transform_indexes(float * d_x, float * d_y,
+                              const float h11, const float h12, const float h13,
+                              const float h21, const float h22, const float h23,
+                              const int width, const int height, dim3 blocks, dim3 threads);
 
 /*---------------------------------------------------------------------
  * Calculates NCC given parameters
@@ -44,11 +50,7 @@ void CreateGrid2D(float * d_x, float * d_y, const int columns, const int rows, d
  * d_std2 - std of input data 2
  * stdthresh1 - std threshold of input data 1
  * stdthresh2 - std threshold of input data 2
- * width - width of data
- * height - height of data
- *
- * It is assumed that sizes of all inputs are the same and equal to given
- * width and height.
+ * width and height - dimensions of arrays
  *
  * Formula used:
  * NCC = (mean of producs - product of means) / (std1 * std2)
@@ -56,10 +58,49 @@ void CreateGrid2D(float * d_x, float * d_y, const int columns, const int rows, d
  * If either std is below given threshold, indicating a homogenous region
  * in image processing, NCC is set to 0. This way avoids division by 0.
  * ------------------------------------------------------------------*/
-void calcNCC(float * __restrict__ d_ncc, float * __restrict d_prod_mean,
-             float * __restrict__ d_mean1, float * __restrict__ d_mean2,
-             float * __restrict__ d_std1, float * __restrict__ d_std2,
+void calcNCC(float * __restrict__ d_ncc, const float * __restrict d_prod_mean,
+             const float * __restrict__ d_mean1, const float * __restrict__ d_mean2,
+             const float * __restrict__ d_std1, const float * __restrict__ d_std2,
              const float stdthresh1, const float stdthresh2,
              const int width, const int height,
              dim3 blocks, dim3 threads);
 
+/*------------------------------------------------------------------------
+ * Updates depthmap and best NCC arrays if newly calculated NCC is greater
+ * d_depthmap - output updated depthmap
+ * d_bestncc - output updated best NCC
+ * d_currentncc - input newly calculated NCC
+ * d_currentdepth - depth at which new NCC was calculated
+ * width and height - dimensions of all arrays
+ * ---------------------------------------------------------------------*/
+void update_arrays(float * d_depthmap, float * d_bestncc,
+                   const float * d_currentncc, const float current_depth,
+                   const int width, const int height,
+                   dim3 blocks, dim3 threads);
+
+/*------------------------------------------------------------------------
+ * Adds d_depthmap values to d_depthmap_out and increases count (used later
+ * averaging) if corresponding d_ncc value is greater than nccthreshold
+ * d_depthmap_out - output sum of depthmaps
+ * d_count - output count (how many times ncc was greater than threshold)
+ * d_depthmap - input calculated depthmap
+ * d_ncc - input best ncc
+ * nccthreshold - NCC threshold
+ * width and height - dimensions of arrays
+ *----------------------------------------------------------------------*/
+void sum_depthmap_NCC(float * d_depthmap_out, float * d_count,
+                      const float * d_depthmap, const float * d_ncc,
+                      const float nccthreshold,
+                      const int width, const int height,
+                      dim3 blocks, dim3 threads);
+/*------------------------------------------------------------------------
+ * Calculates STD given mean and mean of squares of data
+ * d_std - output STD values
+ * d_mean - input mean
+ * d_mean_of_squares - input mean of squares
+ * widht and height - dimensions of arrays
+ * ---------------------------------------------------------------------*/
+void calculate_STD(float * d_std, const float * d_mean,
+                   const float * d_mean_of_squares,
+                   const int width, const int height,
+                   dim3 blocks, dim3 threads);

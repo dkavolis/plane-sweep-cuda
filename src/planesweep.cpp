@@ -143,6 +143,10 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
             float * temp = new float [imSize.height * imSize.width];
             uchar * temp8u = new uchar [imSize.height * imSize.width];
 
+            dim3 threads(32,32);
+            dim3 blocks(ceil(imSize.width/(float)threads.x), ceil(imSize.height/(float)threads.y));
+            printf(" blocks x=%d, y=%d; threads x=%d, y=%d\n", blocks.x, blocks.y, threads.x, threads.y);
+
             // Create summation kernel on host memory
             Npp32f* hostKernel = new Npp32f [winsize];
             for (int i = 0; i < winsize; i++) {
@@ -160,12 +164,9 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
             npp::ImageNPP_32f_C1 deviceRefstd(imSize.width, imSize.height);
             npp::ImageNPP_32f_C1 devInter1(imSize.width, imSize.height); // intermediate image, will hold square of means in this computation
             WindowedMean32f(deviceRef, winsize, pKernel, deviceRefmean); // windowed mean
-            WindowedMeanSquares32f(deviceRef, winsize, pKernel, deviceRefstd); // mean of squares
-            Product32f(deviceRefmean, deviceRefmean, devInter1);   // square of means
-            Difference32f(deviceRefstd, devInter1, deviceRefstd); // variance        
-            // this variance computation method is quite unstable, therefore we have to check for negative values
-            Positive32f(deviceRefstd, deviceRefstd); // set all negative variance values to 0
-            SQRT32f(deviceRefstd, deviceRefstd); // standard deviation
+            WindowedMeanSquares32f(deviceRef, winsize, pKernel, devInter1); // mean of squares
+            calculate_STD(deviceRefstd.data(), deviceRefmean.data(),
+                          devInter1.data(), imSize.width, imSize.height, blocks, threads);
 
             // calculate depth step size:
             float dstep = (zfar - znear) / (numberplanes - 1);
@@ -177,11 +178,9 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
             npp::ImageNPP_8u_C1 devAbovethresh(imSize.width, imSize.height); // intermediate image for values above threshold
             npp::ImageNPP_8u_C1 devAbovethreshRef(imSize.width, imSize.height); // reference std values above threshold
 
-            // find all reference std values above threshold
-            GreaterEqualC32f(deviceRefstd, stdthresh, devAbovethreshRef);
-
             // set count to 0
             NPP_CHECK_NPP(nppiSet_8u_C1R(0, devN8u.data(), devN8u.pitch(), imSize));
+            NPP_CHECK_NPP(nppiSet_32f_C1R(0.f, devN.data(), devN.pitch(), imSize));
 
             // set depthmap values to 0
             NPP_CHECK_NPP(nppiSet_32f_C1R(0.f, devDepthmap.data(), devDepthmap.pitch(), imSize));
@@ -209,11 +208,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
             npp::ImageNPP_32f_C1 devx(imSize.width, imSize.height);
             npp::ImageNPP_32f_C1 devy(imSize.width, imSize.height);
 
-            // Fill undistorted x and y index images:
-            dim3 threads(64,64);
-            dim3 blocks(ceil(devx.width()/(float)threads.x), ceil(devx.height()/(float)threads.y));
-            CreateGrid2D(devX.data(), devY.data(), imSize.width, imSize.height, blocks, threads);
-
             // Create image to hold pixel values after transformation
             npp::ImageNPP_32f_C1 devWarped(imSize.width, imSize.height);
 
@@ -240,17 +234,10 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
                     H = H / H(2,2);
 
                     // Calculate transformed pixel coordinates
-                    // x coordinates:
-                    ProductC32f(devX, H(0,0), devx);
-                    ProductC32f(devY, H(0,1), devInter1);
-                    Sum32f(devx, devInter1, devx);
-                    SumC32f(devx, H(0,2), devx);
-
-                    // y coordinates:
-                    ProductC32f(devX, H(1,0), devy);
-                    ProductC32f(devY, H(1,1), devInter1);
-                    Sum32f(devy, devInter1, devy);
-                    SumC32f(devy, H(1,2), devy);
+                    affine_transform_indexes(devx.data(), devy.data(),
+                                             H(0,0), H(0,1), H(0,2),
+                                             H(1,0), H(1,1), H(1,2),
+                                             imSize.width, imSize.height, blocks, threads);
 
                     // interpolate pixel values:
                     bilinear_interpolation(devWarped.data(), devSrc.data(),
@@ -259,16 +246,18 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
                                            devx.width(), devx.height(),
                                            blocks, threads);
 
+
                     // We have no more use for devx and devy, we can use them to store intermediate results now
                     // devx - will hold windowed mean of warped image
                     // devy - will hold windowed std of warped image
                     WindowedMean32f(devWarped, winsize, pKernel, devx); // windowed mean
-                    WindowedMeanSquares32f(devWarped, winsize, pKernel, devy); // mean of squares
-                    Product32f(devx, devx, devInter1);   // square of means
-                    Difference32f(devy, devInter1, devy); // variance
-                    // this variance computation method is quite unstable, therefore we have to check for negative values
-                    Positive32f(devy, devy); // set all negative variance values to 0
-                    SQRT32f(devy, devy); // standard deviation
+                    WindowedMeanSquares32f(devWarped, winsize, pKernel, devInter1); // mean of squares
+                    calculate_STD(devy.data(), devx.data(), devInter1.data(),
+                                  imSize.width, imSize.height, blocks, threads);
+
+//                    int y = 100;
+//                    devy.copyTo(temp, imSize.width*4);
+//                    for (int i = 0; i < imSize.height; i++) printf("x = %d, y = %d, val = %f\n", y, i+1, temp[(i)*imSize.width + y-1]);
 
                     // calculate NCC for each window which is given by
                     // NCC = (mean of products - product of means) / product of standard deviations
@@ -280,48 +269,24 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
                             stdthresh, stdthresh,
                             imSize.width, imSize.height,
                             blocks, threads);
-//                    Product32f(deviceRefmean, devx, devInter1); // product of windowed means, no more use for devx
-//                    Product32f(deviceRefstd, devy, devx); // product of STDs stored in devx
-//                    Difference32f(devWarped, devInter1, devInter1); // numerator of NCC
-//                    RDivide32f(devInter1, devx, devNCC); // NCC at current depth
-
-                    // no use for devInter1 and devx, devy is holding warped image std
-                    // find warped image std values above threshold
-//                    GreaterEqualC32f(devy, stdthresh, devAbovethresh);
-                    // NCC is only valid if both reference and warped image STDs are above threshold
-//                    AND8u(devAbovethreshRef, devAbovethresh, devAbovethresh);
-//                    Conversion8u32f(devAbovethresh, devInter1);
-//                    Product32f(devNCC, devInter1, devNCC);
 
                     // only keep depth and bestncc values for which best ncc is greater than current
-                    GreaterEqual32f(devbestNCC, devNCC, devAbovethresh);
-                    AND8u(devAbovethresh, devAbovethresh, devAbovethresh); // set TRUE values to 1
-                    // convert to float to perform operations
-                    Conversion8u32f(devAbovethresh, devInter1);
-                    Product32f(devbestNCC, devInter1, devbestNCC);
-                    Product32f(devDepth, devInter1, devDepth);
                     // set other values to current ncc and depth
-                    NOT8u(devAbovethresh, devAbovethresh);
-                    Conversion8u32f(devAbovethresh, devInter1);
-                    Product32f(devNCC, devInter1, devx);
-                    Sum32f(devx, devbestNCC, devbestNCC);
-                    ProductC32f(devInter1, d, devx);
-                    Sum32f(devx, devDepth, devDepth);
+                    update_arrays(devDepth.data(), devbestNCC.data(),
+                                  devNCC.data(), d, imSize.width, imSize.height,
+                                  blocks, threads);
 
                 }
 
                 // Sum depth results for later averaging
-                GreaterEqualC32f(devbestNCC, nccthresh, devAbovethresh);
-                AND8u(devAbovethresh, devAbovethresh, devAbovethresh);
-                Sum8u(devN8u, devAbovethresh, devN8u);
-                Conversion8u32f(devAbovethresh, devInter1);
-                Product32f(devInter1, devDepth, devInter1);
-                Sum32f(devInter1, devDepthmap, devDepthmap);
+                    sum_depthmap_NCC(devDepthmap.data(), devN.data(),
+                                     devDepth.data(), devbestNCC.data(),
+                                     nccthresh, imSize.width, imSize.height,
+                                     blocks, threads);
             }
 
 
             // Convert uchar image to float so we can perform calculations with it
-            Conversion8u32f(devN8u, devN);
 
             // Calculate averaged depthmap and copy it to host
             RDivide32f(devDepthmap, devN, devDepthmap);
