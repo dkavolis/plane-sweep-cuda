@@ -6,8 +6,8 @@
 #define DEFAULT_NUMBER_OF_PLANES 200
 #define DEFAULT_NUMBER_OF_IMAGES 4
 #define DEFAULT_WINDOW_SIZE 5
-#define DEFAULT_STD_THRESHOLD 0.5
-#define DEFAULT_NCC_THRESHOLD 0.0001
+#define DEFAULT_STD_THRESHOLD 0.0001f
+#define DEFAULT_NCC_THRESHOLD 0.5f
 #define NO_DEPTH -1
 #define NO_CUDA_DEVICE -1
 #define MAX_THREADS_PER_BLOCK 512
@@ -130,21 +130,21 @@ public:
     void setNumberofPlanes(unsigned int n){ numberplanes = n; }
     void setNumberofImages(unsigned int n){ numberimages = n; }
     void setWindowSize(unsigned int sz){ if (sz % 2 == 0) std::cout << "Window size must be an odd number"; else winsize = sz; }
-    void setSTDthreshold(double th){ stdthresh = th; }
-    void setNCCthreshold(double th){ nccthresh = th; }
+    void setSTDthreshold(float th){ stdthresh = th; }
+    void setNCCthreshold(float th){ nccthresh = th; }
 
     // Getters:
     void getK(double k[][3]){ matrixToArray(k, K); }
     void getInverseK(double k[][3]){ matrixToArray(k, invK); }
     camImage<float> * getDepthmap(){ return &depthmap; }
-    camImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
+    //camImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
     float getZnear(){ return znear; }
     float getZfar(){ return zfar; }
     unsigned int getNumberofPlanes(){ return numberplanes; }
     unsigned int getNumberofImages(){ return numberimages; }
     unsigned int getWindowSize(){ return winsize; }
-    double getSTDthreshold(){ return stdthresh; }
-    double getNCCthreshold(){ return nccthresh; }
+    float getSTDthreshold(){ return stdthresh; }
+    float getNCCthreshold(){ return nccthresh; }
 
     // Images for planesweep:
     void setRreference(double R[][3]){ arrayToMatrix(R, HostRef.R); }
@@ -177,7 +177,7 @@ protected:
 
     // stored depthmap
     camImage<float> depthmap;
-    camImage<uchar> depthmap8u;
+    //camImage<uchar> depthmap8u;
 
     // plane sweep parameters
     float znear = DEFAULT_Z_NEAR;
@@ -189,8 +189,8 @@ protected:
     bool enoughimages = false;
     unsigned int winsize = DEFAULT_WINDOW_SIZE;
 
-    double stdthresh = DEFAULT_STD_THRESHOLD;
-    double nccthresh = DEFAULT_NCC_THRESHOLD;
+    float stdthresh = DEFAULT_STD_THRESHOLD;
+    float nccthresh = DEFAULT_NCC_THRESHOLD;
 
     int maxThreadsPerBlock = MAX_THREADS_PER_BLOCK;
 

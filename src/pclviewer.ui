@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>987</width>
-    <height>662</height>
+    <width>950</width>
+    <height>667</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="minimumSize">
    <size>
@@ -35,8 +41,14 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="tabShape">
+       <enum>QTabWidget::Rounded</enum>
+      </property>
       <property name="currentIndex">
        <number>2</number>
+      </property>
+      <property name="elideMode">
+       <enum>Qt::ElideLeft</enum>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -339,9 +351,19 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="tab_2">
+      <widget class="QWidget" name="tab_4">
        <attribute name="title">
         <string>Depthmap</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="0" column="0">
+         <widget class="QGraphicsView" name="depthview"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab_2">
+       <attribute name="title">
+        <string>3D View</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_4">
         <item row="3" column="1">

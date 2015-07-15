@@ -24,27 +24,6 @@
 #include <helper_string.h>
 #include <kernels.cu.h>
 
-// wrappers for NPP float image processing functions
-// windowed functions take kernel as input in addition to windowsize to reduce time spent by allocating it on the GPU
-// note that kernel length should be an odd number and all its elements equal to 1 / windowsize
-// windowed mean functions use 2 1D filters to further reduce function time
-void WindowedMean32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsize, Npp32f *pKernel, npp::ImageNPP_32f_C1 & output);
-void WindowedMeanSquares32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsize, Npp32f* pKernel, npp::ImageNPP_32f_C1 & output);
-void Positive32f(npp::ImageNPP_32f_C1 & input, npp::ImageNPP_32f_C1 & output); // if input .< 0, set input = 0
-void GreaterEqual32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_8u_C1 & output); // A .>= B
-void GreaterEqualC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_8u_C1 & output); // A >= C
-void Product32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output); // A .* B
-void ProductC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output); // A * C
-void RDivide32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output); // A ./ B
-void RDivideC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output); // A / C
-void Sum32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output); // A .+ B
-void Sum8u(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_8u_C1 & B, npp::ImageNPP_8u_C1 & output);
-void SumC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output); // A + C
-void Difference32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output); // A .- B
-void DifferenceC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output); // A - C
-void SQRT32f(npp::ImageNPP_32f_C1 & input, npp::ImageNPP_32f_C1 & output); // square root of input pixels
-void AND8u(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_8u_C1 & B, npp::ImageNPP_8u_C1 & output);
-void NOT8u(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_8u_C1 & output);
 void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output);
 
 template <typename T> // T models Any
@@ -116,7 +95,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
 
     depthmap.setSize(HostRef.width, HostRef.height);
     depthmap.channels = 1;
-    depthmap8u.setSize(HostRef.width, HostRef.height);
+    //depthmap8u.setSize(HostRef.width, HostRef.height);
 
     printf("Starting plane sweep algorithm...\n\n");
 
@@ -140,29 +119,25 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         NppiSize imSize={(int)HostRef.width, (int)HostRef.height};
         npp::ImageNPP_32f_C1 deviceRef(imSize.width, imSize.height);
         deviceRef.copyFrom(HostRef.data, HostRef.pitch);
-        float * temp = new float [imSize.height * imSize.width];
 
         dim3 threads(32,32);
         dim3 blocks(ceil(imSize.width/(float)threads.x), ceil(imSize.height/(float)threads.y));
-
-        // Create summation kernel on host memory
-        Npp32f* hostKernel = new Npp32f [winsize];
-        for (int i = 0; i < winsize; i++) {
-            hostKernel[i] = 1.f / winsize;
-        }
-
-        // Transfer the kernel to device memory
-        Npp32f* pKernel; //just a regular 1D array on the GPU
-        NPP_CHECK_CUDA(cudaMalloc((void**)&pKernel, winsize * sizeof(Npp32f)));
-        NPP_CHECK_CUDA(cudaMemcpy(pKernel, hostKernel, winsize * sizeof(Npp32f), cudaMemcpyHostToDevice));
 
         // Create images on the device to hold windowed mean and std for reference image + intermediate images
         // and calculate the images
         npp::ImageNPP_32f_C1 deviceRefmean(imSize.width, imSize.height);
         npp::ImageNPP_32f_C1 deviceRefstd(imSize.width, imSize.height);
         npp::ImageNPP_32f_C1 devInter1(imSize.width, imSize.height); // intermediate image, will hold square of means in this computation
-        WindowedMean32f(deviceRef, winsize, pKernel, deviceRefmean); // windowed mean
-        WindowedMeanSquares32f(deviceRef, winsize, pKernel, devInter1); // mean of squares
+        windowed_mean_column(devInter1.data(), deviceRef.data(), winsize, false, imSize.width, imSize.height,
+                             blocks, threads);
+        windowed_mean_row(deviceRefmean.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
+                          blocks, threads);
+
+        windowed_mean_column(deviceRefstd.data(), deviceRef.data(), winsize, true, imSize.width, imSize.height,
+                             blocks, threads);
+        windowed_mean_row(devInter1.data(), deviceRefstd.data(), winsize, false, imSize.width, imSize.height,
+                          blocks, threads);
+
         calculate_STD(deviceRefstd.data(), deviceRefmean.data(),
                       devInter1.data(), imSize.width, imSize.height, blocks, threads);
 
@@ -237,20 +212,30 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
                                        devx.width(), devx.height(),
                                        blocks, threads);
 
-
                 // We have no more use for devx and devy, we can use them to store intermediate results now
                 // devx - will hold windowed mean of warped image
                 // devy - will hold windowed std of warped image
-                WindowedMean32f(devWarped, winsize, pKernel, devx); // windowed mean
-                WindowedMeanSquares32f(devWarped, winsize, pKernel, devInter1); // mean of squares
+                windowed_mean_column(devInter1.data(), devWarped.data(), winsize, false, imSize.width, imSize.height,
+                                     blocks, threads);
+                windowed_mean_row(devx.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
+                                  blocks, threads);
+
+                windowed_mean_column(devy.data(), devWarped.data(), winsize, true, imSize.width, imSize.height,
+                                     blocks, threads);
+                windowed_mean_row(devInter1.data(), devy.data(), winsize, false, imSize.width, imSize.height,
+                                  blocks, threads);
+
                 calculate_STD(devy.data(), devx.data(), devInter1.data(),
                               imSize.width, imSize.height, blocks, threads);
 
                 // calculate NCC for each window which is given by
                 // NCC = (mean of products - product of means) / product of standard deviations
                 element_multiply(devInter1.data(), deviceRef.data(), devWarped.data(), imSize.width, imSize.height, blocks, threads);
-                WindowedMean32f(devInter1, winsize, pKernel, devWarped); // windowed mean of products
-                calcNCC(devNCC.data(), devWarped.data(),
+                windowed_mean_column(devWarped.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
+                                     blocks, threads);
+                windowed_mean_row(devInter1.data(), devWarped.data(), winsize, false, imSize.width, imSize.height,
+                                  blocks, threads);
+                calcNCC(devNCC.data(), devInter1.data(),
                         deviceRefmean.data(), devx.data(),
                         deviceRefstd.data(), devy.data(),
                         stdthresh, stdthresh,
@@ -270,19 +255,14 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
                              devDepth.data(), devbestNCC.data(),
                              nccthresh, imSize.width, imSize.height,
                              blocks, threads);
-        }
+
+        } 
 
         // Calculate averaged depthmap and copy it to host
         element_rdivide(devDepthmap.data(), devDepthmap.data(), devN.data(), imSize.width, imSize.height, blocks, threads);
         devDepthmap.copyTo(depthmap.data, depthmap.pitch);
-        convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
-        devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
-        printf("%d pitch, %d width, %d height, %f znear, %f zfar, %d imwidth, %d imheight\n", depthmap8u.pitch, depthmap8u.width,
-               depthmap8u.height, znear, zfar, imSize.width, imSize.height);
-        int y = 100;
-        //devDepthmap.copyTo(temp, imSize.width*4);
-        for (int i = 0; i < imSize.height; i++) printf("x = %d, y = %d, val uchar = %d, val float = %f\n",
-                                                       y, i+1, depthmap8u.data[(i)*imSize.width + y-1], depthmap.data[(i)*imSize.width + y-1]);
+        //convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
+        //devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
 
         // Free up resources
         nppiFree(deviceRef.data());
@@ -299,9 +279,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         nppiFree(devx.data());
         nppiFree(devy.data());
         nppiFree(devWarped.data());
-        checkCudaErrors(cudaFree(pKernel));
-        delete[] hostKernel;
-        delete[] temp;
 
         //-----------------------------------------------------
 
@@ -362,10 +339,14 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
         npp::ImageNPP_8u_C1 im8u(w, h);
         npp::ImageNPP_32f_C1 im32f(w, h);
 
+//        dim3 threads(32,32);
+//        dim3 blocks(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
+
         // convert reference image
         HostRef.setSize(w,h);
         im8u.copyFrom(HostRef8u.data, HostRef8u.pitch);
         Conversion8u32f(im8u, im32f);
+        //convert_uchar_to_float(im32f.data(), im8u.data(), w, h, blocks, threads);
         im32f.copyTo(HostRef.data, HostRef.pitch);
         HostRef.R = HostRef8u.R;
         HostRef.t = HostRef8u.t;
@@ -377,6 +358,7 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
             HostSrc[i].setSize(w, h);
             im8u.copyFrom(HostSrc8u[i].data, HostSrc8u[i].pitch);
             Conversion8u32f(im8u, im32f);
+            //convert_uchar_to_float(im32f.data(), im8u.data(), w, h, blocks, threads);
             im32f.copyTo(HostSrc[i].data, HostSrc[i].pitch);
             HostSrc[i].R = HostSrc8u[i].R;
             HostSrc[i].t = HostSrc8u[i].t;
@@ -485,128 +467,6 @@ void PlaneSweep::CmatrixToRT(ublas::matrix<double> &C, ublas::matrix<double> &R,
 PlaneSweep::~PlaneSweep()
 {
     cudaDeviceReset();
-}
-
-void WindowedMean32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsize, Npp32f* pKernel, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSrcSize = {(int)input.width(), (int)input.height()};
-    NppiSize oSizeROI = {(int)input.width(), (int)input.height()};
-    NppiPoint oSrcOffset = {0, 0};
-    NPP_CHECK_NPP(nppiFilterColumnBorder_32f_C1R(input.data(), input.pitch(),
-                                                 oSrcSize, oSrcOffset,
-                                                 output.data(), output.pitch(),
-                                                 oSizeROI, pKernel, windowsize, windowsize / 2, NPP_BORDER_REPLICATE));
-
-    NPP_CHECK_NPP(nppiFilterRowBorder_32f_C1R(output.data(), output.pitch(),
-                                              oSrcSize, oSrcOffset,
-                                              output.data(), output.pitch(),
-                                              oSizeROI, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
-}
-
-void WindowedMeanSquares32f(npp::ImageNPP_32f_C1 & input, unsigned int windowsize, Npp32f *pKernel, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSrcSize = {(int)input.width(), (int)input.height()};
-    NppiPoint oSrcOffset = {0, 0};
-    NPP_CHECK_NPP(nppiSqr_32f_C1R(input.data(), input.pitch(), output.data(), output.pitch(), oSrcSize));
-    NPP_CHECK_NPP(nppiFilterColumnBorder_32f_C1R(output.data(), output.pitch(),
-                                                 oSrcSize, oSrcOffset,
-                                                 output.data(), output.pitch(),
-                                                 oSrcSize, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
-
-    NPP_CHECK_NPP(nppiFilterRowBorder_32f_C1R(output.data(), output.pitch(),
-                                              oSrcSize, oSrcOffset,
-                                              output.data(), output.pitch(),
-                                              oSrcSize, pKernel, (Npp32s)windowsize, (Npp32s)windowsize / 2, NPP_BORDER_REPLICATE));
-}
-
-void Positive32f(npp::ImageNPP_32f_C1 & input, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)input.width(), (int)input.height()};
-    NPP_CHECK_NPP(nppiThreshold_32f_C1R(input.data(), input.pitch(), output.data(), output.pitch(), oSize, 0, NPP_CMP_LESS));
-}
-
-void GreaterEqual32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_8u_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiCompare_32f_C1R(A.data(), A.pitch(), B.data(), B.pitch(), output.data(), output.pitch(), oSize, NPP_CMP_GREATER_EQ));
-}
-
-void GreaterEqualC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_8u_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiCompareC_32f_C1R(A.data(), A.pitch(), C, output.data(), output.pitch(), oSize, NPP_CMP_GREATER_EQ));
-}
-
-void Product32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiMul_32f_C1R(A.data(), A.pitch(), B.data(), B.pitch(), output.data(), output.pitch(), oSize));
-}
-
-void ProductC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiMulC_32f_C1R(A.data(), A.pitch(), C, output.data(), output.pitch(), oSize));
-}
-
-void RDivide32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiDiv_32f_C1R(A.data(), A.pitch(), B.data(), B.pitch(), output.data(), output.pitch(), oSize));
-}
-
-void RDivideC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiDivC_32f_C1R(A.data(), A.pitch(), C, output.data(), output.pitch(), oSize));
-}
-
-void Sum32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiAdd_32f_C1R(A.data(), A.pitch(), B.data(), B.pitch(), output.data(), output.pitch(), oSize));
-}
-
-void Sum8u(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_8u_C1 & B, npp::ImageNPP_8u_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiAdd_8u_C1RSfs(A.data(), A.pitch(), B.data(), B.pitch(), output.data(), output.pitch(), oSize, 0));
-}
-
-void SumC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiAddC_32f_C1R(A.data(), A.pitch(), C, output.data(), output.pitch(), oSize));
-}
-
-void Difference32f(npp::ImageNPP_32f_C1 & A, npp::ImageNPP_32f_C1 & B, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiSub_32f_C1R(B.data(), B.pitch(), A.data(), A.pitch(), output.data(), output.pitch(), oSize));
-}
-
-void DifferenceC32f(npp::ImageNPP_32f_C1 & A, float C, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiSubC_32f_C1R(A.data(), A.pitch(), C, output.data(), output.pitch(), oSize));
-}
-
-void SQRT32f(npp::ImageNPP_32f_C1 & input, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)input.width(), (int)input.height()};
-    NPP_CHECK_NPP(nppiSqrt_32f_C1R(input.data(), input.pitch(), output.data(), output.pitch(), oSize));
-}
-
-void AND8u(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_8u_C1 & B, npp::ImageNPP_8u_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiAnd_8u_C1R(A.data(), A.pitch(), B.data(), B.pitch(), output.data(), output.pitch(), oSize));
-}
-
-void NOT8u(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_8u_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiNot_8u_C1R(A.data(), A.pitch(),output.data(), output.pitch(), oSize));
 }
 
 void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output)

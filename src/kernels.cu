@@ -4,33 +4,33 @@ __global__ void bilinear_interpolation_kernel_GPU(float * __restrict__ d_result,
                                                   const float * __restrict__ d_xout, const float * __restrict__ d_yout,
                                                   const int M1, const int M2, const int N1, const int N2)
 {
-   const int l = threadIdx.x + blockDim.x * blockIdx.x;
-   const int k = threadIdx.y + blockDim.y * blockIdx.y;
+    const int l = threadIdx.x + blockDim.x * blockIdx.x;
+    const int k = threadIdx.y + blockDim.y * blockIdx.y;
 
-   if ((l<N1)&&(k<N2)) {
+    if ((l<N1)&&(k<N2)) {
 
-       float result_temp1, result_temp2;
+        float result_temp1, result_temp2;
 
-       const int    ind_x = floor(d_xout[k*N1+l]);
-       const float  a     = d_xout[k*N1+l]-ind_x;
+        const int    ind_x = floor(d_xout[k*N1+l]);
+        const float  a     = d_xout[k*N1+l]-ind_x;
 
-       const int    ind_y = floor(d_yout[k*N1+l]);
-       const float  b     = d_yout[k*N1+l]-ind_y;
+        const int    ind_y = floor(d_yout[k*N1+l]);
+        const float  b     = d_yout[k*N1+l]-ind_y;
 
-       float d00, d01, d10, d11;
-       if ((ind_x < 0) || (ind_y < 0)) { d_result[k*N1+l] = 0.f; return; }
-       if (((ind_x)   < M1)&&((ind_y)   < M2))  d00 = d_data[ind_y*M1+ind_x];       else    { d_result[k*N1+l] = 0.f; return; }
-       if (((ind_x+1) < M1)&&((ind_y)   < M2))  d10 = d_data[ind_y*M1+ind_x+1];     else    { d_result[k*N1+l] = 0.f; return; }
-       if (((ind_x)   < M1)&&((ind_y+1) < M2))  d01 = d_data[(ind_y+1)*M1+ind_x];   else    { d_result[k*N1+l] = 0.f; return; }
-       if (((ind_x+1) < M1)&&((ind_y+1) < M2))  d11 = d_data[(ind_y+1)*M1+ind_x+1]; else    { d_result[k*N1+l] = 0.f; return; }
+        float d00, d01, d10, d11;
+        if ((ind_x < 0) || (ind_y < 0)) { d_result[k*N1+l] = 0.f; return; }
+        if (((ind_x)   < M1)&&((ind_y)   < M2))  d00 = d_data[ind_y*M1+ind_x];       else    { d_result[k*N1+l] = 0.f; return; }
+        if (((ind_x+1) < M1)&&((ind_y)   < M2))  d10 = d_data[ind_y*M1+ind_x+1];     else    { d_result[k*N1+l] = 0.f; return; }
+        if (((ind_x)   < M1)&&((ind_y+1) < M2))  d01 = d_data[(ind_y+1)*M1+ind_x];   else    { d_result[k*N1+l] = 0.f; return; }
+        if (((ind_x+1) < M1)&&((ind_y+1) < M2))  d11 = d_data[(ind_y+1)*M1+ind_x+1]; else    { d_result[k*N1+l] = 0.f; return; }
 
-       result_temp1 = a * d10 + (-d00 * a + d00);
+        result_temp1 = a * d10 + (-d00 * a + d00);
 
-       result_temp2 = a * d11 + (-d01 * a + d01);
+        result_temp2 = a * d11 + (-d01 * a + d01);
 
-       d_result[k*N1+l] = b * result_temp2 + (-result_temp1 * b + result_temp1);
+        d_result[k*N1+l] = b * result_temp2 + (-result_temp1 * b + result_temp1);
 
-   }
+    }
 }
 
 __global__ void affine_transform_indexes_kernel(float * __restrict__ d_x, float * __restrict__ d_y,
@@ -43,7 +43,7 @@ __global__ void affine_transform_indexes_kernel(float * __restrict__ d_x, float 
 
     if ((l < width) && (k < height)) {
         d_x[width * k + l] = h11 * (l + 1) + h12 * (k + 1) + h13 - 1;
-        d_y[height * k + l] = h21 * (l + 1) + h22 * (k + 1) + h23 - 1;
+        d_y[width * k + l] = h21 * (l + 1) + h22 * (k + 1) + h23 - 1;
     }
 }
 
@@ -130,8 +130,8 @@ __global__ void set_value_kernel(float * __restrict__ d_output, const float valu
 }
 
 __global__ void element_multiply_kernel(float * __restrict__ d_output, const float * __restrict__ d_input1,
-                                   const float * __restrict__ d_input2,
-                                   const int width, const int height)
+                                        const float * __restrict__ d_input2,
+                                        const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
     const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -143,8 +143,8 @@ __global__ void element_multiply_kernel(float * __restrict__ d_output, const flo
 }
 
 __global__ void element_rdivide_kernel(float * __restrict__ d_output, const float * __restrict__ d_input1,
-                                  const float * __restrict__ d_input2,
-                                  const int width, const int height, const float QNaN)
+                                       const float * __restrict__ d_input2,
+                                       const int width, const int height, const float QNaN)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
     const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -157,8 +157,8 @@ __global__ void element_rdivide_kernel(float * __restrict__ d_output, const floa
 }
 
 __global__ void convert_float_to_uchar_kernel(unsigned char * __restrict__ d_output, const float * __restrict__ d_input,
-                                         const float min, const float max,
-                                         const int width, const int height)
+                                               const float min, const float max,
+                                               const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
     const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -184,6 +184,69 @@ __global__ void convert_float_to_uchar_kernel(unsigned char * __restrict__ d_out
     }
 }
 
+__global__ void windowed_mean_row_kernel(float * __restrict__ d_output, const float * d_input,
+                                         const unsigned int winsize, const bool squared,
+                                         const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+
+        float mean = 0.f;
+        int n = winsize / 2;
+        int k;
+
+        for (int i = -n; i <= n; i++){
+            k = ind_x + i;
+            if (k < 0) k = -k;
+            if (k > width - 1) k = 2 * (width - 1) - k;
+            if (squared) mean += d_input[ind_y * width + k] * d_input[ind_y * width + k];
+            else mean += d_input[ind_y * width + k];
+        }
+        d_output[ind] = mean / (float)winsize;
+    }
+}
+
+__global__ void windowed_mean_column_kernel(float * __restrict__ d_output, const float * d_input,
+                                            const unsigned int winsize, const bool squared,
+                                            const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+
+        float mean = 0.f;
+        int n = winsize / 2;
+        int k;
+
+        for (int i = -n; i <= n; i++){
+            k = ind_y + i;
+            if (k < 0) k = -k;
+            if (k > height - 1) k = 2 * (height - 1) - k;
+            if (squared) mean += d_input[k * width + ind_x] * d_input[k * width + ind_x];
+            else mean += d_input[k * width + ind_x];
+        }
+        d_output[ind] = mean / (float)winsize;
+    }
+}
+
+__global__ void convert_uchar_to_float_kernel(float * __restrict__ d_output, const unsigned char * __restrict__ d_input,
+                                               const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+
+        d_output[ind] = d_input[ind];
+    }
+}
+
 void affine_transform_indexes(float * d_x, float *  d_y,
                               const float h11, const float h12, const float h13,
                               const float h21, const float h22, const float h23,
@@ -205,9 +268,9 @@ void bilinear_interpolation(float * d_result, const float * d_data,
     checkCudaErrors(cudaPeekAtLastError() );
 }
 
-void calcNCC(float * __restrict__ d_ncc, const float * __restrict__ d_prod_mean,
-             const float * __restrict__ d_mean1, const float * __restrict__ d_mean2,
-             const float * __restrict__ d_std1, const float * __restrict__ d_std2,
+void calcNCC(float * d_ncc, const float * d_prod_mean,
+             const float * d_mean1, const float * d_mean2,
+             const float * d_std1, const float * d_std2,
              const float stdthresh1, const float stdthresh2,
              const int width, const int height,
              dim3 blocks, dim3 threads)
@@ -282,10 +345,35 @@ void element_rdivide(float * d_output, const float * d_input1,
 }
 
 void convert_float_to_uchar(unsigned char * d_output, const float * d_input,
-                            const float min, const float max,
-                            const int width, const int height,
-                            dim3 blocks, dim3 threads)
+                             const float min, const float max,
+                             const int width, const int height,
+                             dim3 blocks, dim3 threads)
 {
     convert_float_to_uchar_kernel<<<blocks, threads>>>(d_output, d_input, min, max, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void windowed_mean_row(float * d_output, const float * d_input,
+                       const unsigned int winsize, const bool squared,
+                       const int width, const int height, dim3 blocks, dim3 threads)
+{
+    windowed_mean_row_kernel<<<blocks, threads>>>(d_output, d_input, winsize, squared,
+                                                  width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void windowed_mean_column(float * d_output, const float * d_input,
+                          const unsigned int winsize, const bool squared,
+                          const int width, const int height, dim3 blocks, dim3 threads)
+{
+    windowed_mean_column_kernel<<<blocks, threads>>>(d_output, d_input, winsize, squared,
+                                                     width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
+                             const int width, const int height, dim3 blocks, dim3 threads)
+{
+    convert_uchar_to_float_kernel<<<blocks, threads>>>(d_output, d_input, width, height);
     checkCudaErrors(cudaPeekAtLastError());
 }

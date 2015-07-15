@@ -81,6 +81,8 @@ private:
   QImage refgray;
   std::vector<QImage> sources;
   QGraphicsScene *scene;
+  QGraphicsScene *depthscene;
+  QPixmap depthim;
   PlaneSweep::camImage<float> depth;
 
 };

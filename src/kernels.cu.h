@@ -29,9 +29,9 @@ void bilinear_interpolation(float * d_result, const float * d_data,
 /*---------------------------------------------------------------------
  * Calculates affine transformation x and y indexes, indexes returned
  * are 0 based indexed but calculation performed is based on 1 based indexing, i.e.
- * [x' + 1] = [h11 h12 h13]   [x + 1]
+ * [x' + 1]   [h11 h12 h13]   [x + 1]
  * [y' + 1] = [h21 h22 h23] x [y + 1]
- * [   1  ] = [ 0   0   1 ]   [  1  ]
+ * [   1  ]   [ 0   0   1 ]   [  1  ]
  * d_x - output x indexes, 0 based indexing
  * d_y - output y indexes, 0 based indexing
  * width and height - dimensions of arrays
@@ -58,9 +58,9 @@ void affine_transform_indexes(float * d_x, float * d_y,
  * If either std is below given threshold, indicating a homogenous region
  * in image processing, NCC is set to 0. This way avoids division by 0.
  * ------------------------------------------------------------------*/
-void calcNCC(float * __restrict__ d_ncc, const float * __restrict d_prod_mean,
-             const float * __restrict__ d_mean1, const float * __restrict__ d_mean2,
-             const float * __restrict__ d_std1, const float * __restrict__ d_std2,
+void calcNCC(float * d_ncc, const float * d_prod_mean,
+             const float * d_mean1, const float * d_mean2,
+             const float * d_std1, const float * d_std2,
              const float stdthresh1, const float stdthresh2,
              const int width, const int height,
              dim3 blocks, dim3 threads);
@@ -126,12 +126,43 @@ void element_rdivide(float * d_output, const float * d_input1,
                      const int width, const int height,
                      dim3 blocks, dim3 threads);
 
+// DOES NOT WORK YET
 /*-----------------------------------------------------------------------
- * Float to uchar conversion, using bounds
+ * float to uchar conversion, using bounds
  * all values below min are set to 0, all above - UCHAR_MAX, rest
  * are set to UCHAR_MAX * (d_input - min) / (max - min)
  * --------------------------------------------------------------------*/
 void convert_float_to_uchar(unsigned char *d_output, const float * d_input,
-                            const float min, const float max,
-                            const int width, const int height,
-                            dim3 blocks, dim3 threads);
+                             const float min, const float max,
+                             const int width, const int height,
+                             dim3 blocks, dim3 threads);
+
+
+/*-----------------------------------------------------------------------
+ * Calculates windowed mean row wise
+ * d_output - output means
+ * d_input - input array
+ * winsize - size of the window
+ * squared - if true, will calculate mean of squares
+ * width and height - dimensions of arrays
+ * --------------------------------------------------------------------*/
+void windowed_mean_row(float * d_output, const float * d_input,
+                       const unsigned int winsize, const bool squared,
+                       const int width, const int height, dim3 blocks, dim3 threads);
+
+/*-----------------------------------------------------------------------
+ * Calculates windowed mean column wise
+ * d_output - output means
+ * d_input - input array
+ * winsize - size of the window
+ * squared - if true, will calculate mean of squares
+ * width and height - dimensions of arrays
+ * --------------------------------------------------------------------*/
+void windowed_mean_column(float * d_output, const float * d_input,
+                          const unsigned int winsize, const bool squared,
+                          const int width, const int height, dim3 blocks, dim3 threads);
+
+// Converts unsigned char image to float
+void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
+                             const int width, const int height,
+                             dim3 blocks, dim3 threads);

@@ -164,43 +164,49 @@ PCLViewer::~PCLViewer ()
 void PCLViewer::on_pushButton_pressed()
 {
 	if (ps.RunAlgorithm(argc, argv)){
-        PlaneSweep::camImage<uchar> d;
-        //depth = *ps.getDepthmap();
-        d = *ps.getDepthmap8u();
-        for (int i = 0; i < d.width; i++){
-            std::cout << d.data[d.width*350 + i] << " ";
-        }
-        std::cout << std::endl;
+        //PlaneSweep::camImage<uchar> d;
+        depth = *ps.getDepthmap();
+        //d = *ps.getDepthmap8u();
+//        for (int i = 0; i < depth.width; i++){
+//            std::cout << depth.data[depth.width*350 + i] << " ";
+//        }
+//        std::cout << std::endl;
 		// The number of points in the cloud
-        cloud->points.resize(d.width * d.height);
+        cloud->points.resize(depth.width * depth.height);
         double K[3][3];
         ps.getInverseK(K);
 
 		QColor c;
         int  i;
+        float zn = ps.getZnear();
+        float zf = ps.getZfar();
+        float d;
 
 		// Fill the cloud with some points
-        for (size_t x = 0; x < d.width; ++x)
-            for (size_t y = 0; y < d.height; ++y)
+        for (size_t x = 0; x < depth.width; ++x)
+            for (size_t y = 0; y < depth.height; ++y)
             {
 //                i = x + y * depth.width;
 //                cloud->points[i].x = (x + 1) * K[0][0] + (y + 1) * K[0][1] + K[0][2];
 //                cloud->points[i].y = (x + 1) * K[1][0] + (y + 1) * K[1][1] + K[1][2];
 //                cloud->points[i].z = depth.data[i];
 
-//                c = refim.pixel(x, y);
-//                cloud->points[i].r = c.red();
-//                cloud->points[i].g = c.green();
-//                cloud->points[i].b = c.blue();
-
-                i = x + y * d.width;
+                i = x + y * depth.width;
+                // Check if QNAN
+                if (depth.data[i] == depth.data[i]) d = 255 * (depth.data[i] - zn) / (zf - zn);
+                else d = 255;
                 cloud->points[i].x = x;
-                cloud->points[i].y = y;
-                cloud->points[i].z = d.data[i];
+                cloud->points[i].y = depth.height - y;
+                cloud->points[i].z = -d;
 
-                cloud->points[i].r = d.data[i];
-                cloud->points[i].g = d.data[i];
-                cloud->points[i].b = d.data[i];
+//                cloud->points[i].r = d;
+//                cloud->points[i].g = d;
+//                cloud->points[i].b = d;
+
+                c = refim.pixel(x, y);
+                cloud->points[i].r = c.red();
+                cloud->points[i].g = c.green();
+                cloud->points[i].b = c.blue();
             }
 
 		viewer->updatePointCloud(cloud, "cloud");
