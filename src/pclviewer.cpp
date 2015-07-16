@@ -230,6 +230,7 @@ void PCLViewer::on_winSize_valueChanged(int arg1)
 {
     // Make sure arg1 is odd
     arg1 = 2 * (arg1 / 2) + 1;
+    ui->winSize->setValue(arg1);
     ps.setWindowSize(arg1);
 }
 
