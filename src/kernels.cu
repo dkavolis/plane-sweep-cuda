@@ -33,17 +33,21 @@ __global__ void bilinear_interpolation_kernel_GPU(float * __restrict__ d_result,
     }
 }
 
-__global__ void affine_transform_indexes_kernel(float * __restrict__ d_x, float * __restrict__ d_y,
-                                                const float h11, const float h12, const float h13,
-                                                const float h21, const float h22, const float h23,
-                                                const int width, const int height)
+__global__ void transform_indexes_kernel(float * __restrict__ d_x, float * __restrict__ d_y,
+                                         const float h11, const float h12, const float h13,
+                                         const float h21, const float h22, const float h23,
+                                         const float h31, const float h32, const float h33,
+                                         const int width, const int height)
 {
     const int l = threadIdx.x + blockDim.x * blockIdx.x;
     const int k = threadIdx.y + blockDim.y * blockIdx.y;
 
     if ((l < width) && (k < height)) {
-        d_x[width * k + l] = h11 * (l + 1) + h12 * (k + 1) + h13 - 1;
-        d_y[width * k + l] = h21 * (l + 1) + h22 * (k + 1) + h23 - 1;
+        d_x[width * k + l] = h11 * (l + 1) + h12 * (k + 1) + h13;
+        d_y[width * k + l] = h21 * (l + 1) + h22 * (k + 1) + h23;
+        float w = h31 * (l + 1) + h32 * (k + 1) + h33;
+        d_x[width * k + l] = d_x[width * k + l] / w - 1;
+        d_y[width * k + l] = d_y[width * k + l] / w - 1;
     }
 }
 
@@ -157,8 +161,8 @@ __global__ void element_rdivide_kernel(float * __restrict__ d_output, const floa
 }
 
 __global__ void convert_float_to_uchar_kernel(unsigned char * __restrict__ d_output, const float * __restrict__ d_input,
-                                               const float min, const float max,
-                                               const int width, const int height)
+                                              const float min, const float max,
+                                              const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
     const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -235,7 +239,7 @@ __global__ void windowed_mean_column_kernel(float * __restrict__ d_output, const
 }
 
 __global__ void convert_uchar_to_float_kernel(float * __restrict__ d_output, const unsigned char * __restrict__ d_input,
-                                               const int width, const int height)
+                                              const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
     const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -247,15 +251,17 @@ __global__ void convert_uchar_to_float_kernel(float * __restrict__ d_output, con
     }
 }
 
-void affine_transform_indexes(float * d_x, float *  d_y,
-                              const float h11, const float h12, const float h13,
-                              const float h21, const float h22, const float h23,
-                              const int width, const int height, dim3 blocks, dim3 threads)
+void transform_indexes(float * d_x, float *  d_y,
+                       const float h11, const float h12, const float h13,
+                       const float h21, const float h22, const float h23,
+                       const float h31, const float h32, const float h33,
+                       const int width, const int height, dim3 blocks, dim3 threads)
 {
-    affine_transform_indexes_kernel<<<blocks, threads>>>(d_x, d_y,
-                                                         h11, h12, h13,
-                                                         h21, h22, h23,
-                                                         width, height);
+    transform_indexes_kernel<<<blocks, threads>>>(d_x, d_y,
+                                                  h11, h12, h13,
+                                                  h21, h22, h23,
+                                                  h31, h32, h33,
+                                                  width, height);
     checkCudaErrors(cudaPeekAtLastError() );
 }
 
@@ -345,9 +351,9 @@ void element_rdivide(float * d_output, const float * d_input1,
 }
 
 void convert_float_to_uchar(unsigned char * d_output, const float * d_input,
-                             const float min, const float max,
-                             const int width, const int height,
-                             dim3 blocks, dim3 threads)
+                            const float min, const float max,
+                            const int width, const int height,
+                            dim3 blocks, dim3 threads)
 {
     convert_float_to_uchar_kernel<<<blocks, threads>>>(d_output, d_input, min, max, width, height);
     checkCudaErrors(cudaPeekAtLastError());
@@ -372,7 +378,7 @@ void windowed_mean_column(float * d_output, const float * d_input,
 }
 
 void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
-                             const int width, const int height, dim3 blocks, dim3 threads)
+                            const int width, const int height, dim3 blocks, dim3 threads)
 {
     convert_uchar_to_float_kernel<<<blocks, threads>>>(d_output, d_input, width, height);
     checkCudaErrors(cudaPeekAtLastError());

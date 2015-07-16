@@ -2,6 +2,10 @@
 #include <iostream>
 #include <chrono>
 
+// OpenCV:
+#include <opencv2/photo.hpp>
+#include <opencv2/core/mat.hpp>
+
 // Boost:
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/vector_proxy.hpp>
@@ -200,10 +204,11 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
                 H = H / H(2,2);
 
                 // Calculate transformed pixel coordinates
-                affine_transform_indexes(devx.data(), devy.data(),
-                                         H(0,0), H(0,1), H(0,2),
-                                         H(1,0), H(1,1), H(1,2),
-                                         imSize.width, imSize.height, blocks, threads);
+                transform_indexes(devx.data(), devy.data(),
+                                  H(0,0), H(0,1), H(0,2),
+                                  H(1,0), H(1,1), H(1,2),
+                                  H(2,0), H(2,1), H(2,2),
+                                  imSize.width, imSize.height, blocks, threads);
 
                 // interpolate pixel values:
                 bilinear_interpolation(devWarped.data(), devSrc.data(),
@@ -256,13 +261,15 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
                              nccthresh, imSize.width, imSize.height,
                              blocks, threads);
 
-        } 
+        }
 
         // Calculate averaged depthmap and copy it to host
         element_rdivide(devDepthmap.data(), devDepthmap.data(), devN.data(), imSize.width, imSize.height, blocks, threads);
         devDepthmap.copyTo(depthmap.data, depthmap.pitch);
         //convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
         //devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
+        ConvertDepthtoUChar();
+        depthavailable = true;
 
         // Free up resources
         nppiFree(deviceRef.data());
@@ -339,8 +346,8 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
         npp::ImageNPP_8u_C1 im8u(w, h);
         npp::ImageNPP_32f_C1 im32f(w, h);
 
-//        dim3 threads(32,32);
-//        dim3 blocks(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
+        //        dim3 threads(32,32);
+        //        dim3 blocks(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
 
         // convert reference image
         HostRef.setSize(w,h);
@@ -399,6 +406,20 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
     }
 }
 
+bool PlaneSweep::Denoise(unsigned int niter, double lambda)
+{
+    if (depthavailable){
+        depthmap8udenoised.setSize(depthmap.width, depthmap.height);
+        std::vector<cv::Mat> raw(1);
+        raw[0] = cv::Mat(depthmap.height, depthmap.width, CV_8UC1, depthmap8u.data, depthmap8u.pitch);
+        cv::Mat out(depthmap.height, depthmap.width, CV_8UC1, depthmap8udenoised.data, depthmap8udenoised.pitch);
+        raw[0].data[1] = depthmap8u.data[1];
+        cv::denoise_TVL1(raw, out, lambda, niter);
+        return true;
+    }
+    return false;
+}
+
 void PlaneSweep::invertK()
 {
     double detK = 1.0;
@@ -416,6 +437,19 @@ void PlaneSweep::invertK()
     invK(2,1) = 0.0;
     invK(2,2) = 1.0;
 
+}
+
+void PlaneSweep::ConvertDepthtoUChar()
+{
+    depthmap8u.setSize(depthmap.width, depthmap.height);
+    for (size_t x = 0; x < depthmap.width; ++x)
+        for (size_t y = 0; y < depthmap.height; ++y)
+        {
+            int i = x + y * depthmap.width;
+            // Check if QNAN
+            if (depthmap.data[i] == depthmap.data[i]) depthmap8u.data[i] = UCHAR_MAX * (depthmap.data[i] - znear) / (zfar - znear);
+            else depthmap8u.data[i] = UCHAR_MAX;
+        }
 }
 
 /* Matrix inversion routine.

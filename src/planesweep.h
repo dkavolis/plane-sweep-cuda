@@ -11,6 +11,8 @@
 #define NO_DEPTH -1
 #define NO_CUDA_DEVICE -1
 #define MAX_THREADS_PER_BLOCK 512
+#define DEFAULT_TVL1_ITERATIONS 30
+#define DEFAULT_TVL1_LAMBDA 1.f
 
 #include <iostream>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -121,6 +123,7 @@ public:
     ~PlaneSweep ();
 
     bool RunAlgorithm(int argc, char **argv);
+    bool Denoise(unsigned int niter, double lambda);
 
     // Setters:
     void setK(double Km[][3]){ arrayToMatrix(Km, K); invertK(); }
@@ -137,7 +140,8 @@ public:
     void getK(double k[][3]){ matrixToArray(k, K); }
     void getInverseK(double k[][3]){ matrixToArray(k, invK); }
     camImage<float> * getDepthmap(){ return &depthmap; }
-    //camImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
+    camImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
+    camImage<uchar> * getDepthmap8uDenoised(){ return &depthmap8udenoised; }
     float getZnear(){ return znear; }
     float getZfar(){ return zfar; }
     unsigned int getNumberofPlanes(){ return numberplanes; }
@@ -177,7 +181,8 @@ protected:
 
     // stored depthmap
     camImage<float> depthmap;
-    //camImage<uchar> depthmap8u;
+    camImage<uchar> depthmap8u;
+    camImage<uchar> depthmap8udenoised;
 
     // plane sweep parameters
     float znear = DEFAULT_Z_NEAR;
@@ -194,9 +199,13 @@ protected:
 
     int maxThreadsPerBlock = MAX_THREADS_PER_BLOCK;
 
+    bool depthavailable = false;
+
     // inverse matrix function
     template<class T>
     bool InvertMatrix (const ublas::matrix<T>& input, ublas::matrix<T>& inverse);
+
+    void ConvertDepthtoUChar();
 
 private:
     void invertK();

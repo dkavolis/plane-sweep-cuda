@@ -29,17 +29,18 @@ void bilinear_interpolation(float * d_result, const float * d_data,
 /*---------------------------------------------------------------------
  * Calculates affine transformation x and y indexes, indexes returned
  * are 0 based indexed but calculation performed is based on 1 based indexing, i.e.
- * [x' + 1]   [h11 h12 h13]   [x + 1]
- * [y' + 1] = [h21 h22 h23] x [y + 1]
- * [   1  ]   [ 0   0   1 ]   [  1  ]
+ *     [x' + 1]   [h11 h12 h13]   [x + 1]
+ * w * [y' + 1] = [h21 h22 h23] * [y + 1]
+ *     [   1  ]   [h31 h32 h33]   [  1  ]
  * d_x - output x indexes, 0 based indexing
  * d_y - output y indexes, 0 based indexing
  * width and height - dimensions of arrays
  * ------------------------------------------------------------------*/
-void affine_transform_indexes(float * d_x, float * d_y,
-                              const float h11, const float h12, const float h13,
-                              const float h21, const float h22, const float h23,
-                              const int width, const int height, dim3 blocks, dim3 threads);
+void transform_indexes(float * d_x, float * d_y,
+                       const float h11, const float h12, const float h13,
+                       const float h21, const float h22, const float h23,
+                       const float h31, const float h32, const float h33,
+                       const int width, const int height, dim3 blocks, dim3 threads);
 
 /*---------------------------------------------------------------------
  * Calculates NCC given parameters
@@ -133,9 +134,9 @@ void element_rdivide(float * d_output, const float * d_input1,
  * are set to UCHAR_MAX * (d_input - min) / (max - min)
  * --------------------------------------------------------------------*/
 void convert_float_to_uchar(unsigned char *d_output, const float * d_input,
-                             const float min, const float max,
-                             const int width, const int height,
-                             dim3 blocks, dim3 threads);
+                            const float min, const float max,
+                            const int width, const int height,
+                            dim3 blocks, dim3 threads);
 
 
 /*-----------------------------------------------------------------------
@@ -164,5 +165,5 @@ void windowed_mean_column(float * d_output, const float * d_input,
 
 // Converts unsigned char image to float
 void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
-                             const int width, const int height,
-                             dim3 blocks, dim3 threads);
+                            const int width, const int height,
+                            dim3 blocks, dim3 threads);

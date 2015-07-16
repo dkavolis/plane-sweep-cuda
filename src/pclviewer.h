@@ -45,7 +45,9 @@ public slots:
 
 protected:
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
+  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewerdenoised;
   PointCloudT::Ptr cloud;
+  PointCloudT::Ptr clouddenoised;
 
   unsigned int red;
   unsigned int green;
@@ -73,6 +75,24 @@ protected:
 private slots:
   void on_pushButton_pressed();
 
+  void on_imNumber_valueChanged(int arg1);
+
+  void on_winSize_valueChanged(int arg1);
+
+  void on_numberPlanes_valueChanged(int arg1);
+
+  void on_zNear_valueChanged(double arg1);
+
+  void on_zFar_valueChanged(double arg1);
+
+  void on_stdThresh_valueChanged(double arg1);
+
+  void on_nccThresh_valueChanged(double arg1);
+
+  void on_pSlider2_valueChanged(int value);
+
+  void on_denoiseBtn_clicked();
+
 private:
   Ui::PCLViewer *ui;
   void LoadImages();
@@ -82,8 +102,12 @@ private:
   std::vector<QImage> sources;
   QGraphicsScene *scene;
   QGraphicsScene *depthscene;
+  QGraphicsScene *dendepthsc;
   QPixmap depthim;
+  QPixmap dendepth;
   PlaneSweep::camImage<float> depth;
+  PlaneSweep::camImage<uchar> depth8u;
+  PlaneSweep::camImage<uchar> dendepth8u;
 
 };
 

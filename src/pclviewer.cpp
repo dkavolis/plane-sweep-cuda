@@ -1,5 +1,5 @@
 #include "pclviewer.h"
-#include "../qt build/ui_pclviewer.h"
+#include "ui_pclviewer.h"
 #include <iostream>
 #include <QDir>
 #include <QByteArray>
@@ -11,38 +11,30 @@
 PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     QMainWindow (parent),
     ui (new Ui::PCLViewer),
-    scene (new QGraphicsScene())
+    scene (new QGraphicsScene()),
+    depthscene (new QGraphicsScene()),
+    dendepthsc (new QGraphicsScene())
 {
     ui->setupUi (this);
     this->setWindowTitle ("PCL viewer");
 
     // Setup the cloud pointer
     cloud.reset (new PointCloudT);
-    // The number of points in the cloud
-    cloud->points.resize (200);
-
-    // The default color
-    red   = 128;
-    green = 128;
-    blue  = 128;
-
-    // Fill the cloud with some points
-    for (size_t i = 0; i < cloud->points.size (); ++i)
-    {
-        cloud->points[i].x = 1024 * rand () / (RAND_MAX + 1.0f);
-        cloud->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
-        cloud->points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
-
-        cloud->points[i].r = red;
-        cloud->points[i].g = green;
-        cloud->points[i].b = blue;
-    }
 
     // Set up the QVTK window
     viewer.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
     ui->qvtkWidget->SetRenderWindow (viewer->getRenderWindow ());
     viewer->setupInteractor (ui->qvtkWidget->GetInteractor (), ui->qvtkWidget->GetRenderWindow ());
     ui->qvtkWidget->update ();
+
+    // Setup the cloud pointer
+    clouddenoised.reset (new PointCloudT);
+
+    // Set up the QVTK window
+    viewerdenoised.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
+    ui->qvtkDenoised->SetRenderWindow (viewerdenoised->getRenderWindow ());
+    viewerdenoised->setupInteractor (ui->qvtkDenoised->GetInteractor (), ui->qvtkDenoised->GetRenderWindow ());
+    ui->qvtkDenoised->update ();
 
     connect(ui->pSlider, SIGNAL(valueChanged(int)), this, SLOT(pSliderValueChanged(int)));
 
@@ -51,12 +43,33 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     viewer->resetCamera ();
     ui->qvtkWidget->update ();
 
+    viewerdenoised->addPointCloud (cloud, "cloud");
+    on_pSlider2_valueChanged (2);
+    viewerdenoised->resetCamera ();
+    ui->qvtkDenoised->update ();
+
+    ui->depthview->setScene(depthscene);
+
+    ui->imNumber->setValue(ps.getNumberofImages());
+    ui->winSize->setValue((ps.getWindowSize()));
+    ui->nccThresh->setValue(ps.getNCCthreshold());
+    ui->stdThresh->setValue(ps.getSTDthreshold());
+    ui->numberPlanes->setValue(ps.getNumberofPlanes());
+    ui->zNear->setValue(ps.getZnear());
+    ui->zFar->setValue(ps.getZfar());
+    ui->stdThresh->setMaximum(255 * 1.f);
+
+    ui->lambda_label->setText( trUtf8( "\xce\xbb" ) );
+    ui->lambda->setValue(DEFAULT_TVL1_LAMBDA);
+    ui->nIters->setValue(DEFAULT_TVL1_ITERATIONS);
+
     LoadImages();
 }
 
 void
 PCLViewer::pSliderValueChanged (int value)
 {
+    ui->cloudSize->setValue(value);
     viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
     ui->qvtkWidget->update ();
 }
@@ -164,32 +177,21 @@ PCLViewer::~PCLViewer ()
 void PCLViewer::on_pushButton_pressed()
 {
 	if (ps.RunAlgorithm(argc, argv)){
-        //PlaneSweep::camImage<uchar> d;
         depth = *ps.getDepthmap();
-        //d = *ps.getDepthmap8u();
-//        for (int i = 0; i < depth.width; i++){
-//            std::cout << depth.data[depth.width*350 + i] << " ";
-//        }
-//        std::cout << std::endl;
 		// The number of points in the cloud
         cloud->points.resize(depth.width * depth.height);
-        double K[3][3];
-        ps.getInverseK(K);
 
 		QColor c;
         int  i;
         float zn = ps.getZnear();
         float zf = ps.getZfar();
         float d;
+        depth8u.setSize(depth.width, depth.height);
 
 		// Fill the cloud with some points
         for (size_t x = 0; x < depth.width; ++x)
             for (size_t y = 0; y < depth.height; ++y)
             {
-//                i = x + y * depth.width;
-//                cloud->points[i].x = (x + 1) * K[0][0] + (y + 1) * K[0][1] + K[0][2];
-//                cloud->points[i].y = (x + 1) * K[1][0] + (y + 1) * K[1][1] + K[1][2];
-//                cloud->points[i].z = depth.data[i];
 
                 i = x + y * depth.width;
                 // Check if QNAN
@@ -199,18 +201,106 @@ void PCLViewer::on_pushButton_pressed()
                 cloud->points[i].y = depth.height - y;
                 cloud->points[i].z = -d;
 
-//                cloud->points[i].r = d;
-//                cloud->points[i].g = d;
-//                cloud->points[i].b = d;
-
                 c = refim.pixel(x, y);
                 cloud->points[i].r = c.red();
                 cloud->points[i].g = c.green();
                 cloud->points[i].b = c.blue();
+                depth8u.data[i] = (uchar)d;
             }
+
+        QImage img((const uchar *)depth8u.data, depth.width, depth.height, QImage::Format_Grayscale8);
+
+        depthim = QPixmap::fromImage(img);
+        depthscene->addPixmap(depthim);
+        depthscene->setSceneRect(depthim.rect());
+        ui->depthview->setScene(depthscene);
 
 		viewer->updatePointCloud(cloud, "cloud");
 		viewer->resetCamera();
 		ui->qvtkWidget->update();
 	}
+}
+
+void PCLViewer::on_imNumber_valueChanged(int arg1)
+{
+    ps.setNumberofImages(arg1);
+}
+
+void PCLViewer::on_winSize_valueChanged(int arg1)
+{
+    // Make sure arg1 is odd
+    arg1 = 2 * (arg1 / 2) + 1;
+    ps.setWindowSize(arg1);
+}
+
+void PCLViewer::on_numberPlanes_valueChanged(int arg1)
+{
+    ps.setNumberofPlanes(arg1);
+}
+
+void PCLViewer::on_zNear_valueChanged(double arg1)
+{
+    ps.setZnear(arg1);
+}
+
+void PCLViewer::on_zFar_valueChanged(double arg1)
+{
+    ps.setZfar(arg1);
+}
+
+void PCLViewer::on_stdThresh_valueChanged(double arg1)
+{
+    ps.setSTDthreshold(arg1);
+}
+
+void PCLViewer::on_nccThresh_valueChanged(double arg1)
+{
+    ps.setNCCthreshold(arg1);
+}
+
+void PCLViewer::on_pSlider2_valueChanged(int value)
+{
+    ui->cloudSize2->setValue(value);
+    viewerdenoised->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
+    ui->qvtkDenoised->update ();
+}
+
+void PCLViewer::on_denoiseBtn_clicked()
+{
+    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
+        dendepth8u = *ps.getDepthmap8uDenoised();
+        // The number of points in the cloud
+        clouddenoised->points.resize(dendepth8u.width * dendepth8u.height);
+
+        QColor c;
+        int  i;
+
+        // Fill the cloud with some points
+        for (size_t x = 0; x < dendepth8u.width; ++x)
+            for (size_t y = 0; y < dendepth8u.height; ++y)
+            {
+
+                i = x + y * dendepth8u.width;
+
+                clouddenoised->points[i].x = x;
+                clouddenoised->points[i].y = dendepth8u.height - y;
+                clouddenoised->points[i].z = -dendepth8u.data[i];
+
+                c = refim.pixel(x, y);
+                clouddenoised->points[i].r = c.red();
+                clouddenoised->points[i].g = c.green();
+                clouddenoised->points[i].b = c.blue();
+            }
+
+        QImage img((const uchar *)dendepth8u.data, dendepth8u.width, dendepth8u.height, QImage::Format_Grayscale8);
+
+        dendepth = QPixmap::fromImage(img);
+        dendepthsc->addPixmap(dendepth);
+        dendepthsc->setSceneRect(dendepth.rect());
+        ui->denview->setScene(dendepthsc);
+
+        viewerdenoised->updatePointCloud(clouddenoised, "cloud");
+        viewerdenoised->resetCamera();
+        ui->qvtkDenoised->update();
+    }
 }

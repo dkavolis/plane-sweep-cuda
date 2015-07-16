@@ -1,6 +1,9 @@
 
 cmake_minimum_required(VERSION 2.8)
- 
+
+SET(OpenCV_DIR "D:/Software/opencv/build")
+SET(VTK_DIR "D:/Software/VTK 6.2.0")
+
 if(POLICY CMP0020)
   cmake_policy(SET CMP0020 NEW)
 endif()
@@ -10,8 +13,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
 project      (plane_sweep)
 find_package (PCL REQUIRED)
 
-SET(CMAKE_PREFIX_PATH "D:/Software/VTK 6.2.0")
-find_package (VTK REQUIRED NO_MODULE)
+find_package (VTK REQUIRED PATHS VTK_DIR NO_DEFAULT_PATH)
 include(${VTK_USE_FILE})
 
 find_package(CUDA REQUIRED)
@@ -21,6 +23,7 @@ include_directories(
     "common\\inc"
     "common\\UtilNPP"
     "common\\FreeImage\\include"
+    ${CMAKE_CURRENT_BINARY_DIR}
     )
 link_directories(
     "common\\FreeImage\\lib\\x64"
@@ -37,8 +40,13 @@ else()
   include(${QT_USE_FILE})
 endif()
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${PCL_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS})
-link_directories    (${PCL_LIBRARY_DIRS})
+# Project uses dynamic linking
+set(OpenCV_STATIC OFF)
+find_package(OpenCV REQUIRED PATHS OpenCV_DIR NO_DEFAULT_PATH)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${PCL_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS}
+                    ${OpenCV_INCLUDE_DIRS})
+link_directories    (${PCL_LIBRARY_DIRS} ${OpenCV_LIB_DIR})
 add_definitions     (${PCL_DEFINITIONS})
 
 file(GLOB UI_FILES *.ui)
@@ -52,7 +60,8 @@ if(${VTK_VERSION} VERSION_GREATER "6" AND VTK_QT_VERSION VERSION_GREATER "4")
   cuda_add_executable(plane_sweep MACOSX_BUNDLE
     ${CXX_FILES} ${UISrcs} ${QT_WRAP} ${CU_FILES})
   qt5_use_modules(plane_sweep Core Gui)
-  target_link_libraries(plane_sweep ${VTK_LIBRARIES} ${FREEIMAGE_LIB} ${PCL_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_npp_LIBRARY} ${CUDA_nppc_LIBRARY} ${CUDA_nppi_LIBRARY})
+  target_link_libraries(plane_sweep ${VTK_LIBRARIES} ${FREEIMAGE_LIB} ${PCL_LIBRARIES} ${CUDA_LIBRARIES}
+                        ${CUDA_npp_LIBRARY} ${CUDA_nppi_LIBRARY} ${OpenCV_LIBS})
 else()
   QT4_WRAP_UI(UISrcs ${UI_FILES})
   QT4_WRAP_CPP(MOCSrcs ${QT_WRAP})
@@ -60,11 +69,14 @@ else()
 
   if(VTK_LIBRARIES)
     if(${VTK_VERSION} VERSION_LESS "6")
-      target_link_libraries(plane_sweep ${PCL_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_npp_LIBRARY} ${CUDA_nppc_LIBRARY} ${CUDA_nppi_LIBRARY} ${VTK_LIBRARIES} QVTK)
+      target_link_libraries(plane_sweep ${FREEIMAGE_LIB} ${OpenCV_LIBS} ${PCL_LIBRARIES} ${CUDA_LIBRARIES}
+                                        ${CUDA_npp_LIBRARY} ${CUDA_nppi_LIBRARY} ${VTK_LIBRARIES} QVTK)
     else()
-      target_link_libraries(plane_sweep ${PCL_LIBRARIES} ${CUDA_LIBRARIES} ${VTK_LIBRARIES} ${CUDA_npp_LIBRARY} ${CUDA_nppc_LIBRARY} ${CUDA_nppi_LIBRARY})
+      target_link_libraries(plane_sweep ${FREEIMAGE_LIB} ${OpenCV_LIBS} ${PCL_LIBRARIES} ${CUDA_LIBRARIES}
+                                        ${VTK_LIBRARIES} ${CUDA_npp_LIBRARY} ${CUDA_nppi_LIBRARY})
     endif()
   else()
-    target_link_libraries(plane_sweep vtkHybrid QVTK vtkViews ${QT_LIBRARIES} ${CUDA_LIBRARIES} ${PCL_LIBRARIES} ${CUDA_npp_LIBRARY} ${CUDA_nppc_LIBRARY} ${CUDA_nppi_LIBRARY})
+    target_link_libraries(plane_sweep vtkHybrid QVTK vtkViews ${FREEIMAGE_LIB} ${OpenCV_LIBS} ${QT_LIBRARIES}
+                                        ${CUDA_LIBRARIES} ${PCL_LIBRARIES} ${CUDA_npp_LIBRARY} ${CUDA_nppi_LIBRARY})
   endif()
 endif()
