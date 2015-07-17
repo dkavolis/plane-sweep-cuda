@@ -2,13 +2,8 @@
 <ui version="4.0">
  <class>PCLViewer</class>
  <widget class="QMainWindow" name="PCLViewer">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>1024</width>
-    <height>768</height>
-   </rect>
+  <property name="windowModality">
+   <enum>Qt::WindowModal</enum>
   </property>
   <property name="sizePolicy">
    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -30,6 +25,9 @@
   </property>
   <property name="windowTitle">
    <string>PCLViewer</string>
+  </property>
+  <property name="dockNestingEnabled">
+   <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">

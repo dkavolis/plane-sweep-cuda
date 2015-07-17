@@ -268,7 +268,8 @@ void PCLViewer::on_pSlider2_valueChanged(int value)
 
 void PCLViewer::on_denoiseBtn_clicked()
 {
-    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
+//    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
+    if (ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value())){
         dendepth8u = *ps.getDepthmap8uDenoised();
         // The number of points in the cloud
         clouddenoised->points.resize(dendepth8u.width * dendepth8u.height);

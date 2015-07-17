@@ -251,6 +251,102 @@ __global__ void convert_uchar_to_float_kernel(float * __restrict__ d_output, con
     }
 }
 
+__global__ void denoising_TVL1_calculateP_kernel(float * __restrict__ d_Px, float * __restrict__ d_Py,
+                                                 const float * d_input, const float sigma,
+                                                 const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        int ny = ind_y + 1;
+        if (ny > height - 1) ny = height - 1;
+
+        double dx, dy, m;
+
+        if (ind_x == width - 1){ // last column
+            dy = (d_input[ny * width + ind_x] - d_input[ind]) * sigma + d_Py[ind];
+            m = 1.f / dy;
+            if (m < 0.f) m = -m;
+            if (m > 1.f) m = 1.f;
+            d_Px[ind] = 0.f;
+            d_Py[ind] = dy * m;
+        }
+        else {
+            dx = (d_input[ind + 1] - d_input[ind]) * sigma + d_Px[ind];
+            dy = (d_input[ny * width + ind_x] - d_input[ind]) * sigma + d_Py[ind];
+            m = 1.f / sqrt(dx * dx + dy * dy);
+            if (m > 1.f) m = 1.f;
+            d_Px[ind] = dx * m;
+            d_Py[ind] = dy * m;
+        }
+    }
+}
+
+__global__ void element_scale_kernel(float * __restrict__ d_output, const float scale, const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        d_output[ind] = d_output[ind] * scale;
+    }
+}
+
+__global__ void element_add_kernel(float * __restrict__ d_output, const float value, const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        d_output[ind] += value;
+    }
+}
+
+__global__ void set_QNAN_value_kernel(float * __restrict__ d_output, const float value, const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        if (d_output[ind] != d_output[ind]) d_output[ind] = value;
+    }
+}
+
+__global__ void denoising_TVL1_update_kernel(float * __restrict__ d_output, float * __restrict__ d_R,
+                                             const float * d_Px, const float * d_Py, const float * __restrict__ d_origin,
+                                             const float tau, const float theta, const float lambda, const float sigma,
+                                             const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int ind = ind_y * width + ind_x;
+        double x_new;
+        int yp = ind_y - 1;
+        if (yp < 0) yp = 0;
+
+        d_R[ind] += d_origin[ind];
+        d_R[ind] += sigma * d_output[ind];
+        if (d_R[ind] > lambda) d_R[ind] = lambda;
+        if (d_R[ind] < -lambda) d_R[ind] = -lambda;
+
+        if (ind_x == 0){
+            x_new = d_output[ind] + tau*(d_Py[ind] - d_Py[yp * width + ind_x]) - tau * d_R[ind];
+            d_output[ind] = x_new + theta*(x_new - d_output[ind]);
+        }
+        else {
+            x_new = d_output[ind] + tau*(d_Px[ind] - d_Px[ind - 1] + d_Py[ind] - d_Py[yp * width + ind_x]) - tau * d_R[ind];
+            d_output[ind] = x_new + theta*(x_new - d_output[ind]);
+        }
+    }
+}
+
 void transform_indexes(float * d_x, float *  d_y,
                        const float h11, const float h12, const float h13,
                        const float h21, const float h22, const float h23,
@@ -381,5 +477,42 @@ void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
                             const int width, const int height, dim3 blocks, dim3 threads)
 {
     convert_uchar_to_float_kernel<<<blocks, threads>>>(d_output, d_input, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void denoising_TVL1_calculateP(float * d_Px, float * d_Py,
+                               const float * d_input, const float sigma,
+                               const int width, const int height,
+                               dim3 blocks, dim3 threads)
+{
+    denoising_TVL1_calculateP_kernel<<<blocks, threads>>>(d_Px, d_Py, d_input, sigma, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void element_scale(float * d_output, const float scale, const int width, const int height, dim3 blocks, dim3 threads)
+{
+    element_scale_kernel<<<blocks, threads>>>(d_output, scale, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void element_add(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads)
+{
+    element_add_kernel<<<blocks, threads>>>(d_output, value, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void set_QNAN_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads)
+{
+    set_QNAN_value_kernel<<<blocks, threads>>>(d_output, value, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void denoising_TVL1_update(float * d_output, float * d_R,
+                           const float * d_Px, const float * d_Py, const float * d_origin,
+                           const float tau, const float theta, const float lambda, const float sigma,
+                           const int width, const int height, dim3 blocks, dim3 threads)
+{
+    denoising_TVL1_update_kernel<<<blocks, threads>>>(d_output, d_R, d_Px, d_Py, d_origin,
+                                                      tau, theta, lambda, sigma, width, height);
     checkCudaErrors(cudaPeekAtLastError());
 }

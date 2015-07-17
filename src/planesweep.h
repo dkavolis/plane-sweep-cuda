@@ -124,6 +124,7 @@ public:
 
     bool RunAlgorithm(int argc, char **argv);
     bool Denoise(unsigned int niter, double lambda);
+    bool CudaDenoise( int argc, char **argv, unsigned int niters = DEFAULT_TVL1_ITERATIONS, double lambda = DEFAULT_TVL1_LAMBDA);
 
     // Setters:
     void setK(double Km[][3]){ arrayToMatrix(Km, K); invertK(); }
@@ -140,6 +141,7 @@ public:
     void getK(double k[][3]){ matrixToArray(k, K); }
     void getInverseK(double k[][3]){ matrixToArray(k, invK); }
     camImage<float> * getDepthmap(){ return &depthmap; }
+    camImage<float> * getDepthmapDenoised(){ return &depthmapdenoised; }
     camImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
     camImage<uchar> * getDepthmap8uDenoised(){ return &depthmap8udenoised; }
     float getZnear(){ return znear; }
@@ -181,6 +183,7 @@ protected:
 
     // stored depthmap
     camImage<float> depthmap;
+    camImage<float> depthmapdenoised;
     camImage<uchar> depthmap8u;
     camImage<uchar> depthmap8udenoised;
 
@@ -205,7 +208,7 @@ protected:
     template<class T>
     bool InvertMatrix (const ublas::matrix<T>& input, ublas::matrix<T>& inverse);
 
-    void ConvertDepthtoUChar();
+    void ConvertDepthtoUChar(const camImage<float> &input, camImage<uchar> &output);
 
 private:
     void invertK();

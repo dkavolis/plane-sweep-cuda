@@ -265,10 +265,11 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
 
         // Calculate averaged depthmap and copy it to host
         element_rdivide(devDepthmap.data(), devDepthmap.data(), devN.data(), imSize.width, imSize.height, blocks, threads);
+        set_QNAN_value(devDepthmap.data(), zfar, imSize.width, imSize.height, blocks, threads);
         devDepthmap.copyTo(depthmap.data, depthmap.pitch);
         //convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
         //devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
-        ConvertDepthtoUChar();
+        ConvertDepthtoUChar(depthmap, depthmap8u);
         depthavailable = true;
 
         // Free up resources
@@ -439,16 +440,16 @@ void PlaneSweep::invertK()
 
 }
 
-void PlaneSweep::ConvertDepthtoUChar()
+void PlaneSweep::ConvertDepthtoUChar(const camImage<float>& input, camImage<uchar>& output)
 {
-    depthmap8u.setSize(depthmap.width, depthmap.height);
-    for (size_t x = 0; x < depthmap.width; ++x)
-        for (size_t y = 0; y < depthmap.height; ++y)
+    output.setSize(input.width, input.height);
+    for (size_t x = 0; x < input.width; ++x)
+        for (size_t y = 0; y < input.height; ++y)
         {
-            int i = x + y * depthmap.width;
+            int i = x + y * input.width;
             // Check if QNAN
-            if (depthmap.data[i] == depthmap.data[i]) depthmap8u.data[i] = UCHAR_MAX * (depthmap.data[i] - znear) / (zfar - znear);
-            else depthmap8u.data[i] = UCHAR_MAX;
+            if (input.data[i] == input.data[i]) output.data[i] = UCHAR_MAX * (input.data[i] - znear) / (zfar - znear);
+            else output.data[i] = UCHAR_MAX;
         }
 }
 
@@ -507,4 +508,107 @@ void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output)
 {
     NppiSize oSize = {(int)A.width(), (int)A.height()};
     NPP_CHECK_NPP(nppiConvert_8u32f_C1R(A.data(), A.pitch(), output.data(), output.pitch(), oSize));
+}
+
+bool PlaneSweep::CudaDenoise(int argc, char ** argv, unsigned int niters, double lambda)
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+    printf("Starting TVL1 denoising...\n\n");
+
+    if (depthavailable) try
+    {
+
+        if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
+        {
+            cudaDeviceReset();
+            return false;
+        }
+
+        if (printfNPPinfo() == false)
+        {
+            cudaDeviceReset();
+            return false;
+        }
+
+        const double L2 = 8.0, tau = 0.02, sigma = 1./(L2*tau), theta = 1.0;
+        double clambda = (double)lambda;
+        int h = depthmap.height, w = depthmap.width;
+
+        dim3 threads(32,32);
+        dim3 blocks(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
+
+        depthmapdenoised.setSize(w, h);
+        depthmap8udenoised.setSize(w, h);
+
+        npp::ImageNPP_32f_C1 X(w, h);
+        npp::ImageNPP_32f_C1 R(w, h);
+        npp::ImageNPP_32f_C1 Px(w,h);
+        npp::ImageNPP_32f_C1 Py(w,h);
+        npp::ImageNPP_32f_C1 rawInput(w,h);
+
+
+        set_value(R.data(), 0.f, w, h, blocks, threads);
+        set_value(Px.data(), 0.f, w, h, blocks, threads);
+        set_value(Py.data(), 0.f, w, h, blocks, threads);
+
+        X.copyFrom(depthmap.data, depthmap.pitch);
+        rawInput.copyFrom(depthmap.data, depthmap.pitch);
+
+        element_add(X.data(), -znear, w, h, blocks, threads);
+        element_add(rawInput.data(), -znear, w, h, blocks, threads);
+
+        double xscale = 1.f/(zfar - znear);
+        double inputscale = -sigma/(zfar - znear);
+
+        element_scale(X.data(), xscale, w, h, blocks, threads);
+        element_scale(rawInput.data(), inputscale, w, h, blocks, threads);
+
+        for (unsigned int i = 0; i < niters; i++){
+            double currsigma = i == 0 ? 1 + sigma : sigma;
+            denoising_TVL1_calculateP(Px.data(), Py.data(), X.data(), currsigma, w, h, blocks, threads);
+            denoising_TVL1_update(X.data(), R.data(), Px.data(), Py.data(), rawInput.data(), tau, theta, clambda, sigma,
+                                  w, h, blocks, threads);
+        }
+
+        element_add(X.data(), znear, w, h, blocks, threads);
+        element_scale(X.data(), zfar - znear, w, h, blocks, threads);
+
+        X.copyTo(depthmapdenoised.data, depthmapdenoised.pitch);
+
+        ConvertDepthtoUChar(depthmapdenoised, depthmap8udenoised);
+
+        nppiFree(X.data());
+        nppiFree(R.data());
+        nppiFree(Px.data());
+        nppiFree(Py.data());
+        nppiFree(rawInput.data());
+
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::cout << "Time taken for the TVL1 denoising to complete is " <<
+                     std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+
+        cudaDeviceReset();
+        return true;
+
+    }
+    catch (npp::Exception &rExcep)
+    {
+        std::cerr << "Program error! The following exception occurred: \n";
+        std::cerr << rExcep << std::endl;
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return false;
+    }
+    catch (...)
+    {
+        std::cerr << "Program error! An unknow type of exception occurred. \n";
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return false;
+
+    }
+
+    return false;
 }

@@ -163,7 +163,41 @@ void windowed_mean_column(float * d_output, const float * d_input,
                           const unsigned int winsize, const bool squared,
                           const int width, const int height, dim3 blocks, dim3 threads);
 
-// Converts unsigned char image to float
+// Converts unsigned char image to float DOES NOT WORK
 void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
                             const int width, const int height,
                             dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Calculates x and y of P matrix (as used in OpenCV denoising_TVL1)
+ * -------------------------------------------------------------------*/
+void denoising_TVL1_calculateP(float * d_Px, float * d_Py,
+                               const float * d_input,
+                               const float sigma,
+                               const int width, const int height,
+                               dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Scale each element in d_output by scale
+ * -------------------------------------------------------------------*/
+void element_scale(float * d_output, const float scale, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Add value to each element in d_output
+ * -------------------------------------------------------------------*/
+void element_add(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Set QNANs to value
+ * -------------------------------------------------------------------*/
+void set_QNAN_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Updates d_output given the parameters tau, theta, lambda, sigma and
+ * based on values in d_R, d_Px, d_Py and d_origin (based on OpenCV
+ * implementation of TVl1 denoising)
+ * -------------------------------------------------------------------*/
+void denoising_TVL1_update(float * d_output, float * d_R,
+                           const float * d_Px, const float * d_Py, const float * d_origin,
+                           const float tau, const float theta, const float lambda, const float sigma,
+                           const int width, const int height, dim3 blocks, dim3 threads);
