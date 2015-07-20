@@ -9,6 +9,8 @@ will most likely need to be configured for your system.
 * [Qt 5.5](http://www.qt.io/) (only version with built-in RGB to grayscale conversion)
 * [VTK](http://www.vtk.org/)
 * [PCL](http://pointclouds.org/)
-* [OpenCV](http://opencv.org/)
 * [CUDA](https://developer.nvidia.com/cuda-zone)
 * [boost](http://www.boost.org/)
+
+**Optional libraries:**
+* [OpenCV](http://opencv.org/)
