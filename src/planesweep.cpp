@@ -3,8 +3,10 @@
 #include <chrono>
 
 // OpenCV:
+#ifdef OpenCV_FOUND
 #include <opencv2/photo.hpp>
 #include <opencv2/core/mat.hpp>
+#endif
 
 // Boost:
 #include <boost/numeric/ublas/vector.hpp>
@@ -427,6 +429,7 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
 
 bool PlaneSweep::Denoise(unsigned int niter, double lambda)
 {
+#ifdef OpenCV_FOUND
     if (depthavailable){
         depthmap8udenoised.setSize(depthmap.width, depthmap.height);
         std::vector<cv::Mat> raw(1);
@@ -436,6 +439,9 @@ bool PlaneSweep::Denoise(unsigned int niter, double lambda)
         cv::denoise_TVL1(raw, out, lambda, niter);
         return true;
     }
+#elif
+    std::cout << "\nWarning: OpenCV was not found. Denoising aborted.\n\n";
+#endif
     return false;
 }
 
@@ -563,7 +569,6 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, unsigned int niters, double
         npp::ImageNPP_32f_C1 Px(w,h);
         npp::ImageNPP_32f_C1 Py(w,h);
         npp::ImageNPP_32f_C1 rawInput(w,h);
-
 
         set_value(R.data(), 0.f, w, h, blocks, threads);
         set_value(Px.data(), 0.f, w, h, blocks, threads);

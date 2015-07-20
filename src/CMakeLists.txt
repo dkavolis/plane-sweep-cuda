@@ -42,7 +42,10 @@ endif()
 
 # Project uses dynamic linking
 set(OpenCV_STATIC OFF)
-find_package(OpenCV REQUIRED PATHS OpenCV_DIR NO_DEFAULT_PATH)
+find_package(OpenCV PATHS OpenCV_DIR NO_DEFAULT_PATH)
+if (OpenCV_FOUND)
+    add_definitions(-DOpenCV_FOUND)
+endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${PCL_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS}
                     ${OpenCV_INCLUDE_DIRS})
