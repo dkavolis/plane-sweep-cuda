@@ -79,7 +79,8 @@ bool PlaneSweep::printfNPPinfo()
     return Val;
 }
 
-PlaneSweep::PlaneSweep()
+PlaneSweep::PlaneSweep() :
+    threads(dim3 (DEFAULT_BLOCK_XDIM))
 {
     K.resize(3,3);
     invK.resize(3,3);
@@ -89,6 +90,23 @@ PlaneSweep::PlaneSweep()
     n(0,0) = 0;
     n(1,0) = 0;
     n(2,0) = 1;
+
+}
+
+PlaneSweep::PlaneSweep(int argc, char **argv)
+{
+    K.resize(3,3);
+    invK.resize(3,3);
+    n.resize(3,1);
+
+    // Set correct n elements
+    n(0,0) = 0;
+    n(1,0) = 0;
+    n(2,0) = 1;
+
+    cudaDevInit(argc, (const char **)argv);
+    threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
+    cudaDeviceReset();
 }
 
 bool PlaneSweep::RunAlgorithm(int argc, char **argv)
@@ -124,8 +142,8 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         npp::ImageNPP_32f_C1 deviceRef(imSize.width, imSize.height);
         deviceRef.copyFrom(HostRef.data, HostRef.pitch);
 
-        dim3 threads(32,32);
-        dim3 blocks(ceil(imSize.width/(float)threads.x), ceil(imSize.height/(float)threads.y));
+        if (threads.x * threads.y == 0) threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
+        blocks = dim3(ceil(imSize.width/(float)threads.x), ceil(imSize.height/(float)threads.y));
 
         // Create images on the device to hold windowed mean and std for reference image + intermediate images
         // and calculate the images
@@ -534,8 +552,8 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, unsigned int niters, double
         double clambda = (double)lambda;
         int h = depthmap.height, w = depthmap.width;
 
-        dim3 threads(32,32);
-        dim3 blocks(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
+        if (threads.x * threads.y == 0) threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
+        blocks = dim3(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
 
         depthmapdenoised.setSize(w, h);
         depthmap8udenoised.setSize(w, h);

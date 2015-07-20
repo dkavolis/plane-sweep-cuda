@@ -13,7 +13,8 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui (new Ui::PCLViewer),
     scene (new QGraphicsScene()),
     depthscene (new QGraphicsScene()),
-    dendepthsc (new QGraphicsScene())
+    dendepthsc (new QGraphicsScene()),
+    ps(argc, argv)
 {
     ui->setupUi (this);
     this->setWindowTitle ("PCL viewer");
@@ -62,6 +63,13 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->lambda_label->setText( trUtf8( "\xce\xbb" ) );
     ui->lambda->setValue(DEFAULT_TVL1_LAMBDA);
     ui->nIters->setValue(DEFAULT_TVL1_ITERATIONS);
+
+    ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
+    ui->threadsx->setMaximum(ui->maxthreads->value());
+    ui->threadsy->setMaximum(ui->maxthreads->value());
+    dim3 t = ps.getThreadsPerBlock();
+    ui->threadsx->setValue(t.x);
+    ui->threadsy->setValue(t.y);
 
     LoadImages();
 }
@@ -177,6 +185,7 @@ PCLViewer::~PCLViewer ()
 void PCLViewer::on_pushButton_pressed()
 {
 	if (ps.RunAlgorithm(argc, argv)){
+        ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         depth = *ps.getDepthmap();
 		// The number of points in the cloud
         cloud->points.resize(depth.width * depth.height);
@@ -270,6 +279,7 @@ void PCLViewer::on_denoiseBtn_clicked()
 {
 //    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
     if (ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value())){
+        ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         dendepth8u = *ps.getDepthmap8uDenoised();
         // The number of points in the cloud
         clouddenoised->points.resize(dendepth8u.width * dendepth8u.height);
@@ -305,4 +315,16 @@ void PCLViewer::on_denoiseBtn_clicked()
         viewerdenoised->resetCamera();
         ui->qvtkDenoised->update();
     }
+}
+
+void PCLViewer::on_threadsx_valueChanged(int arg1)
+{
+    ps.setBlockXdim(arg1);
+    ui->threadsx->setValue(arg1);
+}
+
+void PCLViewer::on_threadsy_valueChanged(int arg1)
+{
+    ps.setBlockYdim(arg1);
+    ui->threadsy->setValue(arg1);
 }

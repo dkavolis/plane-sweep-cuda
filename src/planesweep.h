@@ -13,6 +13,7 @@
 #define MAX_THREADS_PER_BLOCK 512
 #define DEFAULT_TVL1_ITERATIONS 30
 #define DEFAULT_TVL1_LAMBDA 1.f
+#define DEFAULT_BLOCK_XDIM 32
 
 #include <iostream>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -23,6 +24,7 @@
 #include <cstdio>
 #include <ctime>
 #include <algorithm>
+#include <cuda_runtime_api.h>
 
 namespace ublas = boost::numeric::ublas;
 typedef unsigned char uchar;
@@ -120,6 +122,7 @@ public:
     std::vector<camImage<uchar>> HostSrc8u;
 
     PlaneSweep();
+    PlaneSweep(int argc, char **argv);
     ~PlaneSweep ();
 
     bool RunAlgorithm(int argc, char **argv);
@@ -136,6 +139,11 @@ public:
     void setWindowSize(unsigned int sz){ if (sz % 2 == 0) std::cout << "Window size must be an odd number"; else winsize = sz; }
     void setSTDthreshold(float th){ stdthresh = th; }
     void setNCCthreshold(float th){ nccthresh = th; }
+    void setThreadsPerBlock(dim3 tpb){ threads = tpb; }
+    void setBlockXdim(int & threadsx){ if (threadsx * threads.y > maxThreadsPerBlock) threadsx = maxThreadsPerBlock / threads.y;
+                                       threads.x = threadsx;}
+    void setBlockYdim(int & threadsy){ if (threadsy * threads.x > maxThreadsPerBlock) threadsy = maxThreadsPerBlock / threads.x;
+                                       threads.y = threadsy;}
 
     // Getters:
     void getK(double k[][3]){ matrixToArray(k, K); }
@@ -151,6 +159,8 @@ public:
     unsigned int getWindowSize(){ return winsize; }
     float getSTDthreshold(){ return stdthresh; }
     float getNCCthreshold(){ return nccthresh; }
+    unsigned int getMaxThreadsPerBlock(){ return maxThreadsPerBlock; }
+    dim3 getThreadsPerBlock(){ return threads; }
 
     // Images for planesweep:
     void setRreference(double R[][3]){ arrayToMatrix(R, HostRef.R); }
@@ -201,6 +211,7 @@ protected:
     float nccthresh = DEFAULT_NCC_THRESHOLD;
 
     int maxThreadsPerBlock = MAX_THREADS_PER_BLOCK;
+    dim3 blocks, threads;
 
     bool depthavailable = false;
 

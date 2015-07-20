@@ -93,6 +93,10 @@ private slots:
 
   void on_denoiseBtn_clicked();
 
+  void on_threadsx_valueChanged(int arg1);
+
+  void on_threadsy_valueChanged(int arg1);
+
 private:
   Ui::PCLViewer *ui;
   void LoadImages();
