@@ -201,3 +201,81 @@ void denoising_TVL1_update(float * d_output, float * d_R,
                            const float * d_Px, const float * d_Py, const float * d_origin,
                            const float tau, const float theta, const float lambda, const float sigma,
                            const int width, const int height, dim3 blocks, dim3 threads);
+
+/*========================================================================================================*\
+ * Total generalised varation multistereo view functions
+ *
+ * page 32 of http://gpu4vision.icg.tugraz.at/papers/2012/graber_master.pdf#pub68
+ * notation used is the same, prefix "d_" means that the variable resides on device memory
+ *
+ * At each point of the image variables will have:
+ * p - 2 components, initialized to 0
+ * q - 4 components, initialized to 0
+ * r - 1 component for each source view, initialized to 0
+ * u - 1 component, initialized to some guess
+ * u1 - 2 components, initialized to 0
+/*========================================================================================================*\
+
+/*----------------------------------------------------------------------
+ * Updates both p components depending on u and u1
+ * -------------------------------------------------------------------*/
+void TGV2_updateP(float * d_Px, float * d_Py, const float * d_u, const float * d_u1x, const float * d_u1y,
+                  const float alpha1, const float sigma, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Updates all 4 q components depending on u1
+ * -------------------------------------------------------------------*/
+void TGV2_updateQ(float * d_Qx, float * d_Qy, float * d_Qz, float * d_Qw, const float * d_u1x, const float * d_u1y,
+                  const float alpha0, const float sigma, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Updates r and sums r*Iu cumulatively to prodsum, used for update u
+ * -------------------------------------------------------------------*/
+void TGV2_updateR(float * d_r, float * d_prodsum, const float * d_u, const float * d_u0, const float * d_It, const float * d_Iu,
+                  const float sigma, const float lambda, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Updates u, u1, ubar and u1bar given calculated images It and Iu
+ * -------------------------------------------------------------------*/
+void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, float * d_u1xbar, float * d_u1ybar,
+                  const float * d_Px, const float * d_Py, const float * d_Qx, const float * d_Qy,
+                  const float * d_Qz, const float * d_Qw, const float * d_prodsum, const float alpha0,
+                  const float alpha1, const float tau, const float lambda,
+                  const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Calculates x and y pixel coordinates in the source view of each pixel
+ * from the reference view given camera calibration matrix K,
+ * relative rotation and translation between the views and real pixel depth.
+ * Also outputs 3D X, Y and Z coordinates of the pixel
+ * -------------------------------------------------------------------*/
+void TGV2_transform_coordinates(float * d_x, float * d_y, float * d_X, float * d_Y, float * d_Z, const float * d_u,
+                                const double K[3][3], const double Rrel[3][3], const double trel[3], const double invK[3][3],
+                                const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Calculates in1 - in2
+ * -------------------------------------------------------------------*/
+void subtract(float * d_out, const float * d_in1, const float * d_in2, const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Calculates camera coordinate derivatives dX, dY and dZ given inverse of
+ * camera calibration matrix invK and relative rotation Rrel
+ * -------------------------------------------------------------------*/
+void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const double invK[3][3], const double Rrel[3][3],
+                                           const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Calculates derivative of f(x,u) given X, Y and Z coordinates and their
+ * derivatives dX, dY and dZ
+ * -------------------------------------------------------------------*/
+void TGV2_calculate_derivativeF(float * d_dfx, float * d_dfy, const float * d_X, const float * d_dX, const float * d_Y, const float * d_dY,
+                                const float * d_Z, const float * d_dZ, const float fx, const float fy,
+                                const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Calculates image Iu given interpolated image I(f(x,u) and f(x,u) derivatives
+ * dfx and dfy
+ * -------------------------------------------------------------------*/
+void TGV2_calculate_Iu(float * d_Iu, const float * d_I, const float * d_dfx, const float * d_dfy,
+                       const int width, const int height, dim3 blocks, dim3 threads);

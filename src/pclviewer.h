@@ -46,8 +46,10 @@ public slots:
 protected:
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewerdenoised;
+  boost::shared_ptr<pcl::visualization::PCLVisualizer> tgvviewer;
   PointCloudT::Ptr cloud;
   PointCloudT::Ptr clouddenoised;
+  PointCloudT::Ptr tgvcloud;
 
   unsigned int red;
   unsigned int green;
@@ -97,6 +99,10 @@ private slots:
 
   void on_threadsy_valueChanged(int arg1);
 
+  void on_tgv_button_pressed();
+
+  void on_tgv_psize_valueChanged(int value);
+
 private:
   Ui::PCLViewer *ui;
   void LoadImages();
@@ -107,11 +113,14 @@ private:
   QGraphicsScene *scene;
   QGraphicsScene *depthscene;
   QGraphicsScene *dendepthsc;
+  QGraphicsScene *tgvscene;
   QPixmap depthim;
   QPixmap dendepth;
+  QPixmap tgvdepth;
   PlaneSweep::camImage<float> depth;
   PlaneSweep::camImage<uchar> depth8u;
   PlaneSweep::camImage<uchar> dendepth8u;
+  PlaneSweep::camImage<uchar> tgvdepth8u;
 
 };
 

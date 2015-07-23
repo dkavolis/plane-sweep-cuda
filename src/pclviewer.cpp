@@ -14,6 +14,7 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     scene (new QGraphicsScene()),
     depthscene (new QGraphicsScene()),
     dendepthsc (new QGraphicsScene()),
+    tgvscene (new QGraphicsScene()),
     ps(argc, argv)
 {
     ui->setupUi (this);
@@ -37,6 +38,15 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     viewerdenoised->setupInteractor (ui->qvtkDenoised->GetInteractor (), ui->qvtkDenoised->GetRenderWindow ());
     ui->qvtkDenoised->update ();
 
+    // Setup the cloud pointer
+    tgvcloud.reset (new PointCloudT);
+
+    // Set up the QVTK window
+    tgvviewer.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
+    ui->qvtktgv->SetRenderWindow (tgvviewer->getRenderWindow ());
+    tgvviewer->setupInteractor (ui->qvtktgv->GetInteractor (), ui->qvtktgv->GetRenderWindow ());
+    ui->qvtktgv->update ();
+
     connect(ui->pSlider, SIGNAL(valueChanged(int)), this, SLOT(pSliderValueChanged(int)));
 
     viewer->addPointCloud (cloud, "cloud");
@@ -44,10 +54,15 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     viewer->resetCamera ();
     ui->qvtkWidget->update ();
 
-    viewerdenoised->addPointCloud (cloud, "cloud");
+    viewerdenoised->addPointCloud (clouddenoised, "cloud");
     on_pSlider2_valueChanged (2);
     viewerdenoised->resetCamera ();
     ui->qvtkDenoised->update ();
+
+    tgvviewer->addPointCloud (tgvcloud, "cloud");
+    ui->tgv_psize->setValue(2);
+    tgvviewer->resetCamera ();
+    ui->qvtktgv->update ();
 
     ui->depthview->setScene(depthscene);
 
@@ -70,6 +85,23 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     dim3 t = ps.getThreadsPerBlock();
     ui->threadsx->setValue(t.x);
     ui->threadsy->setValue(t.y);
+
+    QChar alpha = QChar(0xb1, 0x03);
+    QString a0 = alpha, a1 = alpha;
+    a0 += "<sub>";
+    a0 += QString::number(0);
+    a0 += "</sub>";
+    a1 += "<sub>";
+    a1 += QString::number(1);
+    a1 += "</sub>";
+    ui->alpha0_label->setText(a0);
+    ui->alpha1_label->setText(a1);
+    ui->tgv_lambda_label->setText(trUtf8( "\xce\xbb" ));
+
+    ui->tgv_alpha0->setValue(DEFAULT_TGV_ALPHA0);
+    ui->tgv_alpha1->setValue(DEFAULT_TGV_ALPHA1);
+    ui->tgv_lambda->setValue(DEFAULT_TGV_LAMBDA);
+    ui->tgv_niters->setValue(DEFAULT_TGV_NITERS);
 
     LoadImages();
 }
@@ -327,4 +359,52 @@ void PCLViewer::on_threadsy_valueChanged(int arg1)
 {
     ps.setBlockYdim(arg1);
     ui->threadsy->setValue(arg1);
+}
+
+void PCLViewer::on_tgv_button_pressed()
+{
+    if (ps.TGV(argc, argv, ui->tgv_niters->value(), ui->tgv_lambda->value(), ui->tgv_alpha0->value(), ui->tgv_alpha1->value())){
+        ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
+        tgvdepth8u = *ps.getDepthmap8uTGV();
+        // The number of points in the cloud
+        tgvcloud->points.resize(tgvdepth8u.width * tgvdepth8u.height);
+
+        QColor c;
+        int  i;
+
+        // Fill the cloud with some points
+        for (size_t x = 0; x < tgvdepth8u.width; ++x)
+            for (size_t y = 0; y < tgvdepth8u.height; ++y)
+            {
+
+                i = x + y * tgvdepth8u.width;
+
+                tgvcloud->points[i].x = x;
+                tgvcloud->points[i].y = tgvdepth8u.height - y;
+                tgvcloud->points[i].z = -tgvdepth8u.data[i];
+
+                c = refim.pixel(x, y);
+                tgvcloud->points[i].r = c.red();
+                tgvcloud->points[i].g = c.green();
+                tgvcloud->points[i].b = c.blue();
+            }
+
+        QImage img((const uchar *)tgvdepth8u.data, tgvdepth8u.width, tgvdepth8u.height, QImage::Format_Grayscale8);
+
+        tgvdepth = QPixmap::fromImage(img);
+        tgvscene->addPixmap(tgvdepth);
+        tgvscene->setSceneRect(tgvdepth.rect());
+        ui->tgvview->setScene(tgvscene);
+
+        tgvviewer->updatePointCloud(tgvcloud, "cloud");
+        tgvviewer->resetCamera();
+        ui->qvtktgv->update();
+    }
+}
+
+void PCLViewer::on_tgv_psize_valueChanged(int value)
+{
+    ui->tgv_psizebox->setValue(value);
+    tgvviewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
+    ui->qvtktgv->update ();
 }

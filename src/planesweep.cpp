@@ -1,11 +1,12 @@
 #include <planesweep.h>
 #include <iostream>
 #include <chrono>
+#include <fstream>
 
 // OpenCV:
 #ifdef OpenCV_FOUND
-#include <opencv2/photo.hpp>
-#include <opencv2/core/mat.hpp>
+#   include <opencv2/photo.hpp>
+#   include <opencv2/core/mat.hpp>
 #endif
 
 // Boost:
@@ -440,7 +441,7 @@ bool PlaneSweep::Denoise(unsigned int niter, double lambda)
         return true;
     }
 #elif
-    std::cout << "\nWarning: OpenCV was not found. Denoising aborted.\n\n";
+    std::cerr << "\nWarning: OpenCV was not found. Denoising aborted.\n\n";
 #endif
     return false;
 }
@@ -534,7 +535,7 @@ void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output)
     NPP_CHECK_NPP(nppiConvert_8u32f_C1R(A.data(), A.pitch(), output.data(), output.pitch(), oSize));
 }
 
-bool PlaneSweep::CudaDenoise(int argc, char ** argv, unsigned int niters, double lambda)
+bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, const double lambda)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
     printf("Starting TVL1 denoising...\n\n");
@@ -611,6 +612,196 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, unsigned int niters, double
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
         cudaDeviceReset();
+        return true;
+
+    }
+    catch (npp::Exception &rExcep)
+    {
+        std::cerr << "Program error! The following exception occurred: \n";
+        std::cerr << rExcep << std::endl;
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return false;
+    }
+    catch (...)
+    {
+        std::cerr << "Program error! An unknow type of exception occurred. \n";
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return false;
+
+    }
+
+    return false;
+}
+
+bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const double lambda, const double alpha0, const double alpha1)
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+    printf("\nStarting TGV...\n\n");
+
+    if (depthavailable) try
+    {
+
+        if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
+        {
+            cudaDeviceReset();
+            return false;
+        }
+
+        if (printfNPPinfo() == false)
+        {
+            cudaDeviceReset();
+            return false;
+        }
+
+        // Set some parameters
+        const double L2 = 8.0, tau = 0.02, sigma = 1./(L2*tau);
+        double clambda = (double)lambda;
+
+        int h = depthmap.height, w = depthmap.width;
+        depthmapTGV.setSize(w,h);
+        depthmap8uTGV.setSize(w,h);
+
+        if (threads.x * threads.y == 0) threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
+        blocks = dim3(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
+
+        // Initialize data images:
+        npp::ImageNPP_32f_C1 Ref(w,h), Px(w,h), Py(w,h), u(w,h), u0(w,h), u1x(w,h), u1y(w,h),
+                ubar(w,h), u1xbar(w,h), u1ybar(w,h), qx(w,h), qy(w,h), qz(w,h), qw(2,h),
+                prodsum(w,h), x(w,h), y(w,h), X(w,h), Y(w,h), Z(w,h), dX(w,h), dY(w,h), dZ(w,h), dfx(w,h), dfy(w,h);
+
+        int nimages = std::min(std::max((int)numberimages, 1), (int)HostSrc.size());
+
+        std::vector<npp::ImageNPP_32f_C1> Src(nimages),
+                It(nimages), Iu(nimages), r(nimages);
+
+        // Set initial values for depthmap:
+        u.copyFrom(depthmapdenoised.data, depthmap.pitch);
+        ubar = u;
+        u0 = u;
+
+        // Copy reference image to device memory
+        Ref.copyFrom(HostRef.data, HostRef.pitch);
+
+        // Matrix storages:
+        std::vector<ublas::matrix<double>> Rrel(nimages, ublas::matrix<double>(3,3)), Trel(nimages, ublas::matrix<double>(3,1));
+        double k[3][3], invk[3][3];
+        matrixToArray(k, K);
+        matrixToArray(invk, invK);
+        double trel[3], rrel[3][3];
+        double fx = K(0,0), fy = K(1,1);
+
+        // Store and calculate inverse reference rotation matrix
+        ublas::matrix<double> invR(3,3);
+        InvertMatrix(HostRef.R, invR);
+
+        for (int i = 0; i < nimages; i++){
+            Src[i] = npp::ImageNPP_32f_C1(w,h);
+            It[i] = npp::ImageNPP_32f_C1(w,h);
+            r[i] = npp::ImageNPP_32f_C1(w,h);
+            Iu[i] = npp::ImageNPP_32f_C1(w,h);
+
+            // Copy source image to device memory
+            Src[i].copyFrom(HostSrc[i].data, HostSrc[i].pitch); 
+
+
+            // Calculate relative rotation and translation and convert to simple arrays
+            Rrel[i] = prod(HostSrc[i].R, invR);
+            Trel[i] = HostSrc[i].t - prod(Rrel[i], HostRef.t);
+            matrixToArray(rrel, Rrel[i]);
+            TmatrixToArray(trel, Trel[i]);
+
+            // Calculate transformed coordinates at u0
+            TGV2_transform_coordinates(x.data(), y.data(), X.data(), Y.data(), Z.data(), u0.data(), k, rrel, trel, invk, w, h, blocks, threads);
+
+            // Calculate coordinate derivatives
+            TGV2_calculate_coordinate_derivatives(dX.data(), dY.data(), dZ.data(), invk, rrel, w, h, blocks, threads);
+
+            // Calculate f(x,u) derivative wrt u at u0
+            TGV2_calculate_derivativeF(dfx.data(), dfy.data(), X.data(), dX.data(), Y.data(), dY.data(), Z.data(), dZ.data(),
+                                       fx, fy, w, h, blocks, threads);
+
+            // Interpolate source view at calculated coordinates, giving I(f(x,u0))
+            bilinear_interpolation(It[i].data(), Src[i].data(), x.data(), y.data(), w, h, w, h, blocks, threads);
+
+            // Calculate Iu
+            TGV2_calculate_Iu(Iu[i].data(), It[i].data(), dfx.data(), dfy.data(), w, h, blocks, threads);
+
+            // Subtract reference image from interpolated one giving It
+            subtract(It[i].data(), It[i].data(), Ref.data(), w, h, blocks, threads);
+        }
+
+        for (int i = 0; i < niters; i++){
+
+            // Update p values
+            TGV2_updateP(Px.data(), Py.data(), ubar.data(), u1xbar.data(), u1ybar.data(), alpha1, sigma, w, h, blocks, threads);
+
+            // Update Q values
+            TGV2_updateQ(qx.data(), qy.data(), qz.data(), qw.data(), u1xbar.data(), u1ybar.data(), alpha0,
+                         sigma, w, h, blocks, threads);
+
+            // Reset prodsum to 0
+            set_value(prodsum.data(), 0.f, w, h, blocks, threads);
+
+            // Iterate over each source view
+            for (int j = 0; j < nimages; j++){
+                // Update r values
+                TGV2_updateR(r[j].data(), prodsum.data(), u.data(), u0.data(), It[j].data(), Iu[j].data(), sigma, clambda, w, h, blocks, threads);
+            }
+
+            // Update all u values
+            TGV2_updateU(u.data(), u1x.data(), u1y.data(), ubar.data(), u1xbar.data(), u1ybar.data(), Px.data(), Py.data(),
+                         qx.data(), qy.data(), qz.data(), qw.data(), prodsum.data(), alpha0, alpha1, tau, clambda, w, h, blocks, threads);
+        }
+
+        // Copy result to host memory
+        u.copyTo(depthmapTGV.data, depthmapTGV.pitch);
+
+        // Convert to uchar so it can be easily displayed as gray image
+        ConvertDepthtoUChar(depthmapTGV, depthmap8uTGV);
+
+        // Free up resources
+        nppiFree(Ref.data());
+        nppiFree(Px.data());
+        nppiFree(Py.data());
+        nppiFree(u.data());
+        nppiFree(u0.data());
+        nppiFree(u1x.data());
+        nppiFree(u1y.data());
+        nppiFree(ubar.data());
+        nppiFree(u1xbar.data());
+        nppiFree(u1ybar.data());
+        nppiFree(qx.data());
+        nppiFree(qy.data());
+        nppiFree(qw.data());
+        nppiFree(qz.data());
+        nppiFree(prodsum.data());
+        nppiFree(x.data());
+        nppiFree(y.data());
+        nppiFree(X.data());
+        nppiFree(Y.data());
+        nppiFree(Z.data());
+        nppiFree(dX.data());
+        nppiFree(dY.data());
+        nppiFree(dZ.data());
+        nppiFree(dfx.data());
+        nppiFree(dfy.data());
+
+        for (int i = 0; i < nimages; i++){
+            nppiFree(Src[i].data());
+            nppiFree(It[i].data());
+            nppiFree(Iu[i].data());
+            nppiFree(r[i].data());
+        }
+
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::cout << "Time taken for the TGV to complete is " <<
+                     std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+
+        NPP_CHECK_CUDA(cudaDeviceReset());
         return true;
 
     }

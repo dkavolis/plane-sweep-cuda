@@ -14,6 +14,10 @@
 #define DEFAULT_TVL1_ITERATIONS 30
 #define DEFAULT_TVL1_LAMBDA 1.f
 #define DEFAULT_BLOCK_XDIM 32
+#define DEFAULT_TGV_LAMBDA 0.0001
+#define DEFAULT_TGV_ALPHA0 0.2
+#define DEFAULT_TGV_ALPHA1 0.2
+#define DEFAULT_TGV_NITERS 100
 
 #include <iostream>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -127,7 +131,9 @@ public:
 
     bool RunAlgorithm(int argc, char **argv);
     bool Denoise(unsigned int niter, double lambda);
-    bool CudaDenoise( int argc, char **argv, unsigned int niters = DEFAULT_TVL1_ITERATIONS, double lambda = DEFAULT_TVL1_LAMBDA);
+    bool CudaDenoise( int argc, char **argv, const unsigned int niters = DEFAULT_TVL1_ITERATIONS, const double lambda = DEFAULT_TVL1_LAMBDA);
+    bool TGV(int argc, char **argv, const unsigned int niters = DEFAULT_TGV_NITERS, const double lambda = DEFAULT_TGV_LAMBDA,
+             const double alpha0 = DEFAULT_TGV_ALPHA0, const double alpha1 = DEFAULT_TGV_ALPHA1);
 
     // Setters:
     void setK(double Km[][3]){ arrayToMatrix(Km, K); invertK(); }
@@ -152,6 +158,8 @@ public:
     camImage<float> * getDepthmapDenoised(){ return &depthmapdenoised; }
     camImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
     camImage<uchar> * getDepthmap8uDenoised(){ return &depthmap8udenoised; }
+    camImage<float> * getDepthmapTGV(){ return &depthmapTGV; }
+    camImage<uchar> * getDepthmap8uTGV(){ return &depthmap8uTGV; }
     float getZnear(){ return znear; }
     float getZfar(){ return zfar; }
     unsigned int getNumberofPlanes(){ return numberplanes; }
@@ -196,6 +204,8 @@ protected:
     camImage<float> depthmapdenoised;
     camImage<uchar> depthmap8u;
     camImage<uchar> depthmap8udenoised;
+    camImage<float> depthmapTGV;
+    camImage<uchar> depthmap8uTGV;
 
     // plane sweep parameters
     float znear = DEFAULT_Z_NEAR;
