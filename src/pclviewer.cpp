@@ -87,6 +87,7 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->threadsy->setValue(t.y);
 
     QChar alpha = QChar(0xb1, 0x03);
+    QChar sigma(0x03C3), tau(0x03C4);
     QString a0 = alpha, a1 = alpha;
     a0 += "<sub>";
     a0 += QString::number(0);
@@ -97,11 +98,16 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->alpha0_label->setText(a0);
     ui->alpha1_label->setText(a1);
     ui->tgv_lambda_label->setText(trUtf8( "\xce\xbb" ));
+    ui->tgv_sigma_label->setText(sigma);
+    ui->tgv_tau_label->setText(tau);
 
     ui->tgv_alpha0->setValue(DEFAULT_TGV_ALPHA0);
     ui->tgv_alpha1->setValue(DEFAULT_TGV_ALPHA1);
     ui->tgv_lambda->setValue(DEFAULT_TGV_LAMBDA);
     ui->tgv_niters->setValue(DEFAULT_TGV_NITERS);
+    ui->tgv_warps->setValue(DEFAULT_TGV_NWARPS);
+    ui->tgv_sigma->setValue(DEFAULT_TGV_SIGMA);
+    ui->tgv_tau->setValue(DEFAULT_TGV_TAU);
 
     LoadImages();
 }
@@ -363,7 +369,8 @@ void PCLViewer::on_threadsy_valueChanged(int arg1)
 
 void PCLViewer::on_tgv_button_pressed()
 {
-    if (ps.TGV(argc, argv, ui->tgv_niters->value(), ui->tgv_lambda->value(), ui->tgv_alpha0->value(), ui->tgv_alpha1->value())){
+    if (ps.TGV(argc, argv, ui->tgv_niters->value(), ui->tgv_warps->value(), ui->tgv_lambda->value(),
+               ui->tgv_alpha0->value(), ui->tgv_alpha1->value(), ui->tgv_tau->value(), ui->tgv_sigma->value())){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         tgvdepth8u = *ps.getDepthmap8uTGV();
         // The number of points in the cloud

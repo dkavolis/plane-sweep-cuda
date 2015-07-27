@@ -17,19 +17,13 @@ __global__ void bilinear_interpolation_kernel_GPU(float * __restrict__ d_result,
         const int    ind_y = floor(d_yout[k*N1+l]);
         const float  b     = d_yout[k*N1+l]-ind_y;
 
-        float d00, d01, d10, d11;
-        if ((ind_x < 0) || (ind_y < 0)) { d_result[k*N1+l] = 0.f; return; }
-        if (((ind_x)   < M1)&&((ind_y)   < M2))  d00 = d_data[ind_y*M1+ind_x];       else    { d_result[k*N1+l] = 0.f; return; }
-        if (((ind_x+1) < M1)&&((ind_y)   < M2))  d10 = d_data[ind_y*M1+ind_x+1];     else    { d_result[k*N1+l] = 0.f; return; }
-        if (((ind_x)   < M1)&&((ind_y+1) < M2))  d01 = d_data[(ind_y+1)*M1+ind_x];   else    { d_result[k*N1+l] = 0.f; return; }
-        if (((ind_x+1) < M1)&&((ind_y+1) < M2))  d11 = d_data[(ind_y+1)*M1+ind_x+1]; else    { d_result[k*N1+l] = 0.f; return; }
+        if ((ind_x < 0) || (ind_y < 0) || (ind_y+1 > M2-1) || (ind_x+1 > M1-1)) { d_result[k*N1+l] = 0.f; return; }
 
-        result_temp1 = a * d10 + (-d00 * a + d00);
+        result_temp1 = a * d_data[ind_y*M1+ind_x+1] + (1 - a) * d_data[ind_y*M1+ind_x];
 
-        result_temp2 = a * d11 + (-d01 * a + d01);
+        result_temp2 = a * d_data[(ind_y+1)*M1+ind_x+1] + (1 - a) * d_data[(ind_y+1)*M1+ind_x];
 
-        d_result[k*N1+l] = b * result_temp2 + (-result_temp1 * b + result_temp1);
-
+        d_result[k*N1+l] = b * result_temp2 + (1 - b) * result_temp1;
     }
 }
 
@@ -141,8 +135,7 @@ __global__ void element_multiply_kernel(float * __restrict__ d_output, const flo
     const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
 
     if ((ind_x < width) && (ind_y < height)) {
-        const int ind = ind_y * width + ind_x;
-        d_output[ind] = d_input1[ind] * d_input2[ind];
+        d_output[ind_x+ind_y*width] = d_input1[ind_x+ind_y*width] * d_input2[ind_x+ind_y*width];
     }
 }
 
@@ -188,7 +181,7 @@ __global__ void convert_float_to_uchar_kernel(unsigned char * __restrict__ d_out
     }
 }
 
-__global__ void windowed_mean_row_kernel(float * __restrict__ d_output, const float * d_input,
+__global__ void windowed_mean_row_kernel(float * __restrict__ d_output, const float * __restrict__ d_input,
                                          const unsigned int winsize, const bool squared,
                                          const int width, const int height)
 {
@@ -213,7 +206,7 @@ __global__ void windowed_mean_row_kernel(float * __restrict__ d_output, const fl
     }
 }
 
-__global__ void windowed_mean_column_kernel(float * __restrict__ d_output, const float * d_input,
+__global__ void windowed_mean_column_kernel(float * __restrict__ d_output, const float * __restrict__ d_input,
                                             const unsigned int winsize, const bool squared,
                                             const int width, const int height)
 {

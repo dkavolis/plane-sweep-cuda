@@ -2,6 +2,9 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <thread>
+#include <functional>
+#include <vector>
 
 // OpenCV:
 #ifdef OpenCV_FOUND
@@ -158,130 +161,38 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         windowed_mean_row(deviceRefmean.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
                           blocks, threads);
 
-        windowed_mean_column(deviceRefstd.data(), deviceRef.data(), winsize, true, imSize.width, imSize.height,
+        windowed_mean_column(devInter1.data(), deviceRef.data(), winsize, true, imSize.width, imSize.height,
                              blocks, threads);
-        windowed_mean_row(devInter1.data(), deviceRefstd.data(), winsize, false, imSize.width, imSize.height,
+        windowed_mean_row(deviceRefstd.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
                           blocks, threads);
 
         calculate_STD(deviceRefstd.data(), deviceRefmean.data(),
-                      devInter1.data(), imSize.width, imSize.height, blocks, threads);
-
-        // calculate depth step size:
-        float dstep = (zfar - znear) / (numberplanes - 1);
+                      deviceRefstd.data(), imSize.width, imSize.height, blocks, threads);
 
         // Create images to hold depthmap values and number of times it exceeded NCC threshold
         npp::ImageNPP_32f_C1 devDepthmap(imSize.width, imSize.height);
         npp::ImageNPP_32f_C1 devN(imSize.width, imSize.height);
-        npp::ImageNPP_8u_C1 devN8u(imSize.width, imSize.height);
 
-        // set count to 0
-        set_value(devN.data(), 0.f, imSize.width, imSize.height, blocks, threads);
+        int nimgs = std::min(std::max((int)numberimages, 1), (int)HostSrc.size());
+        int nthreads = std::min(nimgs, maxPlanesweepThreads);
+        std::vector<std::thread> thread(nthreads);
 
-        // set depthmap values to 0
-        set_value(devDepthmap.data(), 0.f, imSize.width, imSize.height, blocks, threads);
+        for (int i = 0; i < nimgs; i++){
+            if (nthreads > 1){
+                int ithread = i % nthreads;
 
-        // Create image to store current source view
-        npp::ImageNPP_32f_C1 devSrc(imSize.width, imSize.height);
+                if (i / nthreads > 0) {
+                    if (thread[ithread].joinable()) thread[ithread].join();
+                }
 
-        // Create matrices to hold homography and relative rotation and transformation
-        ublas::matrix<double> H(3,3), Rrel(3,3), trel(3,1);
-
-        // Store and calculate inverse reference rotation matrix
-        ublas::matrix<double> invR(3,3);
-        InvertMatrix(HostRef.R, invR);
-
-        // Create intermediate images to store current NCC, best NCC and current depthmap
-        npp::ImageNPP_32f_C1 devNCC(imSize.width, imSize.height);
-        npp::ImageNPP_32f_C1 devbestNCC(imSize.width, imSize.height);
-        npp::ImageNPP_32f_C1 devDepth(imSize.width, imSize.height);
-
-        // Create images to store x and y indexes after transformation
-        npp::ImageNPP_32f_C1 devx(imSize.width, imSize.height);
-        npp::ImageNPP_32f_C1 devy(imSize.width, imSize.height);
-
-        // Create image to hold pixel values after transformation
-        npp::ImageNPP_32f_C1 devWarped(imSize.width, imSize.height);
-
-        for (int i = 0; i < std::min(std::max((int)numberimages, 1), (int)HostSrc.size()); i++){
-
-            // Copy source view to device
-            devSrc.copyFrom(HostSrc[i].data, HostSrc[i].pitch);
-
-            // Reset best ncc and depthmap
-            set_value(devbestNCC.data(), 0.f, imSize.width, imSize.height, blocks, threads);
-            set_value(devDepth.data(), 0.f, imSize.width, imSize.height, blocks, threads);
-
-            // Calculate relative rotation and translation:
-            Rrel = prod(HostSrc[i].R, invR);
-            trel = HostSrc[i].t - prod(Rrel, HostRef.t);
-
-            // For each depth calculate NCC and update depthmap as required
-            for (float d = znear; d <= zfar; d += dstep){
-
-                // Calculate homography:
-                H = Rrel + prod(trel, trans(n)) / d;
-                H = prod(K, H);
-                H = prod(H, invK);
-                H = H / H(2,2);
-
-                // Calculate transformed pixel coordinates
-                transform_indexes(devx.data(), devy.data(),
-                                  H(0,0), H(0,1), H(0,2),
-                                  H(1,0), H(1,1), H(1,2),
-                                  H(2,0), H(2,1), H(2,2),
-                                  imSize.width, imSize.height, blocks, threads);
-
-                // interpolate pixel values:
-                bilinear_interpolation(devWarped.data(), devSrc.data(),
-                                       devx.data(), devy.data(),
-                                       devSrc.width(), devSrc.height(),
-                                       devx.width(), devx.height(),
-                                       blocks, threads);
-
-                // We have no more use for devx and devy, we can use them to store intermediate results now
-                // devx - will hold windowed mean of warped image
-                // devy - will hold windowed std of warped image
-                windowed_mean_column(devInter1.data(), devWarped.data(), winsize, false, imSize.width, imSize.height,
-                                     blocks, threads);
-                windowed_mean_row(devx.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
-                                  blocks, threads);
-
-                windowed_mean_column(devy.data(), devWarped.data(), winsize, true, imSize.width, imSize.height,
-                                     blocks, threads);
-                windowed_mean_row(devInter1.data(), devy.data(), winsize, false, imSize.width, imSize.height,
-                                  blocks, threads);
-
-                calculate_STD(devy.data(), devx.data(), devInter1.data(),
-                              imSize.width, imSize.height, blocks, threads);
-
-                // calculate NCC for each window which is given by
-                // NCC = (mean of products - product of means) / product of standard deviations
-                element_multiply(devInter1.data(), deviceRef.data(), devWarped.data(), imSize.width, imSize.height, blocks, threads);
-                windowed_mean_column(devWarped.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
-                                     blocks, threads);
-                windowed_mean_row(devInter1.data(), devWarped.data(), winsize, false, imSize.width, imSize.height,
-                                  blocks, threads);
-                calcNCC(devNCC.data(), devInter1.data(),
-                        deviceRefmean.data(), devx.data(),
-                        deviceRefstd.data(), devy.data(),
-                        stdthresh, stdthresh,
-                        imSize.width, imSize.height,
-                        blocks, threads);
-
-                // only keep depth and bestncc values for which best ncc is greater than current
-                // set other values to current ncc and depth
-                update_arrays(devDepth.data(), devbestNCC.data(),
-                              devNCC.data(), d, imSize.width, imSize.height,
-                              blocks, threads);
-
+                thread[ithread] = std::thread(&PlaneSweep::PlaneSweepThread, this, devDepthmap.data(), devN.data(),
+                                              deviceRef.data(), deviceRefmean.data(), deviceRefstd.data(), i);
             }
+            else PlaneSweep::PlaneSweepThread(devDepthmap.data(), devN.data(), deviceRef.data(), deviceRefmean.data(), deviceRefstd.data(), i);
+        }
 
-            // Sum depth results for later averaging
-            sum_depthmap_NCC(devDepthmap.data(), devN.data(),
-                             devDepth.data(), devbestNCC.data(),
-                             nccthresh, imSize.width, imSize.height,
-                             blocks, threads);
-
+        for (int i = 0; i < nthreads; i++) {
+            if (thread[i].joinable()) thread[i].join();
         }
 
         // Calculate averaged depthmap and copy it to host
@@ -300,14 +211,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         nppiFree(devInter1.data());
         nppiFree(devDepthmap.data());
         nppiFree(devN.data());
-        nppiFree(devN8u.data());
-        nppiFree(devSrc.data());
-        nppiFree(devNCC.data());
-        nppiFree(devbestNCC.data());
-        nppiFree(devDepth.data());
-        nppiFree(devx.data());
-        nppiFree(devy.data());
-        nppiFree(devWarped.data());
 
         //-----------------------------------------------------
 
@@ -328,6 +231,23 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         cudaDeviceReset();
         return false;
     }
+    catch(const std::system_error& e)
+    {
+            std::cerr << "Caught system error with code " << e.code()
+                      << " meaning " << e.what() << '\n';
+
+            cudaDeviceReset();
+            return false;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << "Program error! The following std exception occurred: \n";
+        std::cerr << e.what() << std::endl;
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return false;
+    }
     catch (...)
     {
         std::cerr << "Program error! An unknow type of exception occurred. \n";
@@ -335,9 +255,148 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
 
         cudaDeviceReset();
         return false;
-
     }
     return false;
+}
+
+void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *Ref, const float *Refmean, const float *Refstd,
+                                  const unsigned int &index)
+{
+    static std::mutex mutex;
+    try {
+        NppiSize imSize={(int)HostRef.width, (int)HostRef.height};
+
+        // calculate depth step size:
+        float dstep = (zfar - znear) / (numberplanes - 1);
+
+        // Create image to store current source view
+        npp::ImageNPP_32f_C1 devSrc(imSize.width, imSize.height);
+
+        // Create matrices to hold homography and relative rotation and transformation
+        ublas::matrix<double> H(3,3), Rrel(3,3), trel(3,1);
+
+        // Store and calculate inverse reference rotation matrix
+        ublas::matrix<double> invR(3,3);
+        InvertMatrix(HostRef.R, invR);
+
+        // Create intermediate images to store current NCC, best NCC and current depthmap
+        npp::ImageNPP_32f_C1 devNCC(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devbestNCC(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devDepth(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devInter1(imSize.width, imSize.height);
+
+        // Create images to store x and y indexes after transformation
+        npp::ImageNPP_32f_C1 devx(imSize.width, imSize.height);
+        npp::ImageNPP_32f_C1 devy(imSize.width, imSize.height);
+
+        // Create image to hold pixel values after transformation
+        npp::ImageNPP_32f_C1 devWarped(imSize.width, imSize.height);
+
+        // Copy source view to device
+        devSrc.copyFrom(HostSrc[index].data, HostSrc[index].pitch);
+
+        // Calculate relative rotation and translation:
+        Rrel = prod(HostSrc[index].R, invR);
+        trel = HostSrc[index].t - prod(Rrel, HostRef.t);
+
+        // For each depth calculate NCC and update depthmap as required
+        for (float d = znear; d <= zfar; d += dstep){
+            // Calculate homography:
+            H = Rrel + prod(trel, trans(n)) / d;
+            H = prod(K, H);
+            H = prod(H, invK);
+            H = H / H(2,2);
+
+            // Calculate transformed pixel coordinates
+            transform_indexes(devx.data(), devy.data(),
+                              H(0,0), H(0,1), H(0,2),
+                              H(1,0), H(1,1), H(1,2),
+                              H(2,0), H(2,1), H(2,2),
+                              imSize.width, imSize.height, blocks, threads);
+
+            // interpolate pixel values:
+            bilinear_interpolation(devWarped.data(), devSrc.data(),
+                                   devx.data(), devy.data(),
+                                   devSrc.width(), devSrc.height(),
+                                   devx.width(), devx.height(),
+                                   blocks, threads);
+
+            // We have no more use for devx and devy, we can use them to store intermediate results now
+            // devx - will hold windowed mean of warped image
+            // devy - will hold windowed std of warped image
+            windowed_mean_column(devInter1.data(), devWarped.data(), winsize, false, imSize.width, imSize.height,
+                                 blocks, threads);
+            windowed_mean_row(devx.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
+                              blocks, threads);
+
+            windowed_mean_column(devy.data(), devWarped.data(), winsize, true, imSize.width, imSize.height,
+                                 blocks, threads);
+            windowed_mean_row(devInter1.data(), devy.data(), winsize, false, imSize.width, imSize.height,
+                              blocks, threads);
+
+            calculate_STD(devy.data(), devx.data(), devInter1.data(),
+                          imSize.width, imSize.height, blocks, threads);
+
+            // calculate NCC for each window which is given by
+            // NCC = (mean of products - product of means) / product of standard deviations
+            element_multiply(devInter1.data(), Ref, devWarped.data(), imSize.width, imSize.height, blocks, threads);
+            windowed_mean_column(devWarped.data(), devInter1.data(), winsize, false, imSize.width, imSize.height,
+                                 blocks, threads);
+            windowed_mean_row(devInter1.data(), devWarped.data(), winsize, false, imSize.width, imSize.height,
+                              blocks, threads);
+            calcNCC(devNCC.data(), devInter1.data(),
+                    Refmean, devx.data(),
+                    Refstd, devy.data(),
+                    stdthresh, stdthresh,
+                    imSize.width, imSize.height,
+                    blocks, threads);
+
+            // only keep depth and bestncc values for which best ncc is greater than current
+            // set other values to current ncc and depth
+            update_arrays(devDepth.data(), devbestNCC.data(),
+                          devNCC.data(), d, imSize.width, imSize.height,
+                          blocks, threads);
+
+        }
+
+        // Sum depth results for later averaging, lock the function to avoid multithreading conflicts
+        mutex.lock();
+        sum_depthmap_NCC(globDepth, globN,
+                         devDepth.data(), devbestNCC.data(),
+                         nccthresh, imSize.width, imSize.height,
+                         blocks, threads);
+        mutex.unlock();
+
+        // Free up resources
+        nppiFree(devInter1.data());
+        nppiFree(devSrc.data());
+        nppiFree(devNCC.data());
+        nppiFree(devbestNCC.data());
+        nppiFree(devDepth.data());
+        nppiFree(devx.data());
+        nppiFree(devy.data());
+        nppiFree(devWarped.data());
+
+        return;
+
+    }
+    catch (npp::Exception &rExcep)
+    {
+        std::cerr << "Program error! The following exception occurred: \n";
+        std::cerr << rExcep << std::endl;
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return;
+    }
+    catch (...)
+    {
+        std::cerr << "Program error! An unknow type of exception occurred. \n";
+        std::cerr << "Aborting." << std::endl;
+
+        cudaDeviceReset();
+        return;
+    }
 }
 
 void PlaneSweep::Convert8uTo32f(int argc, char **argv)
@@ -637,7 +696,8 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
     return false;
 }
 
-bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const double lambda, const double alpha0, const double alpha1)
+bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const unsigned int warps, const double lambda,
+                     const double alpha0, const double alpha1, const double tau, const double sigma)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
     printf("\nStarting TGV...\n\n");
@@ -657,10 +717,6 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const dou
             return false;
         }
 
-        // Set some parameters
-        const double L2 = 8.0, tau = 0.02, sigma = 1./(L2*tau);
-        double clambda = (double)lambda;
-
         int h = depthmap.height, w = depthmap.width;
         depthmapTGV.setSize(w,h);
         depthmap8uTGV.setSize(w,h);
@@ -675,16 +731,15 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const dou
 
         int nimages = std::min(std::max((int)numberimages, 1), (int)HostSrc.size());
 
-        std::vector<npp::ImageNPP_32f_C1> Src(nimages),
-                It(nimages), Iu(nimages), r(nimages);
+        std::vector<npp::ImageNPP_32f_C1> Src(nimages), It(nimages), Iu(nimages), r(nimages);
 
         // Set initial values for depthmap:
-        u.copyFrom(depthmapdenoised.data, depthmap.pitch);
+        set_value(u.data(), (znear + zfar) / 2.f, w, h, blocks, threads);
         ubar = u;
-        u0 = u;
 
-        // Copy reference image to device memory
+        // Copy reference image to device memory and normalize
         Ref.copyFrom(HostRef.data, HostRef.pitch);
+        element_scale(Ref.data(), 1/255.f, w, h, blocks, threads);
 
         // Matrix storages:
         std::vector<ublas::matrix<double>> Rrel(nimages, ublas::matrix<double>(3,3)), Trel(nimages, ublas::matrix<double>(3,1));
@@ -704,61 +759,80 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const dou
             r[i] = npp::ImageNPP_32f_C1(w,h);
             Iu[i] = npp::ImageNPP_32f_C1(w,h);
 
-            // Copy source image to device memory
-            Src[i].copyFrom(HostSrc[i].data, HostSrc[i].pitch); 
-
+            // Copy source image to device memory and normalize
+            Src[i].copyFrom(HostSrc[i].data, HostSrc[i].pitch);
+            element_scale(Src[i].data(), 1/255.f, w, h, blocks, threads);
 
             // Calculate relative rotation and translation and convert to simple arrays
             Rrel[i] = prod(HostSrc[i].R, invR);
             Trel[i] = HostSrc[i].t - prod(Rrel[i], HostRef.t);
-            matrixToArray(rrel, Rrel[i]);
-            TmatrixToArray(trel, Trel[i]);
-
-            // Calculate transformed coordinates at u0
-            TGV2_transform_coordinates(x.data(), y.data(), X.data(), Y.data(), Z.data(), u0.data(), k, rrel, trel, invk, w, h, blocks, threads);
-
-            // Calculate coordinate derivatives
-            TGV2_calculate_coordinate_derivatives(dX.data(), dY.data(), dZ.data(), invk, rrel, w, h, blocks, threads);
-
-            // Calculate f(x,u) derivative wrt u at u0
-            TGV2_calculate_derivativeF(dfx.data(), dfy.data(), X.data(), dX.data(), Y.data(), dY.data(), Z.data(), dZ.data(),
-                                       fx, fy, w, h, blocks, threads);
-
-            // Interpolate source view at calculated coordinates, giving I(f(x,u0))
-            bilinear_interpolation(It[i].data(), Src[i].data(), x.data(), y.data(), w, h, w, h, blocks, threads);
-
-            // Calculate Iu
-            TGV2_calculate_Iu(Iu[i].data(), It[i].data(), dfx.data(), dfy.data(), w, h, blocks, threads);
-
-            // Subtract reference image from interpolated one giving It
-            subtract(It[i].data(), It[i].data(), Ref.data(), w, h, blocks, threads);
         }
 
-        for (int i = 0; i < niters; i++){
+        for (int l = 0; l < warps; l++){
+            u0 = ubar;
+            set_value(Px.data(), 0.f, w, h, blocks, threads);
+            set_value(Py.data(), 0.f, w, h, blocks, threads);
+            set_value(qx.data(), 0.f, w, h, blocks, threads);
+            set_value(qy.data(), 0.f, w, h, blocks, threads);
+            set_value(qz.data(), 0.f, w, h, blocks, threads);
+            set_value(qw.data(), 0.f, w, h, blocks, threads);
+            set_value(u1x.data(), 0.f, w, h, blocks, threads);
+            set_value(u1y.data(), 0.f, w, h, blocks, threads);
+            set_value(u1xbar.data(), 0.f, w, h, blocks, threads);
+            set_value(u1ybar.data(), 0.f, w, h, blocks, threads);
 
-            // Update p values
-            TGV2_updateP(Px.data(), Py.data(), ubar.data(), u1xbar.data(), u1ybar.data(), alpha1, sigma, w, h, blocks, threads);
+            for (int i = 0; i < nimages; i++){
+                matrixToArray(rrel, Rrel[i]);
+                TmatrixToArray(trel, Trel[i]);
 
-            // Update Q values
-            TGV2_updateQ(qx.data(), qy.data(), qz.data(), qw.data(), u1xbar.data(), u1ybar.data(), alpha0,
-                         sigma, w, h, blocks, threads);
+                // Calculate transformed coordinates at u0
+                TGV2_transform_coordinates(x.data(), y.data(), X.data(), Y.data(), Z.data(), u0.data(), k, rrel, trel, invk, w, h, blocks, threads);
 
-            // Reset prodsum to 0
-            set_value(prodsum.data(), 0.f, w, h, blocks, threads);
+                // Calculate coordinate derivatives
+                TGV2_calculate_coordinate_derivatives(dX.data(), dY.data(), dZ.data(), invk, rrel, w, h, blocks, threads);
 
-            // Iterate over each source view
-            for (int j = 0; j < nimages; j++){
-                // Update r values
-                TGV2_updateR(r[j].data(), prodsum.data(), u.data(), u0.data(), It[j].data(), Iu[j].data(), sigma, clambda, w, h, blocks, threads);
+                // Calculate f(x,u) derivative wrt u at u0
+                TGV2_calculate_derivativeF(dfx.data(), dfy.data(), X.data(), dX.data(), Y.data(), dY.data(), Z.data(), dZ.data(),
+                                           fx, fy, w, h, blocks, threads);
+
+                // Interpolate source view at calculated coordinates, giving I(f(x,u0))
+                bilinear_interpolation(X.data(), Src[i].data(), x.data(), y.data(), w, h, w, h, blocks, threads);
+
+                // Calculate Iu
+                TGV2_calculate_Iu(Iu[i].data(), X.data(), dfx.data(), dfy.data(), w, h, blocks, threads);
+
+                // Subtract reference image from interpolated one giving It
+                subtract(It[i].data(), X.data(), Ref.data(), w, h, blocks, threads);
+
+                set_value(r[i].data(), 0.f, w, h, blocks, threads);
             }
 
-            // Update all u values
-            TGV2_updateU(u.data(), u1x.data(), u1y.data(), ubar.data(), u1xbar.data(), u1ybar.data(), Px.data(), Py.data(),
-                         qx.data(), qy.data(), qz.data(), qw.data(), prodsum.data(), alpha0, alpha1, tau, clambda, w, h, blocks, threads);
+            for (int i = 0; i < niters; i++){
+
+                // Update p values
+                TGV2_updateP(Px.data(), Py.data(), ubar.data(), u1xbar.data(), u1ybar.data(), alpha1, sigma, w, h, blocks, threads);
+
+                // Update Q values
+                TGV2_updateQ(qx.data(), qy.data(), qz.data(), qw.data(), u1xbar.data(), u1ybar.data(), alpha0,
+                             sigma, w, h, blocks, threads);
+
+                // Reset prodsum to 0
+                set_value(prodsum.data(), 0.f, w, h, blocks, threads);
+
+                // Iterate over each source view
+                for (int j = 0; j < nimages; j++){
+                    // Update r values
+                    TGV2_updateR(r[j].data(), prodsum.data(), u.data(), u0.data(), It[j].data(), Iu[j].data(), sigma, lambda, w, h, blocks, threads);
+                }
+
+                // Update all u values
+                TGV2_updateU(u.data(), u1x.data(), u1y.data(), ubar.data(), u1xbar.data(), u1ybar.data(), Px.data(), Py.data(),
+                             qx.data(), qy.data(), qz.data(), qw.data(), prodsum.data(), alpha0, alpha1, tau, lambda, w, h, blocks, threads);
+            }
         }
 
         // Copy result to host memory
-        u.copyTo(depthmapTGV.data, depthmapTGV.pitch);
+        ubar.copyTo(depthmapTGV.data, depthmapTGV.pitch);
 
         // Convert to uchar so it can be easily displayed as gray image
         ConvertDepthtoUChar(depthmapTGV, depthmap8uTGV);

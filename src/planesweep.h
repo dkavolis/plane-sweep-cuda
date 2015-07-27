@@ -11,13 +11,17 @@
 #define NO_DEPTH -1
 #define NO_CUDA_DEVICE -1
 #define MAX_THREADS_PER_BLOCK 512
-#define DEFAULT_TVL1_ITERATIONS 30
-#define DEFAULT_TVL1_LAMBDA 1.f
+#define MAX_PLANESWEEP_THREADS 1
+#define DEFAULT_TVL1_ITERATIONS 100
+#define DEFAULT_TVL1_LAMBDA .3
 #define DEFAULT_BLOCK_XDIM 32
-#define DEFAULT_TGV_LAMBDA 0.0001
-#define DEFAULT_TGV_ALPHA0 0.2
-#define DEFAULT_TGV_ALPHA1 0.2
-#define DEFAULT_TGV_NITERS 100
+#define DEFAULT_TGV_LAMBDA 0.5
+#define DEFAULT_TGV_ALPHA0 2.0
+#define DEFAULT_TGV_ALPHA1 1.5
+#define DEFAULT_TGV_NITERS 30
+#define DEFAULT_TGV_NWARPS 15
+#define DEFAULT_TGV_SIGMA 1.f
+#define DEFAULT_TGV_TAU 0.02
 
 #include <iostream>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -29,6 +33,7 @@
 #include <ctime>
 #include <algorithm>
 #include <cuda_runtime_api.h>
+#include <mutex>
 
 namespace ublas = boost::numeric::ublas;
 typedef unsigned char uchar;
@@ -132,8 +137,9 @@ public:
     bool RunAlgorithm(int argc, char **argv);
     bool Denoise(unsigned int niter, double lambda);
     bool CudaDenoise( int argc, char **argv, const unsigned int niters = DEFAULT_TVL1_ITERATIONS, const double lambda = DEFAULT_TVL1_LAMBDA);
-    bool TGV(int argc, char **argv, const unsigned int niters = DEFAULT_TGV_NITERS, const double lambda = DEFAULT_TGV_LAMBDA,
-             const double alpha0 = DEFAULT_TGV_ALPHA0, const double alpha1 = DEFAULT_TGV_ALPHA1);
+    bool TGV(int argc, char **argv, const unsigned int niters = DEFAULT_TGV_NITERS, const unsigned int warps = DEFAULT_TGV_NWARPS,
+             const double lambda = DEFAULT_TGV_LAMBDA, const double alpha0 = DEFAULT_TGV_ALPHA0, const double alpha1 = DEFAULT_TGV_ALPHA1,
+             const double tau = DEFAULT_TGV_TAU, const double sigma = DEFAULT_TGV_SIGMA);
 
     // Setters:
     void setK(double Km[][3]){ arrayToMatrix(Km, K); invertK(); }
@@ -221,6 +227,7 @@ protected:
     float nccthresh = DEFAULT_NCC_THRESHOLD;
 
     int maxThreadsPerBlock = MAX_THREADS_PER_BLOCK;
+    int maxPlanesweepThreads = MAX_PLANESWEEP_THREADS;
     dim3 blocks, threads;
 
     bool depthavailable = false;
@@ -230,6 +237,10 @@ protected:
     bool InvertMatrix (const ublas::matrix<T>& input, ublas::matrix<T>& inverse);
 
     void ConvertDepthtoUChar(const camImage<float> &input, camImage<uchar> &output);
+
+    // Single planesweep thread operating on single source view (all pointers point to memory on the GPU):
+    void PlaneSweepThread(float * globDepth, float * globN, const float * Ref, const float * Refmean, const float * Refstd,
+                          const unsigned int &index);
 
 private:
     void invertK();
