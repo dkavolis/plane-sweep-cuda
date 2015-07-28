@@ -279,3 +279,23 @@ void TGV2_calculate_derivativeF(float * d_dfx, float * d_dfy, const float * d_X,
  * -------------------------------------------------------------------*/
 void TGV2_calculate_Iu(float * d_Iu, const float * d_I, const float * d_dfx, const float * d_dfy,
                        const int width, const int height, dim3 blocks, dim3 threads);
+
+/*----------------------------------------------------------------------
+ * Calculates anisotropic diffusion tensor according to formula
+ * T = exp(-beta * |grad(Img)| ^ gamma) * n * n' + m * m'
+ * where n = grad(Img) / |grad(Img)| and m is normal to n
+ * -------------------------------------------------------------------*/
+void Anisotropic_diffusion_tensor(float * d_T11, float * d_T12, float * d_T21, float * d_T22, const float * d_Img,
+                                  const float beta, const float gamma, const int width, const int height,
+                                  dim3 blocks, dim3 threads);
+
+void TGV2_updateU_tensor_weighed(float * d_u, float * d_u1x, float * d_u1y, const float * d_T11, const float * d_T12,
+                                 const float * d_T21, const float * d_T22, float * d_ubar, float * d_u1xbar, float * d_u1ybar,
+                                 const float * d_Px, const float * d_Py, const float * d_Qx, const float * d_Qy,
+                                 const float * d_Qz, const float * d_Qw, const float * d_prodsum,
+                                 const float alpha0, const float alpha1, const float tau, const float lambda,
+                                 const int width, const int height, dim3 blocks, dim3 threads);
+
+void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
+                                 const float * d_u, const float * d_u1x, const float * d_u1y, const float alpha1,
+                                 const float sigma, const int width, const int height, dim3 blocks, dim3 threads);

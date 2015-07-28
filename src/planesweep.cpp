@@ -96,7 +96,6 @@ PlaneSweep::PlaneSweep() :
     n(0,0) = 0;
     n(1,0) = 0;
     n(2,0) = 1;
-
 }
 
 PlaneSweep::PlaneSweep(int argc, char **argv)
@@ -275,10 +274,6 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
         // Create matrices to hold homography and relative rotation and transformation
         ublas::matrix<double> H(3,3), Rrel(3,3), trel(3,1);
 
-        // Store and calculate inverse reference rotation matrix
-        ublas::matrix<double> invR(3,3);
-        InvertMatrix(HostRef.R, invR);
-
         // Create intermediate images to store current NCC, best NCC and current depthmap
         npp::ImageNPP_32f_C1 devNCC(imSize.width, imSize.height);
         npp::ImageNPP_32f_C1 devbestNCC(imSize.width, imSize.height);
@@ -296,8 +291,8 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
         devSrc.copyFrom(HostSrc[index].data, HostSrc[index].pitch);
 
         // Calculate relative rotation and translation:
-        Rrel = prod(HostSrc[index].R, invR);
-        trel = HostSrc[index].t - prod(Rrel, HostRef.t);
+        RelativeMatrices(Rrel, trel, HostRef.R, HostRef.t, HostSrc[index].R, HostSrc[index].t);
+        std::cout << "\nindex = " << index << "\nRrel = " << Rrel << "\ntrel = " << trel << std::endl;
 
         // For each depth calculate NCC and update depthmap as required
         for (float d = znear; d <= zfar; d += dstep){
@@ -697,12 +692,12 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
 }
 
 bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const unsigned int warps, const double lambda,
-                     const double alpha0, const double alpha1, const double tau, const double sigma)
+                     const double alpha0, const double alpha1, const double tau, const double sigma, const double beta, const double gamma)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
     printf("\nStarting TGV...\n\n");
 
-    if (depthavailable) try
+    try
     {
 
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
@@ -717,7 +712,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
             return false;
         }
 
-        int h = depthmap.height, w = depthmap.width;
+        int h = HostRef.height, w = HostRef.width;
         depthmapTGV.setSize(w,h);
         depthmap8uTGV.setSize(w,h);
 
@@ -725,9 +720,10 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         blocks = dim3(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
 
         // Initialize data images:
-        npp::ImageNPP_32f_C1 Ref(w,h), Px(w,h), Py(w,h), u(w,h), u0(w,h), u1x(w,h), u1y(w,h),
-                ubar(w,h), u1xbar(w,h), u1ybar(w,h), qx(w,h), qy(w,h), qz(w,h), qw(2,h),
-                prodsum(w,h), x(w,h), y(w,h), X(w,h), Y(w,h), Z(w,h), dX(w,h), dY(w,h), dZ(w,h), dfx(w,h), dfy(w,h);
+        npp::ImageNPP_32f_C1 Ref(w,h), Px(w,h), Py(w,h), u(w,h), u0(w,h), u1x(w,h), u1y(w,h), ubar(w,h),
+                u1xbar(w,h), u1ybar(w,h), qx(w,h), qy(w,h), qz(w,h), qw(w,h), prodsum(w,h),
+                x(w,h), y(w,h), X(w,h), Y(w,h), Z(w,h), dX(w,h), dY(w,h), dZ(w,h), dfx(w,h), dfy(w,h),
+                T1(w,h), T2(w,h), T3(w,h), T4(w,h);
 
         int nimages = std::min(std::max((int)numberimages, 1), (int)HostSrc.size());
 
@@ -740,6 +736,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         // Copy reference image to device memory and normalize
         Ref.copyFrom(HostRef.data, HostRef.pitch);
         element_scale(Ref.data(), 1/255.f, w, h, blocks, threads);
+        Anisotropic_diffusion_tensor(T1.data(), T2.data(), T3.data(), T4.data(), Ref.data(), beta, gamma, w, h, blocks, threads);
 
         // Matrix storages:
         std::vector<ublas::matrix<double>> Rrel(nimages, ublas::matrix<double>(3,3)), Trel(nimages, ublas::matrix<double>(3,1));
@@ -748,10 +745,6 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         matrixToArray(invk, invK);
         double trel[3], rrel[3][3];
         double fx = K(0,0), fy = K(1,1);
-
-        // Store and calculate inverse reference rotation matrix
-        ublas::matrix<double> invR(3,3);
-        InvertMatrix(HostRef.R, invR);
 
         for (int i = 0; i < nimages; i++){
             Src[i] = npp::ImageNPP_32f_C1(w,h);
@@ -763,13 +756,16 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
             Src[i].copyFrom(HostSrc[i].data, HostSrc[i].pitch);
             element_scale(Src[i].data(), 1/255.f, w, h, blocks, threads);
 
-            // Calculate relative rotation and translation and convert to simple arrays
-            Rrel[i] = prod(HostSrc[i].R, invR);
-            Trel[i] = HostSrc[i].t - prod(Rrel[i], HostRef.t);
+            // Calculate relative rotation and translation
+            RelativeMatrices(Rrel[i], Trel[i], HostRef.R, HostRef.t, HostSrc[i].R, HostSrc[i].t);
         }
 
         for (int l = 0; l < warps; l++){
+
+            // Set last solution as initialization for new level of iterations
             u0 = ubar;
+
+            // Reset variables
             set_value(Px.data(), 0.f, w, h, blocks, threads);
             set_value(Py.data(), 0.f, w, h, blocks, threads);
             set_value(qx.data(), 0.f, w, h, blocks, threads);
@@ -804,13 +800,15 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
                 // Subtract reference image from interpolated one giving It
                 subtract(It[i].data(), X.data(), Ref.data(), w, h, blocks, threads);
 
+                // Reset r
                 set_value(r[i].data(), 0.f, w, h, blocks, threads);
             }
 
             for (int i = 0; i < niters; i++){
 
                 // Update p values
-                TGV2_updateP(Px.data(), Py.data(), ubar.data(), u1xbar.data(), u1ybar.data(), alpha1, sigma, w, h, blocks, threads);
+                TGV2_updateP_tensor_weighed(Px.data(), Py.data(), T1.data(), T2.data(), T3.data(), T4.data(),
+                                            ubar.data(), u1xbar.data(), u1ybar.data(), alpha1, sigma, w, h, blocks, threads);
 
                 // Update Q values
                 TGV2_updateQ(qx.data(), qy.data(), qz.data(), qw.data(), u1xbar.data(), u1ybar.data(), alpha0,
@@ -826,8 +824,10 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
                 }
 
                 // Update all u values
-                TGV2_updateU(u.data(), u1x.data(), u1y.data(), ubar.data(), u1xbar.data(), u1ybar.data(), Px.data(), Py.data(),
-                             qx.data(), qy.data(), qz.data(), qw.data(), prodsum.data(), alpha0, alpha1, tau, lambda, w, h, blocks, threads);
+                TGV2_updateU_tensor_weighed(u.data(), u1x.data(), u1y.data(), T1.data(), T2.data(), T3.data(), T4.data(),
+                                            ubar.data(), u1xbar.data(), u1ybar.data(), Px.data(), Py.data(),
+                                            qx.data(), qy.data(), qz.data(), qw.data(), prodsum.data(),
+                                            alpha0, alpha1, tau, lambda, w, h, blocks, threads);
             }
         }
 
@@ -863,6 +863,10 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         nppiFree(dZ.data());
         nppiFree(dfx.data());
         nppiFree(dfy.data());
+        nppiFree(T1.data());
+        nppiFree(T2.data());
+        nppiFree(T3.data());
+        nppiFree(T4.data());
 
         for (int i = 0; i < nimages; i++){
             nppiFree(Src[i].data());
@@ -899,4 +903,19 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
     }
 
     return false;
+}
+
+void PlaneSweep::RelativeMatrices(ublas::matrix<double> & Rrel, ublas::matrix<double> & trel, const ublas::matrix<double> & Rref,
+                                  const ublas::matrix<double> & tref, const ublas::matrix<double> & Rsrc, const ublas::matrix<double> & tsrc)
+{
+    ublas::matrix<double> invR(3,3);
+    if (!alternativemethod){
+        InvertMatrix(Rref, invR);
+        Rrel = prod(Rsrc, invR);
+        trel = tsrc - prod(Rrel, tref);
+    }
+    else {
+        Rrel = prod(trans(Rsrc), Rref);
+        trel = prod(trans(Rsrc), tref - tsrc);
+    }
 }

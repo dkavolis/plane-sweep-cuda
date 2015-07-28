@@ -1,6 +1,19 @@
 #ifndef PCLVIEWER_H
 #define PCLVIEWER_H
 
+#define CAM_POS "cam_pos"
+#define CAM_DIR "cam_dir"
+#define CAM_UP "cam_up"
+#define CAM_LOOKAT "cam_lookat"
+#define CAM_SKY "cam_sky"
+#define CAM_RIGHT "cam_right"
+#define CAM_FPOINT "cam_fpoint"
+#define CAM_ANGLE "cam_angle"
+
+#define RGB2GRAY_WEIGHT_RED 0.2989
+#define RGB2GRAY_WEIGHT_GREEN 0.5870
+#define RGB2GRAY_WEIGHT_BLUE 0.1140
+
 #include <iostream>
 
 // Qt
@@ -103,6 +116,16 @@ private slots:
 
   void on_tgv_psize_valueChanged(int value);
 
+  void on_imagePathButton_clicked();
+
+  void on_imageNameButton_clicked();
+
+  void on_altmethod_toggled(bool checked);
+
+  void on_loadfromsrc_clicked();
+
+  void on_loadfromdir_clicked();
+
 private:
   Ui::PCLViewer *ui;
   void LoadImages();
@@ -121,6 +144,21 @@ private:
   PlaneSweep::camImage<uchar> depth8u;
   PlaneSweep::camImage<uchar> dendepth8u;
   PlaneSweep::camImage<uchar> tgvdepth8u;
+
+  QString ImageName(int number, QString & imagePos);
+  void getcamK(ublas::matrix<double> & K, const ublas::matrix<double> & cam_dir,
+               const ublas::matrix<double> & cam_up, const ublas::matrix<double> & cam_right);
+  void computeRT(ublas::matrix<double> & R, ublas::matrix<double> & t, const ublas::matrix<double> & cam_dir,
+                 const ublas::matrix<double> & cam_pos, const ublas::matrix<double> & cam_up);
+  bool getcamParameters(QString filename, ublas::matrix<double> & cam_pos, ublas::matrix<double> & cam_dir,
+                        ublas::matrix<double> & cam_up, ublas::matrix<double> & cam_lookat,
+                        ublas::matrix<double> & cam_sky, ublas::matrix<double> & cam_right,
+                        ublas::matrix<double> & cam_fpoint, double & cam_angle);
+  ublas::matrix<double> &cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B);
+
+  template<typename T>
+  void rgb2gray(T * data, const QImage & img);
+
 
 };
 

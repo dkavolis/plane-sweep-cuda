@@ -1,3 +1,6 @@
+#define _SCL_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "pclviewer.h"
 #include "ui_pclviewer.h"
 #include <iostream>
@@ -7,6 +10,12 @@
 #include <boost/numeric/ublas/assignment.hpp>
 #include <QPixmap>
 #include <QColor>
+#include <QFileDialog>
+#include <QFile>
+#include <QTextStream>
+#include <QStringList>
+#include <QMessageBox>
+#include <cmath>
 
 PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     QMainWindow (parent),
@@ -87,7 +96,7 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->threadsy->setValue(t.y);
 
     QChar alpha = QChar(0xb1, 0x03);
-    QChar sigma(0x03C3), tau(0x03C4);
+    QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3);
     QString a0 = alpha, a1 = alpha;
     a0 += "<sub>";
     a0 += QString::number(0);
@@ -100,6 +109,8 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->tgv_lambda_label->setText(trUtf8( "\xce\xbb" ));
     ui->tgv_sigma_label->setText(sigma);
     ui->tgv_tau_label->setText(tau);
+    ui->tgv_beta_label->setText(beta);
+    ui->tgv_gamma_label->setText(gamma);
 
     ui->tgv_alpha0->setValue(DEFAULT_TGV_ALPHA0);
     ui->tgv_alpha1->setValue(DEFAULT_TGV_ALPHA1);
@@ -108,6 +119,10 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->tgv_warps->setValue(DEFAULT_TGV_NWARPS);
     ui->tgv_sigma->setValue(DEFAULT_TGV_SIGMA);
     ui->tgv_tau->setValue(DEFAULT_TGV_TAU);
+    ui->tgv_beta->setValue(DEFAULT_TGV_BETA);
+    ui->tgv_gamma->setValue(DEFAULT_TGV_GAMMA);
+
+    ui->altmethod->setChecked(ps.getAlternativeRelativeMatrixMethod());
 
     LoadImages();
 }
@@ -128,6 +143,7 @@ void PCLViewer::LoadImages()
     ref += QString::number(0);
     ref += ".png";
     refim.load(ref);
+    int w = refim.width(), h = refim.height();
 
     image = QPixmap::fromImage(refim);
     scene->addPixmap(image);
@@ -193,25 +209,29 @@ void PCLViewer::LoadImages()
             0.095507, -0.833589, -0.544067, -0.250995,
             -0.0881887, 0.53733, -0.838748, 0.796756;
 
-    refgray = refim.convertToFormat(QImage::Format_Grayscale8);
-    ps.HostRef8u.CopyFrom(refgray.constBits(), refgray.bytesPerLine(), refgray.width(), refgray.height());
-    ps.CmatrixToRT(Cr, ps.HostRef8u.R, ps.HostRef8u.t);
+    //refgray = refim.convertToFormat(QImage::Format_Grayscale8);
+    //ps.HostRef8u.CopyFrom(refgray.constBits(), refgray.bytesPerLine(), refgray.width(), refgray.height());
+    ps.HostRef.setSize(w, h);
+    rgb2gray<float>(ps.HostRef.data, refim);
+    ps.CmatrixToRT(Cr, ps.HostRef.R, ps.HostRef.t);
 
     QString src;
 	sources.resize(9);
-    ps.HostSrc8u.resize(9);
+    ps.HostSrc.resize(9);
     for (int i = 0; i < 9; i++){
         src = QDir::currentPath();
         src += loc;
         src += QString::number(i + 1);
         src += ".png";
         sources[i].load(src);
-        sources[i] = sources[i].convertToFormat(QImage::Format_Grayscale8);
-        ps.HostSrc8u[i].CopyFrom(sources[i].constBits(), sources[i].bytesPerLine(), sources[i].width(), sources[i].height());
-        ps.CmatrixToRT(C[i], ps.HostSrc8u[i].R, ps.HostSrc8u[i].t);
+        //sources[i] = sources[i].convertToFormat(QImage::Format_Grayscale8);
+        //ps.HostSrc8u[i].CopyFrom(sources[i].constBits(), sources[i].bytesPerLine(), sources[i].width(), sources[i].height());
+        ps.HostSrc[i].setSize(w,h);
+        rgb2gray<float>(ps.HostSrc[i].data, sources[i]);
+        ps.CmatrixToRT(C[i], ps.HostSrc[i].R, ps.HostSrc[i].t);
     }
 
-    ps.Convert8uTo32f(argc, argv);
+    //ps.Convert8uTo32f(argc, argv);
 }
 
 PCLViewer::~PCLViewer ()
@@ -370,7 +390,8 @@ void PCLViewer::on_threadsy_valueChanged(int arg1)
 void PCLViewer::on_tgv_button_pressed()
 {
     if (ps.TGV(argc, argv, ui->tgv_niters->value(), ui->tgv_warps->value(), ui->tgv_lambda->value(),
-               ui->tgv_alpha0->value(), ui->tgv_alpha1->value(), ui->tgv_tau->value(), ui->tgv_sigma->value())){
+               ui->tgv_alpha0->value(), ui->tgv_alpha1->value(), ui->tgv_tau->value(), ui->tgv_sigma->value(),
+               ui->tgv_beta->value(), ui->tgv_gamma->value())){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         tgvdepth8u = *ps.getDepthmap8uTGV();
         // The number of points in the cloud
@@ -414,4 +435,314 @@ void PCLViewer::on_tgv_psize_valueChanged(int value)
     ui->tgv_psizebox->setValue(value);
     tgvviewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
     ui->qvtktgv->update ();
+}
+
+void PCLViewer::on_imagePathButton_clicked()
+{
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Open Directory"),
+                                                 "/home",
+                                                 QFileDialog::ShowDirsOnly
+                                                 | QFileDialog::DontResolveSymlinks);
+    ui->imagePath->setText(dir);
+}
+
+void PCLViewer::on_imageNameButton_clicked()
+{
+    // Get full image file name
+    QString loc = ui->imagePath->text();
+    if (loc.isEmpty()) loc = "/home";
+    QString name = QFileDialog::getOpenFileName(this, tr("Select Reference Image"),
+                                                loc,
+                                                tr("Images (*.png *.xpm *.jpg *.jpeg *.bmp *.dds *.mng *.tga *.tiff)"));
+
+    // Find the last forward slash, meaning end directory path
+    int i = name.lastIndexOf('/');
+
+    // Split full file name into name and path
+    QString n = name, path = name;
+    if (i != -1) {
+        path.truncate(i);
+        n.remove(0, i + 1);
+    }
+
+    // Split file name into name and format
+    QString format = n;
+    i = n.lastIndexOf('.');
+    if (i != 1) {
+        format.remove(0, i + 1);
+        n.truncate(i);
+    }
+
+    // Going from the end count the number of digits and selected image number
+    int digits = 0, ref = 0;
+    QChar s = n.at(n.size() - 1);
+    while (s.isDigit()){
+        ref += pow(10, digits) * s.digitValue();
+        digits++;
+        n.truncate(n.size() - 1);
+        s = n.at(n.size() - 1);
+    }
+
+    // Set appropriate boxes
+    ui->imagePath->setText(path);
+    ui->imageName->setText(n);
+    ui->imageFormat->setText(format);
+    ui->imageDigits->setValue(digits);
+    ui->refNumber->setValue(ref);
+}
+
+void PCLViewer::on_altmethod_toggled(bool checked)
+{
+    ps.setAlternativeRelativeMatrixMethod(checked);
+}
+
+void PCLViewer::on_loadfromsrc_clicked()
+{
+    LoadImages();
+}
+
+void PCLViewer::on_loadfromdir_clicked()
+{
+    QString impos;
+    QString imname = ImageName(ui->refNumber->value(), impos);
+    //std::cout << imname.toStdString() << std::endl;
+
+    ublas::matrix<double> cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, K, R, t;
+    double cam_angle;
+
+    if (!getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)) return;
+    getcamK(K, cam_dir, cam_up, cam_right);
+
+    ps.setK(K);
+    computeRT(R, t, cam_dir, cam_pos, cam_up);
+
+    refim.load(imname);
+    int w = refim.width(), h = refim.height();
+    ps.HostRef.setSize(w, h);
+
+    image = QPixmap::fromImage(refim);
+    scene->addPixmap(image);
+    scene->setSceneRect(image.rect());
+    ui->refView->setScene(scene);
+
+    ps.HostRef.R = R;
+    ps.HostRef.t = t;
+    rgb2gray<float>(ps.HostRef.data, refim);
+    std::cout << "K = " << K << std::endl;
+    std::cout << "Rref = " << R << "\ntref = " << t << std::endl << std::endl;
+
+    int nsrc = ui->imNumber->value() - 1;
+
+    ps.HostSrc.resize(nsrc);
+    QImage src;
+
+    for (int i = 0; i < nsrc; i++){
+        imname = ImageName(ui->refNumber->value() + pow(-1, i + 1) * (i + 1), impos);
+        if (getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)){
+            computeRT(R, t, cam_dir, cam_pos, cam_up);
+            src.load(imname);
+            ps.HostSrc[i].setSize(w,h);
+            ps.HostSrc[i].R = R;
+            ps.HostSrc[i].t = t;
+            rgb2gray<float>(ps.HostSrc[i].data, src);
+            std::cout << "i = "<< i << "\nRsens = " << R << "\ntsens = " << t << std::endl << std::endl;
+        }
+    }
+
+}
+
+QString PCLViewer::ImageName(int number, QString &imagePos)
+{
+    QString name = ui->imagePath->text();
+    name += '/';
+    name += ui->imageName->text();
+    int n;
+    for (int i = 0; i < ui->imageDigits->value(); i++) {
+        n = number / (int)pow(10, ui->imageDigits->value() - i - 1);
+        n = n % 10;
+        name += QString::number(n);
+    }
+    name += '.';
+    imagePos = name;
+    name += ui->imageFormat->text();
+    imagePos += "txt";
+    return name;
+}
+
+void PCLViewer::getcamK(ublas::matrix<double> & K, const ublas::matrix<double> &cam_dir,
+                        const ublas::matrix<double> &cam_up, const ublas::matrix<double> &cam_right)
+{
+    double focal = sqrt(pow(cam_dir(0,0),2) + pow(cam_dir(1,0),2) + pow(cam_dir(2,0),2));
+    double aspect = sqrt(pow(cam_right(0,0),2) + pow(cam_right(1,0),2) + pow(cam_right(2,0),2));
+    double angle = 2 * atan(aspect / 2 / focal);
+    aspect = aspect / sqrt(pow(cam_up(0,0),2) + pow(cam_up(1,0),2) + pow(cam_up(2,0),2));
+
+    // height and width
+    int M = 480, N = 640;
+
+    int width = N, height = M;
+
+    // pixel size
+    double psx = 2*focal*tan(0.5*angle)/N ;
+    double psy = 2*focal*tan(0.5*angle)/aspect/M ;
+
+    psx   = psx / focal;
+    psy   = psy / focal;
+
+    double Ox = (width+1)*0.5;
+    double Oy = (height+1)*0.5;
+
+    K.resize(3,3);
+
+    K <<=   1.f/psx, 0.f, Ox,
+            0.f, -1.f/psy, Oy,
+            0.f, 0.f, 1.f;
+}
+
+void PCLViewer::computeRT(ublas::matrix<double> & R, ublas::matrix<double> & t, const ublas::matrix<double> &cam_dir,
+                          const ublas::matrix<double> &cam_pos, const ublas::matrix<double> &cam_up)
+{
+    ublas::matrix<double> x, y, z;
+
+    z = cam_dir / sqrt(pow(cam_dir(0,0),2) + pow(cam_dir(1,0),2) + pow(cam_dir(2,0),2));
+
+    x = cross(cam_up, z);
+    x = x / sqrt(pow(x(0,0),2) + pow(x(1,0),2) + pow(x(2,0),2));
+
+    y = cross(z, x);
+
+    R.resize(3,3);
+    R <<=   x(0,0), y(0,0), z(0,0),
+            x(1,0), y(1,0), z(1,0),
+            x(2,0), y(2,0), z(2,0);
+
+    t = cam_pos;
+
+}
+
+bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_pos, ublas::matrix<double> & cam_dir,
+                                 ublas::matrix<double> & cam_up, ublas::matrix<double> & cam_lookat,
+                                 ublas::matrix<double> & cam_sky, ublas::matrix<double> & cam_right,
+                                 ublas::matrix<double> & cam_fpoint, double & cam_angle)
+{
+    cam_pos.resize(3,1);
+    cam_dir.resize(3,1);
+    cam_up.resize(3,1);
+    cam_lookat.resize(3,1);
+    cam_sky.resize(3,1);
+    cam_right.resize(3,1);
+    cam_fpoint.resize(3,1);
+
+    QFile file(filename);
+    if(!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::information(0, "Error reading file", file.errorString());
+        return false;
+    }
+
+    QTextStream in(&file);
+    int first, last;
+
+    while(!in.atEnd()) {
+        QString line = in.readLine();
+        QString numbers = line;
+        QStringList n;
+
+        first = line.lastIndexOf('[');
+        last = line.lastIndexOf(']');
+
+        if (last != -1) numbers.truncate(last);
+        if (first != -1) numbers.remove(0, first + 1);
+        if ((first != -1) && (last != -1)) n = numbers.split(',', QString::SkipEmptyParts);
+
+        if (line.startsWith(CAM_POS)){
+            cam_pos <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
+        }
+
+        if (line.startsWith(CAM_DIR)){
+            cam_dir <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
+        }
+
+        if (line.startsWith(CAM_UP)){
+            cam_up <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
+        }
+
+        if (line.startsWith(CAM_LOOKAT)){
+            cam_lookat <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
+        }
+
+        if (line.startsWith(CAM_SKY)){
+            cam_sky <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
+        }
+
+        if (line.startsWith(CAM_RIGHT)){
+            cam_right <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
+        }
+
+        if (line.startsWith(CAM_FPOINT)){
+            cam_fpoint <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
+        }
+
+        if (line.startsWith(CAM_ANGLE)){
+            first = line.lastIndexOf('=');
+            last = line.lastIndexOf(';');
+            if (last != -1) numbers.truncate(last);
+            if (first != -1) numbers.remove(0, first + 1);
+            if ((first != -1) && (last != -1)) n = numbers.split(',', QString::SkipEmptyParts);
+            cam_angle = n.at(0).trimmed().toDouble();
+        }
+
+    }
+
+    file.close();
+    return true;
+}
+
+ublas::matrix<double> & PCLViewer::cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B)
+{
+    ublas::matrix<double> x = A, y = B;
+    ublas::matrix<double> * result = new ublas::matrix<double>(3,1);
+    int xdim = 3, ydim = 3;
+    if (x.size1() == 1) x = trans(x);
+    if (y.size1() == 1) y = trans(y);
+    if (x.size1() == 2) {
+        xdim = 2;
+        x.resize(3, 1);
+        x(2,0) = 0.f;
+    }
+    else if (x.size1() != 3) {
+        std::cerr << "Matrix dimensions must be 3 by 1 or 2 by 1 only" << std::endl;
+        return *result;
+    }
+    if (y.size1() == 2) {
+        ydim = 2;
+        y.resize(3, 1);
+        y(2,0) = 0.f;
+    }
+    else if (y.size1() != 3) {
+        std::cerr << "Matrix dimensions must be 3 by 1 or 2 by 1 only" << std::endl;
+        return *result;
+    }
+
+    *result <<=  x(1,0) * y(2,0) - x(2,0) * y(1,0),
+                -(x(0,0) * y(2,0) - x(2,0) * y(0,0)),
+                x(0,0) * y(1,0) - x(1,0) * y(0,0);
+
+    return *result;
+}
+
+template<typename T>
+void PCLViewer::rgb2gray(T * data, const QImage & img)
+{
+    int w = img.width(), h = img.height();
+    QColor c;
+
+    for (int y = 0; y < h; y++){
+        for (int x = 0; x < w; x++){
+
+            c = img.pixel(x, y);
+            data[x + y*w] = T(RGB2GRAY_WEIGHT_RED * c.red() +
+                              RGB2GRAY_WEIGHT_BLUE * c.blue() +
+                              RGB2GRAY_WEIGHT_GREEN * c.green());
+        }
+    }
 }

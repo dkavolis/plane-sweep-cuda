@@ -22,6 +22,8 @@
 #define DEFAULT_TGV_NWARPS 15
 #define DEFAULT_TGV_SIGMA 1.f
 #define DEFAULT_TGV_TAU 0.02
+#define DEFAULT_TGV_BETA 0.f
+#define DEFAULT_TGV_GAMMA 1.f
 
 #include <iostream>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -139,10 +141,15 @@ public:
     bool CudaDenoise( int argc, char **argv, const unsigned int niters = DEFAULT_TVL1_ITERATIONS, const double lambda = DEFAULT_TVL1_LAMBDA);
     bool TGV(int argc, char **argv, const unsigned int niters = DEFAULT_TGV_NITERS, const unsigned int warps = DEFAULT_TGV_NWARPS,
              const double lambda = DEFAULT_TGV_LAMBDA, const double alpha0 = DEFAULT_TGV_ALPHA0, const double alpha1 = DEFAULT_TGV_ALPHA1,
-             const double tau = DEFAULT_TGV_TAU, const double sigma = DEFAULT_TGV_SIGMA);
+             const double tau = DEFAULT_TGV_TAU, const double sigma = DEFAULT_TGV_SIGMA,
+             const double beta = DEFAULT_TGV_BETA, const double gamma = DEFAULT_TGV_GAMMA);
+    void RelativeMatrices(ublas::matrix<double> & Rrel, ublas::matrix<double> & trel, const ublas::matrix<double> & Rref,
+                          const ublas::matrix<double> & tref, const ublas::matrix<double> & Rsrc, const ublas::matrix<double> & tsrc);
 
     // Setters:
+    void setAlternativeRelativeMatrixMethod(bool method) { alternativemethod = method; }
     void setK(double Km[][3]){ arrayToMatrix(Km, K); invertK(); }
+    void setK(ublas::matrix<double> & Km){ K = Km; invertK(); }
     void setZ(float n, float f){ znear = n; zfar = f; }
     void setZnear(float n){ znear = n; }
     void setZfar(float f){ zfar = f; }
@@ -158,6 +165,7 @@ public:
                                        threads.y = threadsy;}
 
     // Getters:
+    bool getAlternativeRelativeMatrixMethod(){ return alternativemethod; }
     void getK(double k[][3]){ matrixToArray(k, K); }
     void getInverseK(double k[][3]){ matrixToArray(k, invK); }
     camImage<float> * getDepthmap(){ return &depthmap; }
@@ -231,6 +239,7 @@ protected:
     dim3 blocks, threads;
 
     bool depthavailable = false;
+    bool alternativemethod = false;
 
     // inverse matrix function
     template<class T>
