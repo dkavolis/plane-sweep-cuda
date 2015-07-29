@@ -140,11 +140,15 @@ private:
   QGraphicsScene *dendepthsc;
   QGraphicsScene *tgvscene;
   QPixmap depthim;
-  QPixmap dendepth;
-  QPixmap tgvdepth;
+  QPixmap dendepthim;
+  QPixmap tgvdepthim;
   PlaneSweep::camImage<float> depth;
   PlaneSweep::camImage<uchar> depth8u;
+
+  PlaneSweep::camImage<float> dendepth;
   PlaneSweep::camImage<uchar> dendepth8u;
+
+  PlaneSweep::camImage<float> tgvdepth;
   PlaneSweep::camImage<uchar> tgvdepth8u;
 
   QString ImageName(int number, QString & imagePos);

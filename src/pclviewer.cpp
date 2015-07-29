@@ -245,6 +245,7 @@ void PCLViewer::on_pushButton_pressed()
 {
     if (ps.RunAlgorithm(argc, argv)){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
+        depth = *ps.getDepthmap();
         depth8u = *ps.getDepthmap8u();
         // The number of points in the cloud
         cloud->points.resize(depth8u.width * depth8u.height);
@@ -253,10 +254,9 @@ void PCLViewer::on_pushButton_pressed()
 
         QColor c;
         int  i;
-        float zn = ps.getZnear();
-        float zf = ps.getZfar();
-        float d;
-        //depth8u.setSize(depth8u.width, depth8u.height);
+        double k[3][3];
+        ps.getInverseK(k);
+        double z;
 
         // Fill the cloud with some points
         for (size_t x = 0; x < depth8u.width; ++x)
@@ -264,12 +264,11 @@ void PCLViewer::on_pushButton_pressed()
             {
 
                 i = x + y * depth8u.width;
-                // Check if QNAN
-//                if (depth.data[i] == depth.data[i]) d = 255 * (depth.data[i] - zn) / (zf - zn);
-//                else d = 255;
-                cloud->points[i].x = x;
-                cloud->points[i].y = depth8u.height - y;
-                cloud->points[i].z = -depth8u.data[i];
+                z = depth.data[i];
+
+                cloud->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
+                cloud->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                cloud->points[i].z = -z;
 
                 c = refim.pixel(x, y);
                 cloud->points[i].r = c.red();
@@ -341,6 +340,7 @@ void PCLViewer::on_denoiseBtn_clicked()
 //    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
     if (ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value())){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
+        dendepth = *ps.getDepthmapDenoised();
         dendepth8u = *ps.getDepthmap8uDenoised();
         // The number of points in the cloud
         clouddenoised->points.resize(dendepth8u.width * dendepth8u.height);
@@ -350,6 +350,10 @@ void PCLViewer::on_denoiseBtn_clicked()
         QColor c;
         int  i;
 
+        double k[3][3];
+        ps.getInverseK(k);
+        double z;
+
         // Fill the cloud with some points
         for (size_t x = 0; x < dendepth8u.width; ++x)
             for (size_t y = 0; y < dendepth8u.height; ++y)
@@ -357,9 +361,11 @@ void PCLViewer::on_denoiseBtn_clicked()
 
                 i = x + y * dendepth8u.width;
 
-                clouddenoised->points[i].x = x;
-                clouddenoised->points[i].y = dendepth8u.height - y;
-                clouddenoised->points[i].z = -dendepth8u.data[i];
+                z = dendepth.data[i];
+
+                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
+                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                clouddenoised->points[i].z = -z;
 
                 c = refim.pixel(x, y);
                 clouddenoised->points[i].r = c.red();
@@ -369,9 +375,9 @@ void PCLViewer::on_denoiseBtn_clicked()
 
         QImage img((const uchar *)dendepth8u.data, dendepth8u.width, dendepth8u.height, QImage::Format_Indexed8);
 
-        dendepth = QPixmap::fromImage(img);
-        dendepthsc->addPixmap(dendepth);
-        dendepthsc->setSceneRect(dendepth.rect());
+        dendepthim = QPixmap::fromImage(img);
+        dendepthsc->addPixmap(dendepthim);
+        dendepthsc->setSceneRect(dendepthim.rect());
         ui->denview->setScene(dendepthsc);
 
         viewerdenoised->updatePointCloud(clouddenoised, "cloud");
@@ -398,6 +404,7 @@ void PCLViewer::on_tgv_button_pressed()
                ui->tgv_alpha0->value(), ui->tgv_alpha1->value(), ui->tgv_tau->value(), ui->tgv_sigma->value(),
                ui->tgv_beta->value(), ui->tgv_gamma->value())){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
+        tgvdepth = *ps.getDepthmapTGV();
         tgvdepth8u = *ps.getDepthmap8uTGV();
         // The number of points in the cloud
         tgvcloud->points.resize(tgvdepth8u.width * tgvdepth8u.height);
@@ -406,6 +413,11 @@ void PCLViewer::on_tgv_button_pressed()
 
         QColor c;
         int  i;
+        double k[3][3];
+        ps.getInverseK(k);
+        double z, zn, zf;
+        zn = ps.getZnear();
+        zf = ps.getZfar();
 
         // Fill the cloud with some points
         for (size_t x = 0; x < tgvdepth8u.width; ++x)
@@ -414,9 +426,11 @@ void PCLViewer::on_tgv_button_pressed()
 
                 i = x + y * tgvdepth8u.width;
 
-                tgvcloud->points[i].x = x;
-                tgvcloud->points[i].y = tgvdepth8u.height - y;
-                tgvcloud->points[i].z = -tgvdepth8u.data[i];
+                z = ((float)tgvdepth8u.data[i] / 255.f * (zf - zn)) + zn;
+
+                tgvcloud->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
+                tgvcloud->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                tgvcloud->points[i].z = -z;
 
                 c = refim.pixel(x, y);
                 tgvcloud->points[i].r = c.red();
@@ -426,9 +440,9 @@ void PCLViewer::on_tgv_button_pressed()
 
         QImage img((const uchar *)tgvdepth8u.data, tgvdepth8u.width, tgvdepth8u.height, QImage::Format_Indexed8);
 
-        tgvdepth = QPixmap::fromImage(img);
-        tgvscene->addPixmap(tgvdepth);
-        tgvscene->setSceneRect(tgvdepth.rect());
+        tgvdepthim = QPixmap::fromImage(img);
+        tgvscene->addPixmap(tgvdepthim);
+        tgvscene->setSceneRect(tgvdepthim.rect());
         ui->tgvview->setScene(tgvscene);
 
         tgvviewer->updatePointCloud(tgvcloud, "cloud");
@@ -776,26 +790,24 @@ void PCLViewer::on_save_clicked()
         file.close();
     }
 
-    if (!dendepth.isNull())
+    if (!dendepthim.isNull())
     {
         file.setFileName("planesweep_tvl1.png");
         file.open(QIODevice::WriteOnly);
-        dendepth.save(&file, "PNG");
+        dendepthim.save(&file, "PNG");
         file.close();
     }
 
-    if (!tgvdepth.isNull())
+    if (!tgvdepthim.isNull())
     {
         file.setFileName("tgv.png");
         file.open(QIODevice::WriteOnly);
-        tgvdepth.save(&file, "PNG");
+        tgvdepthim.save(&file, "PNG");
         file.close();
     }
 
     try {
-        PointCloudT p = *cloud;
-        std::cout << "size = " << p.size() << ", height * width = " << p.width * p.height << std::endl;
-        pcl::io::savePCDFileASCII("planesweep.pcd", p);
+        pcl::io::savePCDFileASCII("planesweep.pcd", *cloud);
         pcl::io::savePCDFileASCII("planesweep_tvl1.pcd", *clouddenoised);
         pcl::io::savePCDFileASCII("tgv.pcd", *tgvcloud);
     }
