@@ -128,6 +128,20 @@ private slots:
 
   void on_save_clicked();
 
+  void on_nIters_valueChanged(int arg1);
+
+  void on_lambda_valueChanged(double arg1);
+
+  void on_tvl1_tau_valueChanged(double arg1);
+
+  void on_tvl1_sigma_valueChanged(double arg1);
+
+  void on_tvl1_theta_valueChanged(double arg1);
+
+  void on_tvl1_beta_valueChanged(double arg1);
+
+  void on_tvl1_gamma_valueChanged(double arg1);
+
 private:
   Ui::PCLViewer *ui;
   void LoadImages();
@@ -142,14 +156,18 @@ private:
   QPixmap depthim;
   QPixmap dendepthim;
   QPixmap tgvdepthim;
-  PlaneSweep::camImage<float> depth;
-  PlaneSweep::camImage<uchar> depth8u;
+  PlaneSweep::camImage<float> * depth;
+  PlaneSweep::camImage<uchar> * depth8u;
 
-  PlaneSweep::camImage<float> dendepth;
-  PlaneSweep::camImage<uchar> dendepth8u;
+  PlaneSweep::camImage<float> * dendepth;
+  PlaneSweep::camImage<uchar> * dendepth8u;
 
-  PlaneSweep::camImage<float> tgvdepth;
-  PlaneSweep::camImage<uchar> tgvdepth8u;
+  PlaneSweep::camImage<float> * tgvdepth;
+  PlaneSweep::camImage<uchar> * tgvdepth8u;
+
+  bool  refchanged = true,
+        refchangedtvl1 = true,
+        refchangedtgv = true;
 
   QString ImageName(int number, QString & imagePos);
   void getcamK(ublas::matrix<double> & K, const ublas::matrix<double> & cam_dir,

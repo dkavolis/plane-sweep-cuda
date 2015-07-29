@@ -277,6 +277,32 @@ __global__ void denoising_TVL1_calculateP_kernel(float * __restrict__ d_Px, floa
     }
 }
 
+__global__ void denoising_TVL1_calculateP_tensor_weighed_kernel(float * __restrict__ d_Px, float * __restrict__ d_Py,
+                                                                const float * __restrict__ d_T11, const float * __restrict__ d_T12,
+                                                                const float * __restrict__ d_T21, const float * __restrict__ d_T22,
+                                                                const float * d_input, const float sigma,
+                                                                const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+
+        const int i = ind_y * width + ind_x;
+
+        int xn = fminf(ind_x + 1, width - 1);
+        int yn = fminf(ind_y + 1, height - 1);
+
+        double x = d_input[ind_y * width + xn] - d_input[i];
+        double y = d_input[yn * width + ind_x] - d_input[i];
+        double dx = d_Px[i] + sigma * (d_T11[i] * x + d_T12[i] * y);
+        double dy = d_Py[i] + sigma * (d_T21[i] * x + d_T22[i] * y);
+        double d = fmaxf(1.f, sqrt(dx * dx + dy * dy));
+        d_Px[i] = dx / d;
+        d_Py[i] = dy / d;
+    }
+}
+
 __global__ void element_scale_kernel(float * __restrict__ d_output, const float scale, const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
@@ -337,6 +363,39 @@ __global__ void denoising_TVL1_update_kernel(float * __restrict__ d_output, floa
             x_new = d_output[ind] + tau*(d_Px[ind] - d_Px[ind - 1] + d_Py[ind] - d_Py[yp * width + ind_x]) - tau * d_R[ind];
             d_output[ind] = x_new + theta*(x_new - d_output[ind]);
         }
+    }
+}
+
+__global__ void denoising_TVL1_update_tensor_weighed_kernel(float * __restrict__ d_output, float * __restrict__ d_R,
+                                                            const float * d_Px, const float * d_Py, const float * __restrict__ d_origin,
+                                                            const float * __restrict__ d_T11, const float * __restrict__ d_T12,
+                                                            const float * __restrict__ d_T21, const float * __restrict__ d_T22,
+                                                            const float tau, const float theta, const float lambda, const float sigma,
+                                                            const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+
+        const int i = ind_y * width + ind_x;
+
+        int xp = fmaxf(ind_x - 1, 0.f);
+        int yp = fmaxf(ind_y - 1, 0.f);
+
+        d_R[i] += d_origin[i];
+        d_R[i] += sigma * d_output[i];
+        if (d_R[i] > lambda) d_R[i] = lambda;
+        if (d_R[i] < -lambda) d_R[i] = -lambda;
+
+        float   c_px = d_Px[i], c_py = d_Py[i],
+                xp_px = d_Px[ind_y*width+xp], yp_px = d_Px[yp*width+ind_x],
+                xp_py = d_Py[ind_y*width+xp], yp_py = d_Py[yp*width+ind_x];
+
+        double x_new = d_output[i] + tau*((d_T11[i] * (c_px - xp_px) + d_T12[i] * (c_py - xp_py) +
+                                           d_T21[i] * (c_px - yp_px) + d_T22[i] * (c_py - yp_py)) - d_R[i]);
+
+        d_output[i] = x_new + theta*(x_new - d_output[i]);
     }
 }
 
@@ -482,6 +541,17 @@ void denoising_TVL1_calculateP(float * d_Px, float * d_Py,
     checkCudaErrors(cudaPeekAtLastError());
 }
 
+void denoising_TVL1_calculateP_tensor_weighed(float * d_Px, float * d_Py,
+                                              const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
+                                              const float * d_input, const float sigma,
+                                              const int width, const int height,
+                                              dim3 blocks, dim3 threads)
+{
+    denoising_TVL1_calculateP_tensor_weighed_kernel<<<blocks, threads>>>(d_Px, d_Py, d_T11, d_T12, d_T21, d_T22,
+                                                                         d_input, sigma, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
 void element_scale(float * d_output, const float scale, const int width, const int height, dim3 blocks, dim3 threads)
 {
     element_scale_kernel<<<blocks, threads>>>(d_output, scale, width, height);
@@ -507,5 +577,16 @@ void denoising_TVL1_update(float * d_output, float * d_R,
 {
     denoising_TVL1_update_kernel<<<blocks, threads>>>(d_output, d_R, d_Px, d_Py, d_origin,
                                                       tau, theta, lambda, sigma, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
+                                          const float * d_Px, const float * d_Py, const float * d_origin,
+                                          const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
+                                          const float tau, const float theta, const float lambda, const float sigma,
+                                          const int width, const int height, dim3 blocks, dim3 threads)
+{
+    denoising_TVL1_update_tensor_weighed_kernel<<<blocks, threads>>>(d_output, d_R, d_Px, d_Py, d_origin, d_T11, d_T12, d_T21, d_T22,
+                                                                     tau, theta, lambda, sigma, width, height);
     checkCudaErrors(cudaPeekAtLastError());
 }

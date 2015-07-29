@@ -12,9 +12,17 @@
 #define NO_CUDA_DEVICE -1
 #define MAX_THREADS_PER_BLOCK 512
 #define MAX_PLANESWEEP_THREADS 1
+
 #define DEFAULT_TVL1_ITERATIONS 100
 #define DEFAULT_TVL1_LAMBDA .3
+#define DEFAULT_TVL1_TAU 0.02
+#define DEFAULT_TVL1_SIGMA 6.f
+#define DEFAULT_TVL1_THETA 1.f
+#define DEFAULT_TVL1_BETA 0.f
+#define DEFAULT_TVL1_GAMMA 1.f
+
 #define DEFAULT_BLOCK_XDIM 32
+
 #define DEFAULT_TGV_LAMBDA 0.5
 #define DEFAULT_TGV_ALPHA0 2.0
 #define DEFAULT_TGV_ALPHA1 1.5
@@ -138,7 +146,9 @@ public:
 
     bool RunAlgorithm(int argc, char **argv);
     bool Denoise(unsigned int niter, double lambda);
-    bool CudaDenoise( int argc, char **argv, const unsigned int niters = DEFAULT_TVL1_ITERATIONS, const double lambda = DEFAULT_TVL1_LAMBDA);
+    bool CudaDenoise(int argc, char **argv, const unsigned int niters = DEFAULT_TVL1_ITERATIONS, const double lambda = DEFAULT_TVL1_LAMBDA,
+                     const double tau = DEFAULT_TVL1_TAU, const double sigma = DEFAULT_TVL1_SIGMA, const double theta = DEFAULT_TVL1_THETA,
+                     const double beta = DEFAULT_TVL1_BETA, const double gamma = DEFAULT_TVL1_GAMMA);
     bool TGV(int argc, char **argv, const unsigned int niters = DEFAULT_TGV_NITERS, const unsigned int warps = DEFAULT_TGV_NWARPS,
              const double lambda = DEFAULT_TGV_LAMBDA, const double alpha0 = DEFAULT_TGV_ALPHA0, const double alpha1 = DEFAULT_TGV_ALPHA1,
              const double tau = DEFAULT_TGV_TAU, const double sigma = DEFAULT_TGV_SIGMA,

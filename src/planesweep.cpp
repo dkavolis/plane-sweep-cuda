@@ -589,7 +589,8 @@ void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output)
     NPP_CHECK_NPP(nppiConvert_8u32f_C1R(A.data(), A.pitch(), output.data(), output.pitch(), oSize));
 }
 
-bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, const double lambda)
+bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, const double lambda, const double tau,
+                             const double sigma, const double theta, const double beta, const double gamma)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
     printf("Starting TVL1 denoising...\n\n");
@@ -609,8 +610,6 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
             return false;
         }
 
-        const double L2 = 8.0, tau = 0.02, sigma = 1./(L2*tau), theta = 1.0;
-        double clambda = (double)lambda;
         int h = depthmap.height, w = depthmap.width;
 
         if (threads.x * threads.y == 0) threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
@@ -624,13 +623,14 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         npp::ImageNPP_32f_C1 Px(w,h);
         npp::ImageNPP_32f_C1 Py(w,h);
         npp::ImageNPP_32f_C1 rawInput(w,h);
+        npp::ImageNPP_32f_C1 T11(w,h), T12(w,h), T21(w,h), T22(w,h), ref(w,h);
 
-        set_value(R.data(), 0.f, w, h, blocks, threads);
-        set_value(Px.data(), 0.f, w, h, blocks, threads);
-        set_value(Py.data(), 0.f, w, h, blocks, threads);
-
+        ref.copyFrom(HostRef.data, HostRef.pitch);
         X.copyFrom(depthmap.data, depthmap.pitch);
         rawInput.copyFrom(depthmap.data, depthmap.pitch);
+
+        element_scale(ref.data(), 1/255.f, w, h, blocks, threads);
+        Anisotropic_diffusion_tensor(T11.data(), T12.data(), T21.data(), T22.data(), ref.data(), beta, gamma, w, h, blocks, threads);
 
         element_add(X.data(), -znear, w, h, blocks, threads);
         element_add(rawInput.data(), -znear, w, h, blocks, threads);
@@ -643,9 +643,11 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
 
         for (unsigned int i = 0; i < niters; i++){
             double currsigma = i == 0 ? 1 + sigma : sigma;
-            denoising_TVL1_calculateP(Px.data(), Py.data(), X.data(), currsigma, w, h, blocks, threads);
-            denoising_TVL1_update(X.data(), R.data(), Px.data(), Py.data(), rawInput.data(), tau, theta, clambda, sigma,
-                                  w, h, blocks, threads);
+            denoising_TVL1_calculateP_tensor_weighed(Px.data(), Py.data(), T11.data(), T12.data(), T21.data(), T22.data(),
+                                                     X.data(), currsigma, w, h, blocks, threads);
+            denoising_TVL1_update_tensor_weighed(X.data(), R.data(), Px.data(), Py.data(), rawInput.data(),
+                                                 T11.data(), T12.data(), T21.data(), T22.data(),tau, theta, lambda, sigma,
+                                                 w, h, blocks, threads);
         }
 
         element_scale(X.data(), (zfar - znear), w, h, blocks, threads);
@@ -660,6 +662,11 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         nppiFree(Px.data());
         nppiFree(Py.data());
         nppiFree(rawInput.data());
+        nppiFree(T11.data());
+        nppiFree(T12.data());
+        nppiFree(T22.data());
+        nppiFree(T21.data());
+        nppiFree(ref.data());
 
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cout << "Time taken for the TVL1 denoising to complete is " <<
@@ -730,7 +737,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         std::vector<npp::ImageNPP_32f_C1> Src(nimages), It(nimages), Iu(nimages), r(nimages);
 
         // Set initial values for depthmap:
-        set_value(u.data(), (znear + zfar) / 2.f, w, h, blocks, threads);
+        set_value(u.data(), 1.f, w, h, blocks, threads);
         ubar = u;
 
         // Copy reference image to device memory and normalize

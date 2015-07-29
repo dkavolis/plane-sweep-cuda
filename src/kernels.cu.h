@@ -177,6 +177,12 @@ void denoising_TVL1_calculateP(float * d_Px, float * d_Py,
                                const int width, const int height,
                                dim3 blocks, dim3 threads);
 
+void denoising_TVL1_calculateP_tensor_weighed(float * d_Px, float * d_Py,
+                                              const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
+                                              const float * d_input, const float sigma,
+                                              const int width, const int height,
+                                              dim3 blocks, dim3 threads);
+
 /*----------------------------------------------------------------------
  * Scale each element in d_output by scale
  * -------------------------------------------------------------------*/
@@ -201,6 +207,12 @@ void denoising_TVL1_update(float * d_output, float * d_R,
                            const float * d_Px, const float * d_Py, const float * d_origin,
                            const float tau, const float theta, const float lambda, const float sigma,
                            const int width, const int height, dim3 blocks, dim3 threads);
+
+void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
+                                          const float * d_Px, const float * d_Py, const float * d_origin,
+                                          const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
+                                          const float tau, const float theta, const float lambda, const float sigma,
+                                          const int width, const int height, dim3 blocks, dim3 threads);
 
 /*========================================================================================================*\
  * Total generalised varation multistereo view functions
