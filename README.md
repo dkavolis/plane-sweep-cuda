@@ -6,7 +6,7 @@ At the moment only uses a fixed set of pictures and is not bug free. Some UI but
 will most likely need to be configured for your system.
 
 **Libraries required:**
-* [Qt 5.5](http://www.qt.io/) (only version with built-in RGB to grayscale conversion)
+* [Qt](http://www.qt.io/)
 * [VTK](http://www.vtk.org/)
 * [PCL](http://pointclouds.org/)
 * [CUDA](https://developer.nvidia.com/cuda-zone)
