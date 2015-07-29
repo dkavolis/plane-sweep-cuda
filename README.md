@@ -1,7 +1,7 @@
 # plane-sweep-cuda
 **C++ plane sweep algorithm using CUDA**
 
-At the moment only uses a fixed set of pictures and is not bug free. Some UI buttons do nothing.  
+At the moment only uses a fixed set of pictures and is not bug free. 
 [CMakeLists.txt](https://github.com/DKavolis/plane-sweep-cuda/blob/master/src/CMakeLists.txt) 
 will most likely need to be configured for your system.
 
