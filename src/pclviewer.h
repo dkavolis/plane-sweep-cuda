@@ -126,6 +126,8 @@ private slots:
 
   void on_loadfromdir_clicked();
 
+  void on_save_clicked();
+
 private:
   Ui::PCLViewer *ui;
   void LoadImages();

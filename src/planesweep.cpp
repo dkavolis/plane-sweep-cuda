@@ -292,7 +292,6 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
 
         // Calculate relative rotation and translation:
         RelativeMatrices(Rrel, trel, HostRef.R, HostRef.t, HostSrc[index].R, HostSrc[index].t);
-        std::cout << "\nindex = " << index << "\nRrel = " << Rrel << "\ntrel = " << trel << std::endl;
 
         // For each depth calculate NCC and update depthmap as required
         for (float d = znear; d <= zfar; d += dstep){
@@ -527,8 +526,9 @@ void PlaneSweep::ConvertDepthtoUChar(const camImage<float>& input, camImage<ucha
         {
             int i = x + y * input.width;
             // Check if QNAN
-            if (input.data[i] == input.data[i]) output.data[i] = UCHAR_MAX * (input.data[i] - znear) / (zfar - znear);
+            if (input.data[i] == input.data[i]) output.data[i] = uchar(UCHAR_MAX * std::min(std::max((input.data[i] - znear) / (zfar - znear), 0.f), 1.f));
             else output.data[i] = UCHAR_MAX;
+            //std::cout << (float)input.data[i] << " ";
         }
 }
 
@@ -648,8 +648,8 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
                                   w, h, blocks, threads);
         }
 
+        element_scale(X.data(), (zfar - znear), w, h, blocks, threads);
         element_add(X.data(), znear, w, h, blocks, threads);
-        element_scale(X.data(), zfar - znear, w, h, blocks, threads);
 
         X.copyTo(depthmapdenoised.data, depthmapdenoised.pitch);
 
