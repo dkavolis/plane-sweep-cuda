@@ -1,8 +1,9 @@
 # plane-sweep-cuda
 **C++ plane sweep algorithm using CUDA**
 
-At the moment only uses a fixed set of pictures and is not bug free. 
-[CMakeLists.txt](https://github.com/DKavolis/plane-sweep-cuda/blob/master/src/CMakeLists.txt) 
+Works with living room image set from [here](http://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html). Download *ICL-NUIM PNGs*
+
+**Not bug free.** [CMakeLists.txt](https://github.com/DKavolis/plane-sweep-cuda/blob/master/src/CMakeLists.txt) 
 will most likely need to be configured for your system.
 
 **Libraries required:**
