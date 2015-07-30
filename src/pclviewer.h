@@ -142,6 +142,8 @@ private slots:
 
   void on_tvl1_gamma_valueChanged(double arg1);
 
+  void on_reconstruct_button_clicked();
+
 private:
   Ui::PCLViewer *ui;
   void LoadImages();
@@ -164,6 +166,10 @@ private:
 
   PlaneSweep::camImage<float> * tgvdepth;
   PlaneSweep::camImage<uchar> * tgvdepth8u;
+
+  PlaneSweep::camImage<float> * cx;
+  PlaneSweep::camImage<float> * cy;
+  PlaneSweep::camImage<float> * cz;
 
   bool  refchanged = true,
         refchangedtvl1 = true,

@@ -399,6 +399,37 @@ __global__ void denoising_TVL1_update_tensor_weighed_kernel(float * __restrict__
     }
 }
 
+__global__ void compute3D_kernel(float * __restrict__ d_x, float * __restrict__ d_y, float * __restrict__ d_z,
+                                 const double Rrel11, const double Rrel12, const double Rrel13,
+                                 const double Rrel21, const double Rrel22, const double Rrel23,
+                                 const double Rrel31, const double Rrel32, const double Rrel33,
+                                 const double trel1, const double trel2, const double trel3,
+                                 const double invK11, const double invK12, const double invK13,
+                                 const double invK21, const double invK22, const double invK23,
+                                 const double invK31, const double invK32, const double invK33,
+                                 const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int i = ind_y * width + ind_x;
+
+        int x = ind_x + 1, y = ind_y + 1;
+        float z = d_z[i];
+
+        if (z < 5.5)
+        {
+            float   x1 = z * (invK11 * x + invK12 * y + invK13),
+                    y1 = z * (invK21 * x + invK22 * y + invK23);
+            d_x[i] = (Rrel11 * x1 + Rrel12 * y1 + Rrel13 * z) + trel1;
+            d_y[i] = (Rrel21 * x1 + Rrel22 * y1 + Rrel23 * z) + trel2;
+            d_z[i] = (Rrel31 * x1 + Rrel32 * y1 + Rrel33 * z) + trel3;
+        }
+        else d_z[i] = -9.f;
+    }
+}
+
 void transform_indexes(float * d_x, float *  d_y,
                        const float h11, const float h12, const float h13,
                        const float h21, const float h22, const float h23,
@@ -588,5 +619,16 @@ void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
 {
     denoising_TVL1_update_tensor_weighed_kernel<<<blocks, threads>>>(d_output, d_R, d_Px, d_Py, d_origin, d_T11, d_T12, d_T21, d_T22,
                                                                      tau, theta, lambda, sigma, width, height);
+    checkCudaErrors(cudaPeekAtLastError());
+}
+
+void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], const double trel[3],
+               const double invK[3][3], const int width, const int height, dim3 blocks, dim3 threads)
+{
+    compute3D_kernel<<<blocks, threads>>>(d_x, d_y, d_z,
+            Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
+            trel[0], trel[1], trel[2],
+            invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
+            width, height);
     checkCudaErrors(cudaPeekAtLastError());
 }

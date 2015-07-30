@@ -654,8 +654,26 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         element_add(X.data(), znear, w, h, blocks, threads);
 
         X.copyTo(depthmapdenoised.data, depthmapdenoised.pitch);
-
         ConvertDepthtoUChar(depthmapdenoised, depthmap8udenoised);
+
+        ublas::matrix<double> Rr, t, I(3,3), T(3,1);
+        I <<=   1.f, 0.f, 0.f,
+                0.f, 1.f, 0.f,
+                0.f, 0.f, 1.f;
+        T <<=   0.f, 0.f, 0.f;
+        RelativeMatrices(Rr, t, HostRef.R, HostRef.t, I, T);
+        double r[3][3], tr[3], invk[3][3];
+        matrixToArray(r, Rr);
+        TmatrixToArray(tr, t);
+        matrixToArray(invk, invK);
+
+        compute3D(Px.data(), Py.data(), X.data(), r, tr, invk, w, h, blocks, threads);
+        coord_x.setSize(w, h);
+        coord_y.setSize(w, h);
+        coord_z.setSize(w, h);
+        Px.copyTo(coord_x.data, coord_x.pitch);
+        Py.copyTo(coord_y.data, coord_y.pitch);
+        X.copyTo(coord_z.data, coord_z.pitch);
 
         nppiFree(X.data());
         nppiFree(R.data());

@@ -363,24 +363,31 @@ void PCLViewer::on_denoiseBtn_clicked()
                        ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value())){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         dendepth = ps.getDepthmapDenoised();
+        ps.get3Dcoordinates(cx, cy, cz);
         dendepth8u = ps.getDepthmap8uDenoised();
+        int size = clouddenoised->points.size();
         if (refchangedtvl1)
         {
-            if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
-            {
-                // The number of points in the cloud
-                clouddenoised->points.resize(dendepth8u->width * dendepth8u->height);
-                clouddenoised->width = dendepth8u->width;
-                clouddenoised->height = dendepth8u->height;
-            }
+//            if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
+//            {
+//                // The number of points in the cloud
+//                clouddenoised->points.resize(dendepth8u->width * dendepth8u->height);
+//                clouddenoised->width = dendepth8u->width;
+//                clouddenoised->height = dendepth8u->height;
+//            }
+            clouddenoised->points.resize(size + dendepth8u->width * dendepth8u->height);
+            clouddenoised->width = dendepth8u->width;
+            clouddenoised->height += dendepth8u->height;
         }
+
+        size = clouddenoised->points.size() - dendepth8u->width * dendepth8u->height;
 
         QColor c;
         int  i;
 
-        double k[3][3];
-        ps.getInverseK(k);
-        double z;
+//        double k[3][3];
+//        ps.getInverseK(k);
+//        double z;
 
         // Fill the cloud with some points
         for (size_t x = 0; x < dendepth8u->width; ++x)
@@ -389,17 +396,23 @@ void PCLViewer::on_denoiseBtn_clicked()
 
                 i = x + y * dendepth8u->width;
 
-                z = dendepth->data[i];
-                clouddenoised->points[i].z = -z;
-                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
-                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+//                z = dendepth->data[i];
+//                clouddenoised->points[i].z = -z;
+//                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
+//                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                if (cz->data[i] != -9.f)
+                {
+                    clouddenoised->points[i + size].z = -cz->data[i];
+                    clouddenoised->points[i + size].x = cx->data[i];
+                    clouddenoised->points[i + size].y = cy->data[i];
+                }
 
                 if (refchangedtvl1)
                 {
                     c = refim.pixel(x, y);
-                    clouddenoised->points[i].r = c.red();
-                    clouddenoised->points[i].g = c.green();
-                    clouddenoised->points[i].b = c.blue();
+                    clouddenoised->points[i + size].r = c.red();
+                    clouddenoised->points[i + size].g = c.green();
+                    clouddenoised->points[i + size].b = c.blue();
                 }
             }
 
@@ -602,9 +615,13 @@ void PCLViewer::on_loadfromdir_clicked()
 
     ps.HostSrc.resize(0);
     QImage src;
+    int half = (nsrc + 1) / 2;
+    int offset;
 
     for (int i = 0; i < nsrc; i++){
-        imname = ImageName(ui->refNumber->value() + pow(-1, i + 1) * (i + 1), impos);
+        if (i < half) offset = i + 1;
+        else offset = half - i - 1;
+        imname = ImageName(ui->refNumber->value() + offset, impos);
         if (getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)){
             ps.HostSrc.resize(ps.HostSrc.size() + 1);
             computeRT(R, t, cam_dir, cam_pos, cam_up);
@@ -895,4 +912,14 @@ void PCLViewer::on_tvl1_beta_valueChanged(double arg1)
 void PCLViewer::on_tvl1_gamma_valueChanged(double arg1)
 {
     if (ui->tvl1_rtupdate_box->isChecked()) on_denoiseBtn_clicked();
+}
+
+void PCLViewer::on_reconstruct_button_clicked()
+{
+    for (int i = 0; i < 25; i++){
+        ui->refNumber->setValue(ui->refNumber->value() + 20);
+        on_loadfromdir_clicked();
+        on_pushButton_pressed();
+        on_denoiseBtn_clicked();
+    }
 }

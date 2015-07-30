@@ -1,6 +1,8 @@
 /*-----------------------------------------------------------------------------------------------------
  * If problems occur - line 79 of generated .cu.obj.cmake file: delete all flags but -m**
  * --------------------------------------------------------------------------------------------------*/
+#ifndef KERNELS_CU_H
+#define KERNELS_CU_H
 
 #include <helper_cuda.h>    // includes for helper CUDA functions
 #include <cuda_runtime_api.h>
@@ -214,6 +216,14 @@ void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
                                           const float tau, const float theta, const float lambda, const float sigma,
                                           const int width, const int height, dim3 blocks, dim3 threads);
 
+/*----------------------------------------------------------------------
+ * Calculates 3D positions of points in camera image given depth d_z,
+ * rotation and translation matrices from camera coordinates to world
+ * and inverse camera calibration matrix invK
+ * -------------------------------------------------------------------*/
+void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], const double trel[3],
+               const double invK[3][3], const int width, const int height, dim3 blocks, dim3 threads);
+
 /*========================================================================================================*\
  * Total generalised varation multistereo view functions
  *
@@ -311,3 +321,5 @@ void TGV2_updateU_tensor_weighed(float * d_u, float * d_u1x, float * d_u1y, cons
 void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
                                  const float * d_u, const float * d_u1x, const float * d_u1y, const float alpha1,
                                  const float sigma, const int width, const int height, dim3 blocks, dim3 threads);
+
+#endif // KERNELS_CU_H

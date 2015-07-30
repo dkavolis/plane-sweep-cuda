@@ -113,7 +113,9 @@ public:
 			allocated = true;
 		}
 
-        camImage<T>& operator=(const camImage<T>& i){
+        camImage<T>& operator=(const camImage<T>& i){ 
+            if (this == &i) return *this;
+
 			CopyFrom(i.data, i.pitch, i.width, i.height);
             channels = i.channels;
             R = i.R;
@@ -184,6 +186,7 @@ public:
     camImage<uchar> * getDepthmap8uDenoised(){ return &depthmap8udenoised; }
     camImage<float> * getDepthmapTGV(){ return &depthmapTGV; }
     camImage<uchar> * getDepthmap8uTGV(){ return &depthmap8uTGV; }
+    void get3Dcoordinates(camImage<float> * &x, camImage<float> * &y, camImage<float> * &z){ x = &coord_x; y = &coord_y; z = &coord_z; }
     float getZnear(){ return znear; }
     float getZfar(){ return zfar; }
     unsigned int getNumberofPlanes(){ return numberplanes; }
@@ -223,13 +226,15 @@ protected:
     // vector normal to plane (0, 0, 1)T
     ublas::matrix<double> n;
 
-    // stored depthmap
+    // stored depthmaps
     camImage<float> depthmap;
     camImage<float> depthmapdenoised;
     camImage<uchar> depthmap8u;
     camImage<uchar> depthmap8udenoised;
     camImage<float> depthmapTGV;
     camImage<uchar> depthmap8uTGV;
+
+    camImage<float> coord_x, coord_y, coord_z;
 
     // plane sweep parameters
     float znear = DEFAULT_Z_NEAR;
