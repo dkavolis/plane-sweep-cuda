@@ -32,6 +32,7 @@
 #include <QVTKWidget.h>
 
 #include <planesweep.h>
+#include "fusion.cu.h"
 
 typedef pcl::PointXYZRGBA PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
@@ -86,6 +87,7 @@ protected:
   QString imname;
 
   PlaneSweep ps;
+  dfusionData8 fd;
 
 private slots:
   void on_pushButton_pressed();

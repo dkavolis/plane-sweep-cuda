@@ -25,8 +25,11 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     depthscene (new QGraphicsScene()),
     dendepthsc (new QGraphicsScene()),
     tgvscene (new QGraphicsScene()),
-    ps(argc, argv)
+    ps(argc, argv),
+    fd(448, 336, 160)
 {
+
+    std::cerr << "Size of fusion data = " << fd.sizeMBytes() << "MB\n";
 
     QChar alpha = QChar(0xb1, 0x03);
     QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3), theta(0x03B8);
