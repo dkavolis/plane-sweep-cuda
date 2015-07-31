@@ -11,6 +11,10 @@ endif()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
 
 project      (plane_sweep)
+
+# include project headers
+include_directories("inc")
+
 find_package (PCL REQUIRED)
 
 find_package (VTK REQUIRED PATHS VTK_DIR NO_DEFAULT_PATH)
@@ -53,7 +57,7 @@ link_directories    (${PCL_LIBRARY_DIRS} ${OpenCV_LIB_DIR})
 add_definitions     (${PCL_DEFINITIONS})
 
 file(GLOB UI_FILES *.ui)
-file(GLOB QT_WRAP *.h)
+file(GLOB QT_WRAP *.h ${CMAKE_CURRENT_SOURCE_DIR}/inc/*.h)
 file(GLOB CXX_FILES *.cxx *.cpp)
 file(GLOB CU_FILES *.cu)
 
