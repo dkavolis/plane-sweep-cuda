@@ -116,7 +116,7 @@ struct sortedHist
     }
 
     __host__ __device__ inline
-    double median(){ return element[_nBins + 1]; }
+    double median(){ return element[_nBins]; }
 };
 
 // Simple struct to hold coordinates of volume rectangle
