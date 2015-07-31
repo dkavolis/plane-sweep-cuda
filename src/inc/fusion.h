@@ -218,6 +218,7 @@ public:
         return u + tau * lambda * Wi(i, x, y, z);
     }
 
+    // Calculates prox hist of u given histogram at (x, y, z) and parameters tau and lambda
     __host__ __device__ inline
     float proxHist(double u, int x, int y, int z, double tau, double lambda)
     {
@@ -257,6 +258,21 @@ public:
 
         // close to surface
         this->h(x, y, z)(roundf((sd + threshold) / (2.f * threshold) * (_histBins - 3)))++;
+    }
+
+    // Copy functions host<->this
+    __host__ inline
+    cudaError_t copyFrom(fusionvoxel<_histBins> * data, size_t npitch)
+    {
+        if (_onDevice) return Host2DeviceCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
+        else return Host2HostCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
+    }
+
+    __host__ inline
+    cudaError_t copyTo(fusionvoxel<_histBins> * data, size_t npitch)
+    {
+        if (_onDevice) return Device2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
+        else return Host2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
     }
 
 protected:
