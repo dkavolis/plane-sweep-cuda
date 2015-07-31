@@ -192,4 +192,40 @@ void operator/=(Rectangle &r, float b)
     r.a /= b; r.b /= b;
 }
 
+__host__ __device__ inline
+Rectangle operator+(Rectangle r, float b)
+{
+    return Rectangle(r.a + b, r.b + b);
+}
+
+__host__ __device__ inline
+Rectangle operator+(float b, Rectangle r)
+{
+    return Rectangle(r.a + b, r.b + b);
+}
+
+__host__ __device__ inline
+void operator+=(Rectangle &r, float b)
+{
+    r.a += b; r.b += b;
+}
+
+__host__ __device__ inline
+Rectangle operator-(Rectangle r, float b)
+{
+    return Rectangle(r.a - b, r.b - b);
+}
+
+__host__ __device__ inline
+Rectangle operator-(float b, Rectangle r)
+{
+    return Rectangle(b - r.a, b - r.b);
+}
+
+__host__ __device__ inline
+void operator-=(Rectangle &r, float b)
+{
+    r.a -= b; r.b -= b;
+}
+
 #endif // STRUCTS_H
