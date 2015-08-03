@@ -1,6 +1,9 @@
 /**
  *  \file structs.h
- *  \brief Header file containing helper structs
+ *  \brief Header file containing helper structs.
+ * All structs inherit from \a Managed class operators \a new and \a delete
+ * so that those structs can be passed to kernels by value or reference without
+ * needing to call \a cudaMalloc and \a cudaMemcpy first.
  */
 #ifndef STRUCTS_H
 #define STRUCTS_H
@@ -11,6 +14,7 @@
 #include <helper_math.h>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/assignment.hpp>
+#include "memory.h"
 
 /**
 *  \brief Convenience typedef for <em>unsigned int</em>
@@ -29,7 +33,7 @@ namespace ublas = boost::numeric::ublas;
 * Bin signed distance can be calculated as \f$2 \frac{index}{nBins - 3} - 1\f$.
 */
 template<unsigned char _nBins>
-struct histogram
+struct histogram : public Managed
 {
     /**
          *  \brief Array of bins
@@ -104,7 +108,7 @@ struct histogram
 *  \details
 */
 template<unsigned char _nBins>
-struct fusionvoxel
+struct fusionvoxel : public Managed
 {
     /**
          *  \brief Primal variable \f$u\f$
@@ -184,7 +188,7 @@ struct fusionvoxel
 *  \details
 */
 template<unsigned char _nBins>
-struct sortedHist
+struct sortedHist : public Managed
 {
     /**
          *  \brief Array of elements
@@ -263,7 +267,7 @@ struct sortedHist
 /**
 *  \brief Simple struct to hold coordinates of volume rectangle
 */
-struct Rectangle
+struct Rectangle : public Managed
 {
     /**
          *  \brief Corner of rectangle
@@ -348,7 +352,7 @@ struct Rectangle
 *  \details Useful for storing and performing operations with \f$R\f$ and \f$K\f$ matrices.
 * Host operators are overloaded to work with \a boost \a matrix.
 */
-struct Matrix3D
+struct Matrix3D : public Managed
 {
     /**
          *  \brief Row vectors
