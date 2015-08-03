@@ -15,7 +15,7 @@
 * @{
 */
 
- /**
+/**
  *  \brief Templated class for storing and controlling depthmap fusion data
  *
  *  \tparam _histBins   number of histogram bins
@@ -28,9 +28,9 @@ class fusionData : public MemoryManagement<fusionvoxel<_histBins>, _onDevice>
 {
 public:
 
-    	/**
+    /**
      *  \brief Default constructor
-     *  
+     *
      *  \details All size parameters are initialized to 0, no memory allocation takes place
      */
     __device__ __host__ inline
@@ -40,13 +40,13 @@ public:
         binParams();
     }
 
-    	/**
+    /**
      *  \brief Overloaded constructor
-     *  
+     *
      *  \param w width in number of voxels
      *  \param h height in number of voxels
      *  \param d depth in number of voxels
-     *  
+     *
      *  \details Allocates memory on call
      */
     __device__ __host__ inline
@@ -57,15 +57,15 @@ public:
         Malloc(_voxel, _w, _h, _d, _pitch, _spitch);
     }
 
-    	/**
+    /**
      *  \brief Overloaded constructor
-     *  
+     *
      *  \param w width in number of voxels
      *  \param h height in number of voxels
      *  \param d depth in number of voxels
      *  \param x corner of bounding volume in world coordinates
      *  \param y corner opposite to \a x of bounding volume in world coordinates
-     *  
+     *
      *  \details Allocates memory on call
      */
     __device__ __host__ inline
@@ -76,14 +76,14 @@ public:
         Malloc(_voxel, _w, _h, _d, _pitch, _spitch);
     }
 
-    	/**
+    /**
      *  \brief Overloaded constructor
-     *  
+     *
      *  \param w   width in number of voxels
      *  \param h   height in number of voxels
      *  \param d   depth in number of voxels
      *  \param vol bounding volume Rectangle
-     *  
+     *
      *  \details Allocates memory on call
      */
     __device__ __host__ inline
@@ -94,9 +94,9 @@ public:
         Malloc(_voxel, _w, _h, _d, _pitch, _spitch);
     }
 
-    	/**
+    /**
      *  \brief Default destructor
-     *  
+     *
      *  \details Deallocates memory
      */
     __device__ __host__ inline
@@ -106,17 +106,17 @@ public:
     }
 
     // Getters:
-     /**
+    /**
      *  \brief Get width of data
-     *  
+     *
      *  \return Width of data in number of voxel
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     size_t width(){ return _w; }
 
-     /**
+    /**
      *  \brief Get height of data
      *
      *  \return Height of data in number of voxel
@@ -126,7 +126,7 @@ public:
     __device__ __host__ inline
     size_t height(){ return _h; }
 
-     /**
+    /**
      *  \brief Get depth of data
      *
      *  \return Depth of data in number of voxel
@@ -136,7 +136,7 @@ public:
     __device__ __host__ inline
     size_t depth(){ return _d; }
 
-     /**
+    /**
      *  \brief Get pitch of data
      *
      *  \return Step size of data in bytes
@@ -146,17 +146,17 @@ public:
     __device__ __host__ inline
     size_t pitch(){ return _pitch; }
 
-     /**
+    /**
      *  \brief Get slice pitch of data
-     *  
+     *
      *  \return Slice size of data in bytes
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     size_t slicePitch(){ return _spitch; }
 
-     /**
+    /**
      *  \brief Get number of histogram bins
      *
      *  \return Number of histogram bins
@@ -166,57 +166,57 @@ public:
     __device__ __host__ inline
     unsigned char bins(){ return _histBins; }
 
-     /**
+    /**
      *  \brief Get bounding volume rectangle in world coordinates
-     *  
+     *
      *  \return Bounding volume rectangle in world coordinates
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     Rectangle volume(){ return _vol; }
 
-     /**
+    /**
      *  \brief Get number of voxels
-     *  
+     *
      *  \return Number of voxels
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     size_t elements(){ return _w * _h * _d; }
 
-     /**
+    /**
      *  \brief Get data size in bytes
-     *  
+     *
      *  \return Data size in bytes
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     size_t sizeBytes(){ return _spitch * _d; }
 
-     /**
+    /**
      *  \brief Get data size in kilobytes
-     *  
+     *
      *  \return Data size in kilobytes
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     double sizeKBytes(){ return sizeBytes() / 1024.f; }
 
-     /**
+    /**
      *  \brief Get data size in Megabytes
-     *  
+     *
      *  \return Data size in Megabytes
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     double sizeMBytes(){ return sizeKBytes() / 1024.f; }
 
-     /**
+    /**
      *  \brief Get data size in Gigabytes
      *
      *  \return Data size in Gigabytes
@@ -226,14 +226,14 @@ public:
     __device__ __host__ inline
     double sizeGBytes(){ return sizeMBytes() / 1024.f; }
 
-     /**
+    /**
      *  \brief Get world coordinates of voxel center
-     *  
+     *
      *  \param x voxel x index
      *  \param y voxel y index
      *  \param z voxel z index
      *  \return World coordinates
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
@@ -243,38 +243,38 @@ public:
     }
 
     // Setters:
-    	/**
+    /**
      *  \brief Set bounding volume rectangle in world coordinates
-     *  
+     *
      *  \param vol bounding volume rectangle in world coordinates
      *  \return No return value
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     void volume(Rectangle &vol){ _vol = vol; }
 
-	    /**
+    /**
          *  \brief Set bounding volume rectangle in world coordinates
-	 *  
+         *
          *  \param x corner of bounding volume rectangle in world coordinates
          *  \param y opposite corner of bounding volume rectangle in world coordinates
          *  \return No return value
-	 *  
+         *
          *  \details
-	 */
-	__device__ __host__ inline
+         */
+    __device__ __host__ inline
     void volume(float3 x, float3 y){ _vol = Rectangle(x, y); }
 
     // Access to elements:
-     /**
+    /**
      *  \brief Access primal to variable \f$u\f$
-     *  
+     *
      *  \param nx voxel x index
      *  \param ny voxel y index
      *  \param nz voxel z index
      *  \return Reference to primal variable \f$u\f$
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
@@ -428,12 +428,12 @@ public:
     }
 
     // Get bin parameters:
-     /**
+    /**
      *  \brief Get center of histogram bin
-     *  
+     *
      *  \param binindex index of histogram bin
      *  \return Center of histogram bin
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
@@ -443,25 +443,25 @@ public:
         else return 0.f;
     }
 
-    	/**
+    /**
      *  \brief Get distance between histogram centers
-     *  
+     *
      *  \return Distance between histogram centers
-     *  
+     *
      *  \details
      */
     __device__ __host__ inline
     double binStep(){ return _binstep; }
 
     // Difference functions:
-     /**
+    /**
      *  \brief Get gradient of primal variable \f$u\f$
-     *  
+     *
      *  \param x voxel x index
      *  \param y voxel y index
      *  \param z voxel z index
      *  \return gradient of primal variable \f$u\f$
-     *  
+     *
      *  \details Gradient is calculated from forward differences
      */
     __host__ __device__ inline
@@ -515,15 +515,15 @@ public:
         return result;
     }
 
-     /**
+    /**
      *  \brief Helper function for \f$\operatorname{prox}_{hist}\f$
-     *  
+     *
      *  \param i index of histogram bin
      *  \param x voxel x index
      *  \param y voxel y index
      *  \param z voxel y index
      *  \return \f$W_i\f$ intermediate variable in \f$\operatorname{prox}_{hist}\f$ calculation
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -535,9 +535,9 @@ public:
         return r;
     }
 
-    	/**
+    /**
      *  \brief Helper function for \f$\operatorname{prox}_{hist}(u)\f$
-     *  
+     *
      *  \param u      variable in \f$\operatorname{prox}_{hist}(u)\f$
      *  \param i      index of histogram bin
      *  \param x      voxel x index
@@ -546,7 +546,7 @@ public:
      *  \param tau    depthmap fusion parameter \f$\tau\f$
      *  \param lambda depthmap fusion parameter \f$\lambda\f$
      *  \return \f$p_i\f$ intermediate variable in \f$\operatorname{prox}_{hist}\f$ calculation
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -555,9 +555,9 @@ public:
         return u + tau * lambda * Wi(i, x, y, z);
     }
 
-    	/**
+    /**
      *  \brief Calculate \f$\operatorname{prox}_{hist}(u)\f$
-     *  
+     *
      *  \param u      variable in \f$\operatorname{prox}_{hist}(u)\f$
      *  \param x      voxel x index
      *  \param y      voxel y index
@@ -565,7 +565,7 @@ public:
      *  \param tau    depthmap fusion parameter \f$\tau\f$
      *  \param lambda depthmap fusion parameter \f$\lambda\f$
      *  \return Value of \f$\operatorname{prox}_{hist}(u)\f$
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -577,12 +577,12 @@ public:
         return prox.median();
     }
 
-    	/**
+    /**
      *  \brief Calculate \f$\operatorname{prox}_{\|p\|_{\infty}\le1}(p)\f$
-     *  
+     *
      *  \param x variable \f$p\f$
      *  \return Value of \f$\operatorname{prox}_{\|p\|_{\infty}\le1}(p)\f$
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -591,9 +591,9 @@ public:
         return x / fmaxf(1.f, sqrt(x.x * x.x + x.y * x.y + x.z * x.z));
     }
 
-    	/**
+    /**
      *  \brief Update voxel histogram
-     *  
+     *
      *  \param x         voxel x index
      *  \param y         voxel y index
      *  \param z         voxel y index
@@ -601,7 +601,7 @@ public:
      *  \param depth     pixel depth at voxel coordinates interpolated from depthmap
      *  \param threshold signed distance value threshold
      *  \return No return value
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -628,13 +628,13 @@ public:
         this->h(x, y, z)(roundf((sd + threshold) / (2.f * threshold) * (_histBins - 3)))++;
     }
 
-    	/**
+    /**
      *  \brief Copy voxel data from host to here
-     *  
+     *
      *  \param data   pointer to source memory
      *  \param npitch step size in bytes of source memory
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ inline
@@ -644,13 +644,13 @@ public:
         else return Host2HostCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
     }
 
-    	/**
+    /**
      *  \brief Copy voxel data from here to host
-     *  
+     *
      *  \param data   pointer to destination memory
      *  \param npitch step size in bytes of destination memory
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ inline
@@ -706,11 +706,11 @@ protected:
     */
     Rectangle _vol;
 
-    	/**
+    /**
      *  \brief Calculate and set histogram bin parameters
-     *  
+     *
      *  \return No return value
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -800,6 +800,6 @@ typedef fusionData<9, false> fusionData9;
 */
 typedef fusionData<10, false> fusionData10;
 
- /** @} */ // group fusion
+/** @} */ // group fusion
 
 #endif // FUSION_H

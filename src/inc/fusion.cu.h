@@ -22,14 +22,14 @@
 
 /**
  *  \brief Update primal variable \f$u\f$ and helper variable \f$v\f$ using histogram depthmap fusion algorithm
- *  
+ *
  *  \param f       pointer to \a fusionData containing \f$u\f$
  *  \param tau     fusion parameter \f$\tau\f$
  *  \param lambda  fusion parameter \f$\lambda\f$
  *  \param blocks  kernel grid dimensions
  *  \param threads single block dimensions
  *  \return No return value
- *  
+ *
  *  \details
  */
 template<unsigned char _bins>
@@ -43,7 +43,7 @@ void FusionUpdateU(fusionData<_bins> * f, const double tau, const double lambda,
  *  \param blocks  kernel grid dimensions
  *  \param threads single block dimensions
  *  \return No return value
- *  
+ *
  *  \details
  */
 template<unsigned char _bins>
@@ -59,12 +59,12 @@ void FusionUpdateP(fusionData<_bins> * f, const double sigma, dim3 blocks, dim3 
  *  \param blocks  kernel grid dimensions
  *  \param threads single block dimensions
  *  \return No return value
- *  
+ *
  *  \details <b>MISSING HISTOGRAM UPDATE STEP</b>
  */
 template<unsigned char _bins>
 void FusionUpdateIteration(fusionData<_bins> * f, const double tau, const double lambda, const double sigma, dim3 blocks, dim3 threads);
 
- /** @} */ // group fusion
+/** @} */ // group fusion
 
 #endif // FUSION_CU_H

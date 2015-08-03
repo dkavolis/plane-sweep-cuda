@@ -197,11 +197,11 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         // Calculate averaged depthmap
         element_rdivide(devDepthmap.data(), devDepthmap.data(), devN.data(), imSize.width, imSize.height, blocks, threads);
         set_QNAN_value(devDepthmap.data(), zfar, imSize.width, imSize.height, blocks, threads);
-		
-		// Check for kernel errors
-		NPP_CHECK_CUDA(cudaPeekAtLastError());
-		
-		// Copy depthmap to host
+
+        // Check for kernel errors
+        NPP_CHECK_CUDA(cudaPeekAtLastError());
+
+        // Copy depthmap to host
         devDepthmap.copyTo(depthmap.data, depthmap.pitch);
         //convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
         //devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
@@ -237,11 +237,11 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
     }
     catch(const std::system_error& e)
     {
-            std::cerr << "Caught system error with code " << e.code()
-                      << " meaning " << e.what() << '\n';
+        std::cerr << "Caught system error with code " << e.code()
+                  << " meaning " << e.what() << '\n';
 
-            cudaDeviceReset();
-            return false;
+        cudaDeviceReset();
+        return false;
     }
     catch(const std::exception& e)
     {

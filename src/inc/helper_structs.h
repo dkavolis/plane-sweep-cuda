@@ -172,7 +172,7 @@ void operator-=(Rectangle &r, float3 b)
     r.a -= b; r.b -= b;
 }
 
- /** @} */ // group rectangle
+/** @} */ // group rectangle
 
 //////////////////////////////////////////////////////////
 // Matrix3D operator overloads
@@ -187,7 +187,7 @@ void operator-=(Rectangle &r, float3 b)
 __host__ __device__ inline
 float3 operator*(Matrix3D R, float3 vec) // matrix - vector multiplication
 {
-	return make_float3(dot(R(0), vec), dot(R(1), vec), dot(R(2), vec));
+    return make_float3(dot(R(0), vec), dot(R(1), vec), dot(R(2), vec));
 }
 
 /**
@@ -196,12 +196,12 @@ float3 operator*(Matrix3D R, float3 vec) // matrix - vector multiplication
 __host__ __device__ inline
 Matrix3D operator*(Matrix3D A, Matrix3D B) // matrix - matrix multiplication
 {
-	B.trans();
-	Matrix3D r;
-	r.r[0] = make_float3(dot(A(0), B(0)), dot(A(0), B(1)), dot(A(0), B(2)));
-	r.r[1] = make_float3(dot(A(1), B(0)), dot(A(1), B(1)), dot(A(1), B(2)));
-	r.r[2] = make_float3(dot(A(2), B(0)), dot(A(2), B(1)), dot(A(2), B(2)));
-	return r;
+    B.trans();
+    Matrix3D r;
+    r.r[0] = make_float3(dot(A(0), B(0)), dot(A(0), B(1)), dot(A(0), B(2)));
+    r.r[1] = make_float3(dot(A(1), B(0)), dot(A(1), B(1)), dot(A(1), B(2)));
+    r.r[2] = make_float3(dot(A(2), B(0)), dot(A(2), B(1)), dot(A(2), B(2)));
+    return r;
 }
 
 /**
@@ -210,7 +210,7 @@ Matrix3D operator*(Matrix3D A, Matrix3D B) // matrix - matrix multiplication
 __host__ __device__ inline
 void operator*=(Matrix3D & A, Matrix3D B) // matrix - matrix multiplication
 {
-	A = A * B;
+    A = A * B;
 }
 
 /**
@@ -219,7 +219,7 @@ void operator*=(Matrix3D & A, Matrix3D B) // matrix - matrix multiplication
 __host__ __device__ inline
 Matrix3D operator*(Matrix3D A, float b)
 {
-	return Matrix3D(A.r[0] * b, A.r[1] * b, A.r[2] * b);
+    return Matrix3D(A.r[0] * b, A.r[1] * b, A.r[2] * b);
 }
 
 /**
@@ -228,7 +228,7 @@ Matrix3D operator*(Matrix3D A, float b)
 __host__ __device__ inline
 Matrix3D operator*(float a, Matrix3D B)
 {
-	return Matrix3D(B.r[0] * a, B.r[1] * a, B.r[2] * a);
+    return Matrix3D(B.r[0] * a, B.r[1] * a, B.r[2] * a);
 }
 
 /**
@@ -237,7 +237,7 @@ Matrix3D operator*(float a, Matrix3D B)
 __host__ __device__ inline
 void operator*=(Matrix3D & A, float b)
 {
-	A = A * b;
+    A = A * b;
 }
 
 /**
@@ -246,7 +246,7 @@ void operator*=(Matrix3D & A, float b)
 __host__ __device__ inline
 Matrix3D operator/(Matrix3D A, float b)
 {
-	return Matrix3D(A.r[0] / b, A.r[1] / b, A.r[2] / b);
+    return Matrix3D(A.r[0] / b, A.r[1] / b, A.r[2] / b);
 }
 
 /**
@@ -255,7 +255,7 @@ Matrix3D operator/(Matrix3D A, float b)
 __host__ __device__ inline
 void operator/=(Matrix3D & A, float b)
 {
-	A = A / b;
+    A = A / b;
 }
 
 /**
@@ -264,7 +264,7 @@ void operator/=(Matrix3D & A, float b)
 __host__ __device__ inline
 Matrix3D operator+(Matrix3D A, float b)
 {
-	return Matrix3D(A.r[0] + b, A.r[1] + b, A.r[2] + b);
+    return Matrix3D(A.r[0] + b, A.r[1] + b, A.r[2] + b);
 }
 
 /**
@@ -273,7 +273,7 @@ Matrix3D operator+(Matrix3D A, float b)
 __host__ __device__ inline
 Matrix3D operator+(float a, Matrix3D B)
 {
-	return Matrix3D(B.r[0] + a, B.r[1] + a, B.r[2] + a);
+    return Matrix3D(B.r[0] + a, B.r[1] + a, B.r[2] + a);
 }
 
 /**
@@ -282,7 +282,7 @@ Matrix3D operator+(float a, Matrix3D B)
 __host__ __device__ inline
 void operator+=(Matrix3D & A, float b)
 {
-	A = A + b;
+    A = A + b;
 }
 
 /**
@@ -291,7 +291,7 @@ void operator+=(Matrix3D & A, float b)
 __host__ __device__ inline
 Matrix3D operator-(Matrix3D A, float b)
 {
-	return Matrix3D(A.r[0] - b, A.r[1] - b, A.r[2] - b);
+    return Matrix3D(A.r[0] - b, A.r[1] - b, A.r[2] - b);
 }
 
 /**
@@ -300,7 +300,7 @@ Matrix3D operator-(Matrix3D A, float b)
 __host__ __device__ inline
 Matrix3D operator-(float a, Matrix3D B)
 {
-	return Matrix3D(B.r[0] - a, B.r[1] - a, B.r[2] - a);
+    return Matrix3D(B.r[0] - a, B.r[1] - a, B.r[2] - a);
 }
 
 /**
@@ -309,9 +309,9 @@ Matrix3D operator-(float a, Matrix3D B)
 __host__ __device__ inline
 void operator-=(Matrix3D & A, float b)
 {
-	A = A - b;
+    A = A - b;
 }
 
- /** @} */ // group matrix
+/** @} */ // group matrix
 
 #endif // HELPER_STRUCTS_H

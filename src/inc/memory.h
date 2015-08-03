@@ -9,7 +9,7 @@
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 
- /**
+/**
  *  \brief Templated class for managing memory allocation and deallocation on host / device
  *
  *  \tparam T           type of data to work with
@@ -22,12 +22,12 @@ class MemoryManagement
 {
 public:
 
-    	/**
+    /**
      *  \brief Deallocate memory pointed to by \a ptr
-     *  
+     *
      *  \param ptr pointer to memory to deallocate
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details If \a _onDevice is set to true, pointer has to point to memory on the device, otherwise it has to point
      * to memory on the host.
      */
@@ -38,15 +38,15 @@ public:
         else return cudaFreeHost(ptr);
     }
 
-    	/**
+    /**
      *  \brief Allocate 2D memory and return pointer \a ptr to it
-     *  
+     *
      *  \param ptr   pointer to allocated memory returned by reference
      *  \param w     width in number of elements
      *  \param h     height in number of elements
      *  \param pitch step size in bytes returned by reference
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details If \a _onDevice is set to true, memory is allocated on the device, else it is allocated
      * on the host.
      */
@@ -62,9 +62,9 @@ public:
         }
     }
 
-    	/**
+    /**
      *  \brief This is an overloaded function for 3D memory allocation.
-     *  
+     *
      *  \param ptr    pointer to allocated memory returned by reference
      *  \param w      width in number of elements
      *  \param h      height in number of elements
@@ -72,7 +72,7 @@ public:
      *  \param pitch  step size in bytes returned by reference
      *  \param spitch single slice size in bytes returned by reference
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details Allocate 3D memory and return pointer \a ptr to it.
      *
      * If \a _onDevice is set to true, memory is allocated on the device, else it is allocated
@@ -93,10 +93,10 @@ public:
         }
         return err;
     }
-	
-    	/**
+
+    /**
      *  \brief Device to device 2D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -104,7 +104,7 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -113,9 +113,9 @@ public:
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToDevice);
     }
 
-    	/**
+    /**
      *  \brief Device to host 2D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -123,7 +123,7 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -132,9 +132,9 @@ public:
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToHost);
     }
 
-    	/**
+    /**
      *  \brief Host to device 2D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -142,7 +142,7 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -151,9 +151,9 @@ public:
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToDevice);
     }
 
-    	/**
+    /**
      *  \brief Host to host 2D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -161,7 +161,7 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -169,10 +169,10 @@ public:
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToHost);
     }
-	
-    	/**
+
+    /**
      *  \brief Device to device 3D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -181,7 +181,7 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -190,9 +190,9 @@ public:
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToDevice);
     }
 
-    	/**
+    /**
      *  \brief Device to host 3D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -201,7 +201,7 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -210,9 +210,9 @@ public:
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToHost);
     }
 
-    	/**
+    /**
      *  \brief Host to device 3D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -221,7 +221,7 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline
@@ -230,9 +230,9 @@ public:
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToDevice);
     }
 
-    	/**
+    /**
      *  \brief Host to host 3D memory copy
-     *  
+     *
      *  \param pDst     pointer to destination memory
      *  \param DstPitch step size in bytes of destination memory
      *  \param pSrc     pointer to source memory
@@ -241,7 +241,7 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *  
+     *
      *  \details
      */
     __host__ __device__ inline

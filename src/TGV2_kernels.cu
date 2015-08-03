@@ -414,10 +414,10 @@ void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, flo
 
 void TGV2_transform_coordinates(float * d_x, float * d_y, float * d_X, float * d_Y, float * d_Z, const float * d_u,
                                 const double K[3][3], const double Rrel[3][3], const double trel[3], const double invK[3][3],
-                                const int width, const int height, dim3 blocks, dim3 threads)
+const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_transform_coordinates_kernel<<<blocks, threads>>>(d_x, d_y, d_X, d_Y, d_Z, d_u,
-            K[0][0], K[0][1], K[0][2], K[1][0], K[1][1], K[1][2], K[2][0], K[2][1], K[2][2],
+                                                           K[0][0], K[0][1], K[0][2], K[1][0], K[1][1], K[1][2], K[2][0], K[2][1], K[2][2],
             Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
             trel[0], trel[1], trel[2],
             invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
@@ -432,10 +432,10 @@ void subtract(float * d_out, const float * d_in1, const float * d_in2, const int
 }
 
 void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const double invK[3][3], const double Rrel[3][3],
-                                           const int width, const int height, dim3 blocks, dim3 threads)
+const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_calculate_coordinate_derivatives_kernel<<<blocks, threads>>>(d_dX, d_dY, d_dZ,
-            invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
+                                                                      invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
             Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
             width, height);
     checkCudaErrors(cudaPeekAtLastError());

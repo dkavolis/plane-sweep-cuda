@@ -177,8 +177,8 @@ void PCLViewer::LoadImages()
     std::vector<ublas::matrix<double>> C(9);
 
     Cr <<= 0.993701, 0.110304, -0.0197854, 0.280643,
-          0.0815973, -0.833193, -0.546929, -0.255355,
-          -0.0768135, 0.541869, -0.836945, 0.810979;
+            0.0815973, -0.833193, -0.546929, -0.255355,
+            -0.0768135, 0.541869, -0.836945, 0.810979;
 
     C[0].resize(3,4);
     C[0] <<= 0.993479, 0.112002, -0.0213286, 0.287891,
@@ -230,7 +230,7 @@ void PCLViewer::LoadImages()
     ps.CmatrixToRT(Cr, ps.HostRef.R, ps.HostRef.t);
 
     QString src;
-	QImage sources;
+    QImage sources;
     ps.HostSrc.resize(9);
     for (int i = 0; i < 9; i++){
         src = QDir::currentPath();
@@ -357,7 +357,7 @@ void PCLViewer::on_pSlider2_valueChanged(int value)
 
 void PCLViewer::on_denoiseBtn_clicked()
 {
-//    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
+    //    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
     if (ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value(), ui->tvl1_tau->value(),
                        ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value())){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
@@ -367,13 +367,13 @@ void PCLViewer::on_denoiseBtn_clicked()
         int size = clouddenoised->points.size();
         if (refchangedtvl1)
         {
-//            if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
-//            {
-//                // The number of points in the cloud
-//                clouddenoised->points.resize(dendepth8u->width * dendepth8u->height);
-//                clouddenoised->width = dendepth8u->width;
-//                clouddenoised->height = dendepth8u->height;
-//            }
+            //            if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
+            //            {
+            //                // The number of points in the cloud
+            //                clouddenoised->points.resize(dendepth8u->width * dendepth8u->height);
+            //                clouddenoised->width = dendepth8u->width;
+            //                clouddenoised->height = dendepth8u->height;
+            //            }
             clouddenoised->points.resize(size + dendepth8u->width * dendepth8u->height);
             clouddenoised->width = dendepth8u->width;
             clouddenoised->height += dendepth8u->height;
@@ -384,9 +384,9 @@ void PCLViewer::on_denoiseBtn_clicked()
         QColor c;
         int  i;
 
-//        double k[3][3];
-//        ps.getInverseK(k);
-//        double z;
+        //        double k[3][3];
+        //        ps.getInverseK(k);
+        //        double z;
 
         // Fill the cloud with some points
         for (size_t x = 0; x < dendepth8u->width; ++x)
@@ -395,10 +395,10 @@ void PCLViewer::on_denoiseBtn_clicked()
 
                 i = x + y * dendepth8u->width;
 
-//                z = dendepth->data[i];
-//                clouddenoised->points[i].z = -z;
-//                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
-//                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                //                z = dendepth->data[i];
+                //                clouddenoised->points[i].z = -z;
+                //                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
+                //                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
                 if (cz->data[i] != -9.f)
                 {
                     clouddenoised->points[i + size].z = -cz->data[i];
@@ -513,9 +513,9 @@ void PCLViewer::on_tgv_psize_valueChanged(int value)
 void PCLViewer::on_imagePathButton_clicked()
 {
     QString dir = QFileDialog::getExistingDirectory(this, tr("Open Directory"),
-                                                 "/home",
-                                                 QFileDialog::ShowDirsOnly
-                                                 | QFileDialog::DontResolveSymlinks);
+                                                    "/home",
+                                                    QFileDialog::ShowDirsOnly
+                                                    | QFileDialog::DontResolveSymlinks);
     ui->imagePath->setText(dir);
 }
 
@@ -808,8 +808,8 @@ ublas::matrix<double> & PCLViewer::cross(const ublas::matrix<double> & A, const 
     }
 
     *result <<=  x(1,0) * y(2,0) - x(2,0) * y(1,0),
-                -(x(0,0) * y(2,0) - x(2,0) * y(0,0)),
-                x(0,0) * y(1,0) - x(1,0) * y(0,0);
+            -(x(0,0) * y(2,0) - x(2,0) * y(0,0)),
+            x(0,0) * y(1,0) - x(1,0) * y(0,0);
 
     return *result;
 }

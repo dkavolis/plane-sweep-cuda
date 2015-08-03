@@ -603,10 +603,10 @@ void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
 }
 
 void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], const double trel[3],
-               const double invK[3][3], const int width, const int height, dim3 blocks, dim3 threads)
+const double invK[3][3], const int width, const int height, dim3 blocks, dim3 threads)
 {
     compute3D_kernel<<<blocks, threads>>>(d_x, d_y, d_z,
-            Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
+                                          Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
             trel[0], trel[1], trel[2],
             invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
             width, height);
