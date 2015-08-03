@@ -10,6 +10,7 @@
 #include <cuda.h>
 #include "memory.h"
 #include "structs.h"
+#include "helper_structs.h"
 
 /** \addtogroup fusion
 * @{
