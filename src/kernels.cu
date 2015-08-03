@@ -441,7 +441,6 @@ void transform_indexes(float * d_x, float *  d_y,
                                                   h21, h22, h23,
                                                   h31, h32, h33,
                                                   width, height);
-    checkCudaErrors(cudaPeekAtLastError() );
 }
 
 void bilinear_interpolation(float * d_result, const float * d_data,
@@ -450,7 +449,6 @@ void bilinear_interpolation(float * d_result, const float * d_data,
                             dim3 blocks, dim3 threads)
 {
     bilinear_interpolation_kernel_GPU<<<blocks, threads>>>(d_result, d_data, d_xout, d_yout, M1, M2, N1, N2);
-    checkCudaErrors(cudaPeekAtLastError() );
 }
 
 void calcNCC(float * d_ncc, const float * d_prod_mean,
@@ -465,7 +463,6 @@ void calcNCC(float * d_ncc, const float * d_prod_mean,
                                         d_std1, d_std2,
                                         stdthresh1, stdthresh2,
                                         width, height);
-    checkCudaErrors(cudaPeekAtLastError() );
 }
 
 void update_arrays(float * d_depthmap, float * d_bestncc,
@@ -476,7 +473,6 @@ void update_arrays(float * d_depthmap, float * d_bestncc,
     update_arrays_kernel<<<blocks, threads>>>(d_depthmap, d_bestncc,
                                               d_currentncc, current_depth,
                                               width, height);
-    checkCudaErrors(cudaPeekAtLastError() );
 }
 
 void sum_depthmap_NCC(float * d_depthmap_out, float * d_count,
@@ -489,7 +485,6 @@ void sum_depthmap_NCC(float * d_depthmap_out, float * d_count,
                                                  d_depthmap, d_ncc,
                                                  nccthreshold,
                                                  width, height);
-    checkCudaErrors(cudaPeekAtLastError() );
 }
 
 void calculate_STD(float * d_std, const float * d_mean,
@@ -500,13 +495,11 @@ void calculate_STD(float * d_std, const float * d_mean,
     calculate_STD_kernel<<<blocks, threads>>>(d_std, d_mean,
                                               d_mean_of_squares,
                                               width, height);
-    checkCudaErrors(cudaPeekAtLastError() );
 }
 
 void set_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads)
 {
     set_value_kernel<<<blocks, threads>>>(d_output, value, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void element_multiply(float * d_output, const float * d_input1,
@@ -516,7 +509,6 @@ void element_multiply(float * d_output, const float * d_input1,
 {
     element_multiply_kernel<<<blocks, threads>>>(d_output, d_input1, d_input2,
                                                  width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void element_rdivide(float * d_output, const float * d_input1,
@@ -526,7 +518,6 @@ void element_rdivide(float * d_output, const float * d_input1,
 {
     const float QNan = std::numeric_limits<float>::quiet_NaN();
     element_rdivide_kernel<<<blocks, threads>>>(d_output, d_input1, d_input2, width, height, QNan);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void convert_float_to_uchar(unsigned char * d_output, const float * d_input,
@@ -535,7 +526,6 @@ void convert_float_to_uchar(unsigned char * d_output, const float * d_input,
                             dim3 blocks, dim3 threads)
 {
     convert_float_to_uchar_kernel<<<blocks, threads>>>(d_output, d_input, min, max, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void windowed_mean_row(float * d_output, const float * d_input,
@@ -544,7 +534,6 @@ void windowed_mean_row(float * d_output, const float * d_input,
 {
     windowed_mean_row_kernel<<<blocks, threads>>>(d_output, d_input, winsize, squared,
                                                   width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void windowed_mean_column(float * d_output, const float * d_input,
@@ -553,14 +542,12 @@ void windowed_mean_column(float * d_output, const float * d_input,
 {
     windowed_mean_column_kernel<<<blocks, threads>>>(d_output, d_input, winsize, squared,
                                                      width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
                             const int width, const int height, dim3 blocks, dim3 threads)
 {
     convert_uchar_to_float_kernel<<<blocks, threads>>>(d_output, d_input, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void denoising_TVL1_calculateP(float * d_Px, float * d_Py,
@@ -569,7 +556,6 @@ void denoising_TVL1_calculateP(float * d_Px, float * d_Py,
                                dim3 blocks, dim3 threads)
 {
     denoising_TVL1_calculateP_kernel<<<blocks, threads>>>(d_Px, d_Py, d_input, sigma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void denoising_TVL1_calculateP_tensor_weighed(float * d_Px, float * d_Py,
@@ -580,25 +566,21 @@ void denoising_TVL1_calculateP_tensor_weighed(float * d_Px, float * d_Py,
 {
     denoising_TVL1_calculateP_tensor_weighed_kernel<<<blocks, threads>>>(d_Px, d_Py, d_T11, d_T12, d_T21, d_T22,
                                                                          d_input, sigma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void element_scale(float * d_output, const float scale, const int width, const int height, dim3 blocks, dim3 threads)
 {
     element_scale_kernel<<<blocks, threads>>>(d_output, scale, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void element_add(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads)
 {
     element_add_kernel<<<blocks, threads>>>(d_output, value, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void set_QNAN_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads)
 {
     set_QNAN_value_kernel<<<blocks, threads>>>(d_output, value, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void denoising_TVL1_update(float * d_output, float * d_R,
@@ -608,7 +590,6 @@ void denoising_TVL1_update(float * d_output, float * d_R,
 {
     denoising_TVL1_update_kernel<<<blocks, threads>>>(d_output, d_R, d_Px, d_Py, d_origin,
                                                       tau, theta, lambda, sigma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
@@ -619,7 +600,6 @@ void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
 {
     denoising_TVL1_update_tensor_weighed_kernel<<<blocks, threads>>>(d_output, d_R, d_Px, d_Py, d_origin, d_T11, d_T12, d_T21, d_T22,
                                                                      tau, theta, lambda, sigma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], const double trel[3],
@@ -630,5 +610,4 @@ void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], c
             trel[0], trel[1], trel[2],
             invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
             width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }

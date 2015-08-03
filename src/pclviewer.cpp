@@ -225,25 +225,21 @@ void PCLViewer::LoadImages()
             0.095507, -0.833589, -0.544067, -0.250995,
             -0.0881887, 0.53733, -0.838748, 0.796756;
 
-    //refgray = refim.convertToFormat(QImage::Format_Grayscale8);
-    //ps.HostRef8u.CopyFrom(refgray.constBits(), refgray.bytesPerLine(), refgray.width(), refgray.height());
     ps.HostRef.setSize(w, h);
     rgb2gray<float>(ps.HostRef.data, refim);
     ps.CmatrixToRT(Cr, ps.HostRef.R, ps.HostRef.t);
 
     QString src;
-	sources.resize(9);
+	QImage sources;
     ps.HostSrc.resize(9);
     for (int i = 0; i < 9; i++){
         src = QDir::currentPath();
         src += loc;
         src += QString::number(i + 1);
         src += ".png";
-        sources[i].load(src);
-        //sources[i] = sources[i].convertToFormat(QImage::Format_Grayscale8);
-        //ps.HostSrc8u[i].CopyFrom(sources[i].constBits(), sources[i].bytesPerLine(), sources[i].width(), sources[i].height());
+        sources.load(src);
         ps.HostSrc[i].setSize(w,h);
-        rgb2gray<float>(ps.HostSrc[i].data, sources[i]);
+        rgb2gray<float>(ps.HostSrc[i].data, sources);
         ps.CmatrixToRT(C[i], ps.HostSrc[i].R, ps.HostSrc[i].t);
     }
 

@@ -1,3 +1,7 @@
+/**
+ *  \file pclviewer.h
+ *  \brief Header file containing GUI controlling class
+ */
 #ifndef PCLVIEWER_H
 #define PCLVIEWER_H
 
@@ -42,54 +46,69 @@ namespace Ui
   class PCLViewer;
 }
 
+/** \addtogroup gui GUI
+*  \brief GUI group
+* @{
+*/
+
+/**
+*  \brief Class that controls interactions between GUI and other classes
+*/
 class PCLViewer : public QMainWindow
 {
   Q_OBJECT
 
 public:
+
+	/**
+	 *  \brief Constructor
+	 *  
+	 *  \param argc number of command line arguments
+	 *  \param argv pointer to command line argument strings
+	 *  \param parent pointer to parent widget 
+	 *  
+	 *  \details
+	 */
   PCLViewer (int argc, char **argv, QWidget *parent = 0);
+  
+	/**
+	 *  \brief Default destructor
+	 */
   ~PCLViewer ();
 
+  /**
+   *  \brief Set command line arguments
+   *  
+   *  \param ac number of arguments
+   *  \param av pointer to command line argument strings
+   *  \return No return value
+   *  
+   *  \details
+   */
   void setArgs(int ac, char **av){ argc = ac; argv = av; }
 
-public slots:
-
-  void
-  pSliderValueChanged (int value);
-
 protected:
+// PCLVisualizer pointers, one for each qvtkwidget
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewerdenoised;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> tgvviewer;
+  
+  // Point cloud pointers, one for each qvtkwidget
   PointCloudT::Ptr cloud;
   PointCloudT::Ptr clouddenoised;
   PointCloudT::Ptr tgvcloud;
 
-  unsigned int red;
-  unsigned int green;
-  unsigned int blue;
-
-  unsigned int nimages;
-  unsigned int refnumber;
-  unsigned int winsize;
-  float znear;
-  float zfar;
-  unsigned int planenumber;
-  double nccthresh;
-  double stdthresh;
-  unsigned char ndigits;
-
+  // command line arguments
   int argc;
   char **argv;
 
-  QString impath;
-  QString imformat;
-  QString imname;
-
+  // classes that implement 3d reconstruction methods
   PlaneSweep ps;
   dfusionData8 fd;
 
-private slots:
+private slots: // GUI widget slots
+  void pSliderValueChanged (int value);
+	
   void on_pushButton_pressed();
 
   void on_imNumber_valueChanged(int arg1);
@@ -147,19 +166,25 @@ private slots:
   void on_reconstruct_button_clicked();
 
 private:
+  // pointer to UI
   Ui::PCLViewer *ui;
-  void LoadImages();
-  QPixmap image;
+  
+  // reference RGB image
   QImage  refim;
-  QImage refgray;
-  std::vector<QImage> sources;
+  
+  // pointers to scenes, one for each QGraphicsWidget
   QGraphicsScene *scene;
   QGraphicsScene *depthscene;
   QGraphicsScene *dendepthsc;
   QGraphicsScene *tgvscene;
+  
+  // pixmaps of images
+  QPixmap image;
   QPixmap depthim;
   QPixmap dendepthim;
   QPixmap tgvdepthim;
+  
+  // pointers to depthmaps
   PlaneSweep::camImage<float> * depth;
   PlaneSweep::camImage<uchar> * depth8u;
 
@@ -169,29 +194,113 @@ private:
   PlaneSweep::camImage<float> * tgvdepth;
   PlaneSweep::camImage<uchar> * tgvdepth8u;
 
+  // pointers to world coordinates
   PlaneSweep::camImage<float> * cx;
   PlaneSweep::camImage<float> * cy;
   PlaneSweep::camImage<float> * cz;
 
+  // variables to track if reference image has changed before last depthmap generation
+  // for each method
   bool  refchanged = true,
         refchangedtvl1 = true,
         refchangedtgv = true;
 
+  	/**
+   *  \brief Load images from source directory
+   *  
+   *  \return No return value
+   *  
+   *  \details Images are assumed to be at \a "../src/PlaneSweep/". This requires build directory to be in the same folder as 
+   *  source directory. 
+   */
+  void LoadImages();
+  
+  /**
+   *  \brief Concatenate strings from UI and given \a number to create image file name
+   *  
+   *  \param number   image number
+   *  \param imagePos camera parameter file for this image returned by reference
+   *  \return Image file name
+   *  
+   *  \details
+   */
   QString ImageName(int number, QString & imagePos);
+  
+  /**
+   *  \brief Compute camera calibration matrix \f$K\f$
+   *  
+   *  \param K         camera calibration matrix \f$K\f$
+   *  \param cam_dir   camera parameter
+   *  \param cam_up    camera parameter
+   *  \param cam_right camera parameter
+   *  \return No return value
+   *  
+   *  \details Camera parameters must first be obtained via getcamParameters
+   */
   void getcamK(ublas::matrix<double> & K, const ublas::matrix<double> & cam_dir,
                const ublas::matrix<double> & cam_up, const ublas::matrix<double> & cam_right);
+			   
+  /**
+   *  \brief Compute rotation matrix and translation vector
+   *  
+   *  \param R       rotation matrix
+   *  \param t       translation vector
+   *  \param cam_dir camera parameter
+   *  \param cam_pos camera parameter
+   *  \param cam_up  camera parameter
+   *  \return No return value
+   *  
+   *  \details Camera parameters must first be obtained via getcamParameters
+   */
   void computeRT(ublas::matrix<double> & R, ublas::matrix<double> & t, const ublas::matrix<double> & cam_dir,
                  const ublas::matrix<double> & cam_pos, const ublas::matrix<double> & cam_up);
+  
+  /**
+   *  \brief Get cam parameters from \a txt file
+   *  
+   *  \param filename   name of \a .txt file, including extension
+   *  \param cam_pos    camera parameter
+   *  \param cam_dir    camera parameter
+   *  \param cam_up     camera parameter
+   *  \param cam_lookat camera parameter
+   *  \param cam_sky    camera parameter
+   *  \param cam_right  camera parameter
+   *  \param cam_fpoint camera parameter
+   *  \param cam_angle  camera parameter
+   *  \return Success/failure of opening \a filename
+   *  
+   *  \details Must be the same format as ones found on http://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html
+   */
   bool getcamParameters(QString filename, ublas::matrix<double> & cam_pos, ublas::matrix<double> & cam_dir,
                         ublas::matrix<double> & cam_up, ublas::matrix<double> & cam_lookat,
                         ublas::matrix<double> & cam_sky, ublas::matrix<double> & cam_right,
                         ublas::matrix<double> & cam_fpoint, double & cam_angle);
+						
+  /**
+   *  \brief Compute vector product of 2 \a boost matrices
+   *  
+   *  \param A \f$1^{st}\f$ vector
+   *  \param B \f$2^{nd}\f$ vector
+   *  \return Vector product of \a A and \a B
+   *  
+   *  \details Both matrices must be of size (1,2), (1,3), (2,1) or (3,1).
+   */
   ublas::matrix<double> &cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B);
 
+  /**
+   *  \brief RGB Qimage to grayscale conversion using predefined colour weights
+   *  
+   *  \tparam T type of data to convert to 
+   *  \param data pointer to output data
+   *  \param img  RGB image to convert
+   *  \return No return value
+   *  
+   *  \details Weights are defined in preprocessor definitions
+   */
   template<typename T>
   void rgb2gray(T * data, const QImage & img);
-
-
 };
+
+ /** @} */ // group gui
 
 #endif // PCLVIEWER_H

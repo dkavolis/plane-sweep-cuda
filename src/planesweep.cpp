@@ -194,9 +194,14 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
             if (thread[i].joinable()) thread[i].join();
         }
 
-        // Calculate averaged depthmap and copy it to host
+        // Calculate averaged depthmap
         element_rdivide(devDepthmap.data(), devDepthmap.data(), devN.data(), imSize.width, imSize.height, blocks, threads);
         set_QNAN_value(devDepthmap.data(), zfar, imSize.width, imSize.height, blocks, threads);
+		
+		// Check for kernel errors
+		NPP_CHECK_CUDA(cudaPeekAtLastError());
+		
+		// Copy depthmap to host
         devDepthmap.copyTo(depthmap.data, depthmap.pitch);
         //convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
         //devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
