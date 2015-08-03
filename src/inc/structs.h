@@ -52,6 +52,15 @@ struct histogram : public Managed
     }
 
     /**
+     *  \brief Copy constructor
+     */
+    __device__ __host__ inline
+    histogram(const histogram<_nBins> & h)
+    {
+        for (unsigned char i = 0; i < _nBins; i++) bin[i] = h.bin[i];
+    }
+
+    /**
      *  \brief Copy operator
      *
      *  \param hist histogram to be copied from
@@ -150,11 +159,7 @@ struct fusionvoxel : public Managed
     {}
 
     /**
-     *  \brief Constructor overload
-     *
-     *  \param f Reference to \a fusionvoxel
-     *
-     *  \details Copies data from another \a fusionvoxel
+     *  \brief Copy constructor
      */
     __host__ __device__ inline
     fusionvoxel(const fusionvoxel<_nBins>& f) :
@@ -219,6 +224,16 @@ struct sortedHist : public Managed
     sortedHist(double bincenter[_nBins]) : elements(_nBins)
     {
         for (unsigned char i = 0; i < _nBins; i++) element[i] = bincenter[i];
+    }
+
+    /**
+     *  \brief Copy constructor
+     */
+    __host__ __device__ inline
+    sortedHist(const sortedHist<_nBins> & sh)
+    {
+        elements = sh.elements;
+        for (unsigned char i = 0; i < elements; i++) element[i] = sh.element[i];
     }
 
     /**
@@ -302,7 +317,7 @@ struct Rectangle : public Managed
     {}
 
     /**
-     *  \brief Constructor overload
+     *  \brief Copy constructor
      *
      *  \param r Rectangle to be copied
      *
@@ -466,11 +481,7 @@ struct Matrix3D : public Managed
     {}
 
     /**
-         *  \brief Constructor overload
-         *
-         *  \param R reference to another Matrix3D
-         *
-         *  \details Constructs Matrix3D from given Matrix3D
+         *  \brief Copy constructor
          */
     __host__ __device__ inline
     Matrix3D(const Matrix3D & R) : r[0](R.r[0]), r[1](R.r[1]), r[2](R.r[2])
@@ -627,9 +638,10 @@ struct Matrix3D : public Managed
     __host__ __device__ inline
     Matrix3D & operator=(float m[3][3])
     {
-        r[0] = (make_float3(m[0][0], m[0][1], m[0][2]));
-        r[1] = (make_float3(m[1][0], m[1][1], m[1][2]));
-        r[2] = (make_float3(m[2][0], m[2][1], m[2][2]));
+        r[0] = make_float3(m[0][0], m[0][1], m[0][2]);
+        r[1] = make_float3(m[1][0], m[1][1], m[1][2]);
+        r[2] = make_float3(m[2][0], m[2][1], m[2][2]);
+        return *this;
     }
 
     /**
@@ -638,9 +650,10 @@ struct Matrix3D : public Managed
     __host__ __device__ inline
     Matrix3D & operator=(double m[3][3])
     {
-        r[0] = (make_float3(m[0][0], m[0][1], m[0][2]));
-        r[1] = (make_float3(m[1][0], m[1][1], m[1][2]));
-        r[2] = (make_float3(m[2][0], m[2][1], m[2][2]));
+        r[0] = make_float3(m[0][0], m[0][1], m[0][2]);
+        r[1] = make_float3(m[1][0], m[1][1], m[1][2]);
+        r[2] = make_float3(m[2][0], m[2][1], m[2][2]);
+        return *this;
     }
 
     /**
@@ -649,9 +662,10 @@ struct Matrix3D : public Managed
     __host__ __device__ inline
     Matrix3D & operator=(float m[9])
     {
-        r[0] = (make_float3(m[0], m[1], m[2]));
-        r[1] = (make_float3(m[3], m[4], m[5]));
-        r[2] = (make_float3(m[6], m[7], m[8]));
+        r[0] = make_float3(m[0], m[1], m[2]);
+        r[1] = make_float3(m[3], m[4], m[5]);
+        r[2] = make_float3(m[6], m[7], m[8]);
+        return *this;
     }
 
     /**
@@ -660,9 +674,10 @@ struct Matrix3D : public Managed
     __host__ __device__ inline
     Matrix3D & operator=(double m[9])
     {
-        r[0] = (make_float3(m[0], m[1], m[2]));
-        r[1] = (make_float3(m[3], m[4], m[5]));
-        r[2] = (make_float3(m[6], m[7], m[8]));
+        r[0] = make_float3(m[0], m[1], m[2]);
+        r[1] = make_float3(m[3], m[4], m[5]);
+        r[2] = make_float3(m[6], m[7], m[8]);
+        return *this;
     }
 
     /**
