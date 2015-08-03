@@ -9,15 +9,63 @@
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 
+/** \addtogroup memory Memory Management
+ *
+ *  \brief Group for managing memory
+* @{
+*/
+
+/**
+ *  \brief Enum for indicating memory location
+ */
+enum MemoryKind {
+#if CUDA_VERSION_MAJOR >= 6
+    Host,
+    Device,
+    Managed
+#else
+    Host,
+    Device
+#endif // CUDA_VERSION_MAJOR >= 6
+};
+
+
+/**
+ *  \brief Class containing overloaded \a new and \a delete operators that work with
+ * managed memory.
+ *
+ *  \details Operator overloads enable simple passing of classes/structs to
+ * kernel by reference or by value without extra code. Accessing managed memory from CPU
+ * while it is still being accessed by GPU will cause \a segfault. Call
+ * \a cudaDeviceSynchronize() before accessing it. Only works with \a CUDA
+ * libraries of major version 6 or greater.
+ */
+class Managed {
+#if CUDA_VERSION_MAJOR >= 6
+    /**
+     *  \brief Operator \a new overload to allocate managed memory instead of host.
+     */
+    void *operator new(size_t len) {
+        void *ptr;
+        cudaMallocManaged(&ptr, len);
+        return ptr;
+    }
+
+    void operator delete(void *ptr) {
+        cudaFree(ptr);
+    }
+#endif // CUDA_VERSION_MAJOR >= 6
+};
+
 /**
  *  \brief Templated class for managing memory allocation and deallocation on host / device
  *
- *  \tparam T           type of data to work with
- *  \tparam _onDevice   if data is on device memory set to true, else set to false
+ *  \tparam T      type of data to work with
+ *  \tparam memT   data location
  *
  *  \details This is a base class for all other classes that need to manage memory on device and/or host.
  */
-template<typename T, bool _onDevice = true>
+template<typename T, MemoryKind memT = Device>
 class MemoryManagement
 {
 public:
@@ -34,8 +82,8 @@ public:
     __host__ __device__ inline
     static cudaError_t CleanUp(T * ptr)
     {
-        if (_onDevice) return cudaFree(ptr);
-        else return cudaFreeHost(ptr);
+        if (memT == Host) return cudaFreeHost(ptr);
+        return cudaFree(ptr);
     }
 
     /**
@@ -53,13 +101,12 @@ public:
     __host__ __device__ inline
     static cudaError_t Malloc(T * &ptr, size_t & w, size_t & h, size_t &pitch)
     {
-        if (_onDevice){
-            return cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h);
-        }
-        else {
-            pitch = w * sizeof(T);
-            return cudaMallocHost(&ptr, pitch * h);
-        }
+        if (memT == Device) return cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h);
+        pitch = w * sizeof(T);
+#if CUDA_VERSION_MAJOR >= 6
+        if (memT == Managed) return cudaMallocManaged(&ptr, pitch * h);
+#endif
+        return cudaMallocHost(&ptr, pitch * h);
     }
 
     /**
@@ -82,15 +129,13 @@ public:
     static cudaError_t Malloc(T * &ptr, size_t & w, size_t & h, size_t & d, size_t &pitch, size_t &spitch)
     {
         cudaError_t err;
-        if (_onDevice){
-            err = cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h * d);
-            spitch = h * pitch;
-        }
-        else {
-            pitch = w * sizeof(T);
-            spitch = h * pitch;
-            err = cudaMallocHost(&ptr, pitch * h * d);
-        }
+        if (memT == Device) err = cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h * d);
+        pitch = w * sizeof(T);
+#if CUDA_VERSION_MAJOR >= 6
+        if (memT == Managed) err = cudaMallocManaged(&ptr, pitch * h * d);
+#endif
+        if (memT == Host) err = cudaMallocHost(&ptr, pitch * h * d);
+        spitch = h * pitch;
         return err;
     }
 
@@ -250,5 +295,7 @@ public:
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToHost);
     }
 };
+
+/** @} */ // group memory
 
 #endif // MEMORY_H
