@@ -20,12 +20,12 @@
  *  \brief Templated class for storing and controlling depthmap fusion data
  *
  *  \tparam _histBins   number of histogram bins
- *  \tparam _onDevice   if data is on device memory set to true, else set to false
+ *  \tparam memT        type of memory, where data is stored
  *
  *  \details This class holds and implements some useful functions to work with depthmap fusion algorithm
  */
-template<unsigned char _histBins, bool _onDevice = true>
-class fusionData : public MemoryManagement<fusionvoxel<_histBins>, _onDevice>
+template<unsigned char _histBins, MemoryKind memT = Device>
+class fusionData : public MemoryManagement<fusionvoxel<_histBins>, memT>
 {
 public:
 
@@ -626,7 +626,7 @@ public:
         }
 
         // close to surface
-        this->h(x, y, z)(roundf((sd + threshold) / (2.f * threshold) * (_histBins - 3)))++;
+        this->h(x, y, z)(roundf((sd + threshold) / (2.f * threshold) * (_histBins - 3)) + 1)++;
     }
 
     /**
@@ -636,13 +636,16 @@ public:
      *  \param npitch step size in bytes of source memory
      *  \return Returns \a cudaError_t (CUDA error code)
      *
-     *  \details
+     *  \todo Check if it works with managed memory
      */
     __host__ inline
     cudaError_t copyFrom(fusionvoxel<_histBins> * data, size_t npitch)
     {
-        if (_onDevice) return Host2DeviceCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
-        else return Host2HostCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
+        if (memT == Device) return Host2DeviceCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
+#if CUDA_VERSION_MAJOR >= 6
+        if (memT == Managed) return Host2DeviceCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
+#endif // CUDA_VERSION_MAJOR >= 6
+        return Host2HostCopy(_voxel, _pitch, data, npitch, _w, _h, _d);
     }
 
     /**
@@ -652,13 +655,16 @@ public:
      *  \param npitch step size in bytes of destination memory
      *  \return Returns \a cudaError_t (CUDA error code)
      *
-     *  \details
+     *  \todo Check if it works with managed memory
      */
     __host__ inline
     cudaError_t copyTo(fusionvoxel<_histBins> * data, size_t npitch)
     {
-        if (_onDevice) return Device2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
-        else return Host2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
+        if (memT == Device) return Device2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
+#if CUDA_VERSION_MAJOR >= 6
+        if (memT == Managed) return Device2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
+#endif // CUDA_VERSION_MAJOR >= 6
+        return Host2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
     }
 
 protected:
@@ -767,39 +773,39 @@ typedef fusionData<10> dfusionData10;
 /**
 *  \brief Convenience typedef for fusionData with 2 bins and stored on host
 */
-typedef fusionData<2, false> fusionData2;
+typedef fusionData<2, Host> fusionData2;
 /**
 *  \brief Convenience typedef for fusionData with 3 bins and stored on host
 */
-typedef fusionData<3, false> fusionData3;
+typedef fusionData<3, Host> fusionData3;
 /**
 *  \brief Convenience typedef for fusionData with 4 bins and stored on host
 */
-typedef fusionData<4, false> fusionData4;
+typedef fusionData<4, Host> fusionData4;
 /**
 *  \brief Convenience typedef for fusionData with 5 bins and stored on host
 */
-typedef fusionData<5, false> fusionData5;
+typedef fusionData<5, Host> fusionData5;
 /**
 *  \brief Convenience typedef for fusionData with 6 bins and stored on host
 */
-typedef fusionData<6, false> fusionData6;
+typedef fusionData<6, Host> fusionData6;
 /**
 *  \brief Convenience typedef for fusionData with 7 bins and stored on host
 */
-typedef fusionData<7, false> fusionData7;
+typedef fusionData<7, Host> fusionData7;
 /**
 *  \brief Convenience typedef for fusionData with 8 bins and stored on host
 */
-typedef fusionData<8, false> fusionData8;
+typedef fusionData<8, Host> fusionData8;
 /**
 *  \brief Convenience typedef for fusionData with 9 bins and stored on host
 */
-typedef fusionData<9, false> fusionData9;
+typedef fusionData<9, Host> fusionData9;
 /**
 *  \brief Convenience typedef for fusionData with 10 bins and stored on host
 */
-typedef fusionData<10, false> fusionData10;
+typedef fusionData<10, Host> fusionData10;
 
 /** @} */ // group fusion
 
