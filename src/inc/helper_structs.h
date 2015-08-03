@@ -4,6 +4,32 @@
 #include "structs.h"
 
 //////////////////////////////////////////////////////////////
+// General device functions
+//////////////////////////////////////////////////////////////
+/** \addtogroup general
+* @{
+*/
+
+/**
+ *  \brief Bilinear interpolation function
+ *
+ *  \param y0   values at (x,y) and (x+1,y) respectively
+ *  \param y1   values at (x,y+1) and (x+1,y+1) respectively
+ *  \param frac fractions in x and y directions respectively in range [0,1]
+ *  \return Bilinear interpolation result
+ *
+ *  \details
+ */
+__host__ __device__ inline
+float bilinterp(float2 y0, float2 y1, float2 frac)
+{
+    float2 x = lerp(y0, y1, frac.y);
+    return lerp(x.x, x.y, frac.x);
+}
+
+/** @} */ // group general
+
+//////////////////////////////////////////////////////////////
 // Rectangle operator overloads
 //////////////////////////////////////////////////////////////
 /** \addtogroup rectangle
@@ -34,7 +60,8 @@ Rectangle operator*(float b, Rectangle r)
 __host__ __device__ inline
 void operator*=(Rectangle &r, float b)
 {
-    r.a *= b; r.b *= b;
+    r.a *= b;
+    r.b *= b;
 }
 
 /**
@@ -61,7 +88,8 @@ Rectangle operator/(float b, Rectangle r)
 __host__ __device__ inline
 void operator/=(Rectangle &r, float b)
 {
-    r.a /= b; r.b /= b;
+    r.a /= b;
+    r.b /= b;
 }
 
 /**
@@ -88,7 +116,8 @@ Rectangle operator+(float b, Rectangle r)
 __host__ __device__ inline
 void operator+=(Rectangle &r, float b)
 {
-    r.a += b; r.b += b;
+    r.a += b;
+    r.b += b;
 }
 
 /**
@@ -115,7 +144,8 @@ Rectangle operator-(float b, Rectangle r)
 __host__ __device__ inline
 void operator-=(Rectangle &r, float b)
 {
-    r.a -= b; r.b -= b;
+    r.a -= b;
+    r.b -= b;
 }
 
 /**
@@ -142,7 +172,8 @@ Rectangle operator+(float3 b, Rectangle r)
 __host__ __device__ inline
 void operator+=(Rectangle &r, float3 b)
 {
-    r.a += b; r.b += b;
+    r.a += b;
+    r.b += b;
 }
 
 /**
@@ -169,7 +200,8 @@ Rectangle operator-(float3 b, Rectangle r)
 __host__ __device__ inline
 void operator-=(Rectangle &r, float3 b)
 {
-    r.a -= b; r.b -= b;
+    r.a -= b;
+    r.b -= b;
 }
 
 /** @} */ // group rectangle
