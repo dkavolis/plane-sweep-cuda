@@ -16,3 +16,12 @@ will most likely need to be configured for your system.
 
 **Optional libraries:**
 * [OpenCV](http://opencv.org/)
+
+There are 2 ways to create variables on managed memory, that inherit from class *Managed*:
+```
+  ExampleStruct * example = new ExampleStruct;
+```
+or
+```
+  ExampleStruct & example = *(new ExampleStruct);
+```
