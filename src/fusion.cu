@@ -27,13 +27,14 @@ __global__ void FusionUpdateHistogram_kernel(fusionData<_bins> * f, const float 
 
         // Get int pixel coords
         int2 pxc = make_int2(floorf(px));
+        int2 pxc1 = make_int2(ceilf(px.x), ceilf(px.y));
 
         // Get fractions
         float2 frac = fracf(px);
 
         // Read image values for bilinterp
-        float2 y0 = make_float2(depthmap[pxc.x+pxc.y*width], depthmap[pxc.x+pxc.y*width+1]);
-        float2 y1 = make_float2(depthmap[pxc.x+(pxc.y+1)*width], depthmap[pxc.x+(pxc.y+1)*width]);
+        float2 y0 = make_float2(depthmap[pxc.x+pxc.y*width], depthmap[pxc1.x+pxc.y*width]);
+        float2 y1 = make_float2(depthmap[pxc.x+pxc1.y*width], depthmap[pxc1.x+pxc1.y*width]);
 
         // Interpolate voxel depth
         float depth = bilinterp(y0, y1, frac);
@@ -93,8 +94,8 @@ void FusionUpdateHistogram(fusionData<_bins> * f, const float * depthmap, const 
     FusionUpdateHistogram_kernel<_bins><<<blocks, threads>>>(f, depthmap, K, R, t, threshold, width, height);
 }
 
-template<unsigned char _bins>
-void FusionUpdateIteration(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R, const Vector3D & t,
+template<unsigned char _bins> inline
+void FusionUpdateIteration(fusionData<_bins, Device> *f, const float * depthmap, const Matrix3D & K, const Matrix3D & R, const Vector3D & t,
                            const float threshold, const double tau, const double lambda, const double sigma,
                            const int width, const int height, dim3 blocks, dim3 threads)
 {

@@ -357,61 +357,49 @@ void PCLViewer::on_pSlider2_valueChanged(int value)
 
 void PCLViewer::on_denoiseBtn_clicked()
 {
-    //    if (ps.Denoise(ui->nIters->value(), ui->lambda->value())){
     if (ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value(), ui->tvl1_tau->value(),
                        ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value())){
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         dendepth = ps.getDepthmapDenoised();
-        ps.get3Dcoordinates(cx, cy, cz);
+
         dendepth8u = ps.getDepthmap8uDenoised();
-        int size = clouddenoised->points.size();
+
         if (refchangedtvl1)
         {
-            //            if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
-            //            {
-            //                // The number of points in the cloud
-            //                clouddenoised->points.resize(dendepth8u->width * dendepth8u->height);
-            //                clouddenoised->width = dendepth8u->width;
-            //                clouddenoised->height = dendepth8u->height;
-            //            }
-            clouddenoised->points.resize(size + dendepth8u->width * dendepth8u->height);
-            clouddenoised->width = dendepth8u->width;
-            clouddenoised->height += dendepth8u->height;
+            if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
+            {
+                // The number of points in the cloud
+                clouddenoised->points.resize(dendepth8u->width * dendepth8u->height);
+                clouddenoised->width = dendepth8u->width;
+                clouddenoised->height = dendepth8u->height;
+            }
         }
-
-        size = clouddenoised->points.size() - dendepth8u->width * dendepth8u->height;
 
         QColor c;
         int  i;
 
-        //        double k[3][3];
-        //        ps.getInverseK(k);
-        //        double z;
+        double k[3][3];
+        ps.getInverseK(k);
+        double z;
 
-        // Fill the cloud with some points
+        // Fill the cloud
         for (size_t x = 0; x < dendepth8u->width; ++x)
             for (size_t y = 0; y < dendepth8u->height; ++y)
             {
 
                 i = x + y * dendepth8u->width;
 
-                //                z = dendepth->data[i];
-                //                clouddenoised->points[i].z = -z;
-                //                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
-                //                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
-                if (cz->data[i] != -9.f)
-                {
-                    clouddenoised->points[i + size].z = -cz->data[i];
-                    clouddenoised->points[i + size].x = cx->data[i];
-                    clouddenoised->points[i + size].y = cy->data[i];
-                }
+                z = dendepth->data[i];
+                clouddenoised->points[i].z = -z;
+                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
+                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
 
                 if (refchangedtvl1)
                 {
                     c = refim.pixel(x, y);
-                    clouddenoised->points[i + size].r = c.red();
-                    clouddenoised->points[i + size].g = c.green();
-                    clouddenoised->points[i + size].b = c.blue();
+                    clouddenoised->points[i].r = c.red();
+                    clouddenoised->points[i].g = c.green();
+                    clouddenoised->points[i].b = c.blue();
                 }
             }
 
@@ -915,10 +903,63 @@ void PCLViewer::on_tvl1_gamma_valueChanged(double arg1)
 
 void PCLViewer::on_reconstruct_button_clicked()
 {
-    for (int i = 0; i < 25; i++){
-        ui->refNumber->setValue(ui->refNumber->value() + 20);
+    Rectangle3D volm;
+    volm.a = make_float3(0,0,0);
+    volm.b = make_float3(5.5,3,9);
+    volm = volm - volm.size()/2.f + make_float3(0.04, 1.4, -.3);
+    fd.setVolume(volm);
+    float * ptr;
+    Matrix3D &K = *(new Matrix3D);
+    double k[3][3], t[3];
+    ps.getK(k);
+    K = k;
+    Matrix3D &R = *(new Matrix3D);
+    Vector3D &T = *(new Vector3D);
+    R = k;
+    ublas::matrix<double> rrel(3,3), trel(3,1), I(3,3), tm(3,1);
+    I <<=   1.f, 0.f, 0.f,
+            0.f, 1.f, 0.f,
+            0.f, 0.f, 1.f;
+    tm <<=  0.f, 0.f, 0.f;
+    dim3 threads(16, 16, 1024/16/16);
+    dim3 blocks(ceil((float)fd.width()/(float)threads.x), ceil((float)fd.height()/(float)threads.y), ceil((float)fd.depth()/(float)threads.z));
+    for (int i = 0; i < 1; i++){
+        ui->refNumber->setValue(ui->refNumber->value() + 5);
         on_loadfromdir_clicked();
-        on_pushButton_pressed();
-        on_denoiseBtn_clicked();
+        checkCudaErrors(cudaDeviceSynchronize());
+        ps.RelativeMatrices(rrel, trel, I, tm, ps.HostRef.R, ps.HostRef.t); // from world to ref
+        ps.matrixToArray(k, rrel);
+        ps.TmatrixToArray(t, trel);
+        R = k;
+        T = t;
+        ps.RunAlgorithm(argc, argv);
+        checkCudaErrors(cudaPeekAtLastError());
+        ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value(), ui->tvl1_tau->value(),
+                       ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value());
+        checkCudaErrors(cudaPeekAtLastError());
+        ptr = ps.getDepthmapDenoisedPtr();
+        FusionUpdateIteration<8>(&fd, ptr, K, R, t, 0.05, 0.16, 0.5, 1, ps.HostRef.width, ps.HostRef.height, blocks, threads);
+        checkCudaErrors(cudaPeekAtLastError());
     }
+    clouddenoised.reset();
+    float3 c;
+    PointT p;
+    fusionData8 f(fd.width(), fd.height(), fd.depth(), fd.volume());
+    checkCudaErrors(MemoryManagement<fusionvoxel<8>>::Device2HostCopy(f.voxelPtr(), f.pitch(), fd.voxelPtr(), fd.pitch(), fd.width(), fd.height(), fd.depth()));
+    for (int z = 0; z < fd.depth(); z++)
+        for (int y = 0; y < fd.height(); y++)
+            for (int x = 0; x < fd.width(); x++)
+            {
+                if (f.u(x,y,z) <= 0.1){
+                    c = fd.worldCoords(x,y,z);
+                    p.x = c.x; p.y = c.y; p.z = c.z;
+                    p.r = 128; p.g = 128; p.b = 128;
+                    clouddenoised->points.push_back(p);
+                }
+            }
+    clouddenoised->width = 1;
+    clouddenoised->height = clouddenoised->points.size();
+    viewerdenoised->updatePointCloud(clouddenoised, "cloud");
+    viewerdenoised->resetCamera();
+    ui->qvtkDenoised->update();
 }
