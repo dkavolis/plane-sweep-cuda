@@ -12,8 +12,7 @@
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 #include <helper_math.h>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/assignment.hpp>
+//#include <boost/numeric/ublas/matrix.hpp>
 #include "memory.h"
 
 /**
@@ -21,7 +20,9 @@
 */
 typedef unsigned int uint;
 
-namespace ublas = boost::numeric::ublas;
+//namespace boost { namespace numeric { namespace ublas { template<typename T> class matrix; } } }
+
+//namespace ublas = boost::numeric::ublas;
 
 /**
 *  \brief Simple structure to hold histogram data of each voxel
@@ -260,7 +261,7 @@ struct sortedHist : public Managed
             }
         }
         else element[0] = val;
-        elements = fminf(elements + 1, 2 _nBins + 1);
+        elements = fminf(elements + 1, 2 * _nBins + 1);
     }
 
     /**
@@ -380,8 +381,12 @@ struct Matrix3D : public Managed
          *  \details Initializes to matrix of zeros
          */
     __host__ __device__ inline
-    Matrix3D() : r[0](make_float3(0,0,0)), r[1](make_float3(0,0,0)), r[2](make_float3(0,0,0))
-    {}
+    Matrix3D()
+    {
+        r[0] = (make_float3(0,0,0));
+        r[1] = (make_float3(0,0,0));
+        r[2] = (make_float3(0,0,0));
+    }
 
     /**
          *  \brief Constructor overload
@@ -393,50 +398,42 @@ struct Matrix3D : public Managed
          *  \details Constructs matrix with given row vectors
          */
     __host__ __device__ inline
-    Matrix3D(float3 r1, float3 r2, float3 r3) : r[0](r1), r[1](r2), r[2](r3)
-    {}
+    Matrix3D(float3 r1, float3 r2, float3 r3)
+    {
+        r[0] = (r1);
+        r[1] = (r2);
+        r[2] = (r3);
+    }
 
-    /**
-         *  \brief Constructor overload
-         *
-         *  \param R reference to \a boost matrix of size at least (3,3)
-         *
-         *  \details Constructs Matrix3D from given \a boost matrix
-         */
-    __host__ inline
-    Matrix3D(ublas::matrix<double>& R) :
-        r[0](make_float3(R(0,0),R(0,1),R(0,2))),
-        r[1](make_float3(R(1,0),R(1,1),R(1,2))),
-        r[2](make_float3(R(2,0),R(2,1),R(2,2)))
-    {}
+//    /**
+//         *  \brief Constructor overload
+//         *
+//         *  \param R reference to \a boost matrix of size at least (3,3)
+//         *
+//         *  \details Constructs Matrix3D from given \a boost matrix
+//         */
+//    __host__ inline
+//    Matrix3D(boost::numeric::ublas::matrix<double>& R)
+//    {
+//        r[0] = (make_float3(R(0,0),R(0,1),R(0,2)));
+//        r[1] = (make_float3(R(1,0),R(1,1),R(1,2)));
+//        r[2] = (make_float3(R(2,0),R(2,1),R(2,2)));
+//    }
 
-    /**
-         *  \brief Constructor overload
-         *
-         *  \param R reference to \a boost matrix of size at least (3,3)
-         *
-         *  \details Constructs Matrix3D from given \a boost matrix
-         */
-    __host__ inline
-    Matrix3D(ublas::matrix<float> & R) :
-        r[0](make_float3(R(0,0),R(0,1),R(0,2))),
-        r[1](make_float3(R(1,0),R(1,1),R(1,2))),
-        r[2](make_float3(R(2,0),R(2,1),R(2,2)))
-    {}
-
-    /**
-         *  \brief Constructor overload
-         *
-         *  \param m array of values
-         *
-         *  \details Constructs Matrix3D from given array
-         */
-    __host__ __device__ inline
-    Matrix3D(float m[3][3]) :
-        r[0](make_float3(m[0][0], m[0][1], m[0][2])),
-        r[1](make_float3(m[1][0], m[1][1], m[1][2])),
-        r[2](make_float3(m[2][0], m[2][1], m[2][2]))
-    {}
+//    /**
+//         *  \brief Constructor overload
+//         *
+//         *  \param R reference to \a boost matrix of size at least (3,3)
+//         *
+//         *  \details Constructs Matrix3D from given \a boost matrix
+//         */
+//    __host__ inline
+//    Matrix3D(boost::numeric::ublas::matrix<float> & R)
+//    {
+//        r[0] = (make_float3(R(0,0),R(0,1),R(0,2)));
+//        r[1] = (make_float3(R(1,0),R(1,1),R(1,2)));
+//        r[2] = (make_float3(R(2,0),R(2,1),R(2,2)));
+//    }
 
     /**
          *  \brief Constructor overload
@@ -446,11 +443,12 @@ struct Matrix3D : public Managed
          *  \details Constructs Matrix3D from given array
          */
     __host__ __device__ inline
-    Matrix3D(double m[3][3]) :
-        r[0](make_float3(m[0][0], m[0][1], m[0][2])),
-        r[1](make_float3(m[1][0], m[1][1], m[1][2])),
-        r[2](make_float3(m[2][0], m[2][1], m[2][2]))
-    {}
+    Matrix3D(float m[3][3])
+    {
+        r[0] = (make_float3(m[0][0], m[0][1], m[0][2]));
+        r[1] = (make_float3(m[1][0], m[1][1], m[1][2]));
+        r[2] = (make_float3(m[2][0], m[2][1], m[2][2]));
+    }
 
     /**
          *  \brief Constructor overload
@@ -460,11 +458,12 @@ struct Matrix3D : public Managed
          *  \details Constructs Matrix3D from given array
          */
     __host__ __device__ inline
-    Matrix3D(float m[9]) :
-        r[0](make_float3(m[0], m[1], m[2])),
-        r[1](make_float3(m[3], m[4], m[5])),
-        r[2](make_float3(m[6], m[7], m[8]))
-    {}
+    Matrix3D(double m[3][3])
+    {
+        r[0] = (make_float3(m[0][0], m[0][1], m[0][2]));
+        r[1] = (make_float3(m[1][0], m[1][1], m[1][2]));
+        r[2] = (make_float3(m[2][0], m[2][1], m[2][2]));
+    }
 
     /**
          *  \brief Constructor overload
@@ -474,18 +473,38 @@ struct Matrix3D : public Managed
          *  \details Constructs Matrix3D from given array
          */
     __host__ __device__ inline
-    Matrix3D(double m[9]) :
-        r[0](make_float3(m[0], m[1], m[2])),
-        r[1](make_float3(m[3], m[4], m[5])),
-        r[2](make_float3(m[6], m[7], m[8]))
-    {}
+    Matrix3D(float m[9])
+    {
+        r[0] = (make_float3(m[0], m[1], m[2]));
+        r[1] = (make_float3(m[3], m[4], m[5]));
+        r[2] = (make_float3(m[6], m[7], m[8]));
+    }
+
+    /**
+         *  \brief Constructor overload
+         *
+         *  \param m array of values
+         *
+         *  \details Constructs Matrix3D from given array
+         */
+    __host__ __device__ inline
+    Matrix3D(double m[9])
+    {
+        r[0] = (make_float3(m[0], m[1], m[2]));
+        r[1] = (make_float3(m[3], m[4], m[5]));
+        r[2] = (make_float3(m[6], m[7], m[8]));
+    }
 
     /**
          *  \brief Copy constructor
          */
     __host__ __device__ inline
-    Matrix3D(const Matrix3D & R) : r[0](R.r[0]), r[1](R.r[1]), r[2](R.r[2])
-    {}
+    Matrix3D(const Matrix3D & R)
+    {
+        r[0] = (R.r[0]);
+        r[1] = (R.r[1]);
+        r[2] = (R.r[2]);
+    }
 
     /**
          *  \brief Get reference to row vector
@@ -608,29 +627,29 @@ struct Matrix3D : public Managed
         return *this;
     }
 
-    /**
-         *  \brief Assignment operator.
-         */
-    __host__ inline
-    Matrix3D & operator=(ublas::matrix<double> & R)
-    {
-        r[0] = make_float3(R(0,0),R(0,1),R(0,2));
-        r[1] = make_float3(R(1,0),R(1,1),R(1,2));
-        r[2] = make_float3(R(2,0),R(2,1),R(2,2));
-        return *this;
-    }
+//    /**
+//         *  \brief Assignment operator.
+//         */
+//    __host__ inline
+//    Matrix3D & operator=(boost::numeric::ublas::matrix<double> & R)
+//    {
+//        r[0] = make_float3(R(0,0),R(0,1),R(0,2));
+//        r[1] = make_float3(R(1,0),R(1,1),R(1,2));
+//        r[2] = make_float3(R(2,0),R(2,1),R(2,2));
+//        return *this;
+//    }
 
-    /**
-         *  \brief Assignment operator.
-         */
-    __host__ inline
-    Matrix3D & operator=(ublas::matrix<float> & R)
-    {
-        r[0] = make_float3(R(0,0),R(0,1),R(0,2));
-        r[1] = make_float3(R(1,0),R(1,1),R(1,2));
-        r[2] = make_float3(R(2,0),R(2,1),R(2,2));
-        return *this;
-    }
+//    /**
+//         *  \brief Assignment operator.
+//         */
+//    __host__ inline
+//    Matrix3D & operator=(boost::numeric::ublas::matrix<float> & R)
+//    {
+//        r[0] = make_float3(R(0,0),R(0,1),R(0,2));
+//        r[1] = make_float3(R(1,0),R(1,1),R(1,2));
+//        r[2] = make_float3(R(2,0),R(2,1),R(2,2));
+//        return *this;
+//    }
 
     /**
          *  \brief Assignment operator.
