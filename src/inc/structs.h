@@ -275,15 +275,15 @@ struct sortedHist : public Managed
     double median(){ return element[_nBins]; }
 };
 
-/** \addtogroup rectangle Rectangle
-* \brief Rectangle structure and its operator overloads
+/** \addtogroup rectangle Rectangle3D
+* \brief Rectangle3D structure and its operator overloads
 * @{
 */
 
 /**
 *  \brief Simple struct to hold coordinates of volume rectangle
 */
-struct Rectangle : public Managed
+struct Rectangle3D : public Managed
 {
     /**
          *  \brief Corner of rectangle
@@ -300,7 +300,7 @@ struct Rectangle : public Managed
      *  \details Corners are initialized to (0,0,0)
      */
     __host__ __device__ inline
-    Rectangle() :
+    Rectangle3D() :
         a(make_float3(0,0,0)), b(make_float3(0,0,0))
     {}
 
@@ -310,22 +310,22 @@ struct Rectangle : public Managed
      *  \param x corner of rectangle
      *  \param y opposite corner of rectangle
      *
-     *  \details Constructs Rectangle from given corners
+     *  \details Constructs Rectangle3D from given corners
      */
     __host__ __device__ inline
-    Rectangle(float3 x, float3 y) :
+    Rectangle3D(float3 x, float3 y) :
         a(x), b(y)
     {}
 
     /**
      *  \brief Copy constructor
      *
-     *  \param r Rectangle to be copied
+     *  \param r Rectangle3D to be copied
      *
-     *  \details Constructs Rectangle from given Rectangle
+     *  \details Constructs Rectangle3D from given Rectangle3D
      */
     __host__ __device__ inline
-    Rectangle(const Rectangle& r) :
+    Rectangle3D(const Rectangle3D& r) :
         a(r.a), b(r.b)
     {}
 
@@ -334,19 +334,19 @@ struct Rectangle : public Managed
      *
      *  \return Size of rectangle
      *
-     *  \details Returns <em>a - b</em>
+     *  \details Returns <em>b - a</em>
      */
     __host__ __device__ inline
     float3 size()
     {
-        return (a - b);
+        return (b - a);
     }
 
     /**
      *  \brief Assignment operator
      */
     __host__ __device__ inline
-    Rectangle& operator=(Rectangle & r)
+    Rectangle3D& operator=(Rectangle3D & r)
     {
         if (this == &r) return *this;
         a = r.a;
@@ -856,6 +856,22 @@ struct Vector3D : public Managed
         x = f.x;
         y = f.y;
         z = f.z;
+        return *this;
+    }
+
+    /** \brief Assignment operator */
+    __host__ __device__ inline
+    Vector3D& operator=(float v[3])
+    {
+        x = v[0]; y = v[1]; z = v[2];
+        return *this;
+    }
+
+    /** \brief Assignment operator */
+    __host__ __device__ inline
+    Vector3D& operator=(double v[3])
+    {
+        x = v[0]; y = v[1]; z = v[2];
         return *this;
     }
 

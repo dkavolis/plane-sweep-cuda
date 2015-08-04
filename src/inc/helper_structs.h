@@ -30,7 +30,7 @@ float bilinterp(float2 y0, float2 y1, float2 frac)
 /** @} */ // group general
 
 //////////////////////////////////////////////////////////////
-// Rectangle operator overloads
+// Rectangle3D operator overloads
 //////////////////////////////////////////////////////////////
 /** \addtogroup rectangle
  * @{
@@ -40,25 +40,25 @@ float bilinterp(float2 y0, float2 y1, float2 frac)
 *  \brief Scale corner positions by \f$b\f$
 */
 __host__ __device__ inline
-Rectangle operator*(Rectangle r, float b)
+Rectangle3D operator*(Rectangle3D r, float b)
 {
-    return Rectangle(r.a * b, r.b * b);
+    return Rectangle3D(r.a * b, r.b * b);
 }
 
 /**
 *  \brief Scale corner positions by \f$b\f$
 */
 __host__ __device__ inline
-Rectangle operator*(float b, Rectangle r)
+Rectangle3D operator*(float b, Rectangle3D r)
 {
-    return Rectangle(r.a * b, r.b * b);
+    return Rectangle3D(r.a * b, r.b * b);
 }
 
 /**
 *  \brief Scale corner positions by \f$b\f$
 */
 __host__ __device__ inline
-void operator*=(Rectangle &r, float b)
+void operator*=(Rectangle3D &r, float b)
 {
     r.a *= b;
     r.b *= b;
@@ -68,25 +68,25 @@ void operator*=(Rectangle &r, float b)
 *  \brief Scale corner positions by \f$b^{-1}\f$
 */
 __host__ __device__ inline
-Rectangle operator/(Rectangle r, float b)
+Rectangle3D operator/(Rectangle3D r, float b)
 {
-    return Rectangle(r.a / b, r.b / b);
+    return Rectangle3D(r.a / b, r.b / b);
 }
 
 /**
 *  \brief Scale corner positions by \f$b^{-1}\f$
 */
 __host__ __device__ inline
-Rectangle operator/(float b, Rectangle r)
+Rectangle3D operator/(float b, Rectangle3D r)
 {
-    return Rectangle(b / r.a, b / r.b);
+    return Rectangle3D(b / r.a, b / r.b);
 }
 
 /**
 *  \brief Scale corner positions by \f$b^{-1}\f$
 */
 __host__ __device__ inline
-void operator/=(Rectangle &r, float b)
+void operator/=(Rectangle3D &r, float b)
 {
     r.a /= b;
     r.b /= b;
@@ -96,25 +96,25 @@ void operator/=(Rectangle &r, float b)
 *  \brief Apply vector \f$(b, b, b)^T\f$ translation to corner positions
 */
 __host__ __device__ inline
-Rectangle operator+(Rectangle r, float b)
+Rectangle3D operator+(Rectangle3D r, float b)
 {
-    return Rectangle(r.a + b, r.b + b);
+    return Rectangle3D(r.a + b, r.b + b);
 }
 
 /**
 *  \brief Apply vector \f$(b, b, b)^T\f$ translation to corner positions
 */
 __host__ __device__ inline
-Rectangle operator+(float b, Rectangle r)
+Rectangle3D operator+(float b, Rectangle3D r)
 {
-    return Rectangle(r.a + b, r.b + b);
+    return Rectangle3D(r.a + b, r.b + b);
 }
 
 /**
 *  \brief Apply vector \f$(b, b, b)^T\f$ translation to corner positions
 */
 __host__ __device__ inline
-void operator+=(Rectangle &r, float b)
+void operator+=(Rectangle3D &r, float b)
 {
     r.a += b;
     r.b += b;
@@ -124,25 +124,25 @@ void operator+=(Rectangle &r, float b)
 *  \brief Apply vector \f$-(b, b, b)^T\f$ translation to corner positions
 */
 __host__ __device__ inline
-Rectangle operator-(Rectangle r, float b)
+Rectangle3D operator-(Rectangle3D r, float b)
 {
-    return Rectangle(r.a - b, r.b - b);
+    return Rectangle3D(r.a - b, r.b - b);
 }
 
 /**
 *  \brief Apply vector \f$(b, b, b)^T\f$ translation to negated corner positions
 */
 __host__ __device__ inline
-Rectangle operator-(float b, Rectangle r)
+Rectangle3D operator-(float b, Rectangle3D r)
 {
-    return Rectangle(b - r.a, b - r.b);
+    return Rectangle3D(b - r.a, b - r.b);
 }
 
 /**
 *  \brief Apply vector \f$-(b, b, b)^T\f$ translation to corner positions
 */
 __host__ __device__ inline
-void operator-=(Rectangle &r, float b)
+void operator-=(Rectangle3D &r, float b)
 {
     r.a -= b;
     r.b -= b;
@@ -152,25 +152,25 @@ void operator-=(Rectangle &r, float b)
 *  \brief Apply vector \f$b\f$ translation to corner positions
 */
 __host__ __device__ inline
-Rectangle operator+(Rectangle r, float3 b)
+Rectangle3D operator+(Rectangle3D r, float3 b)
 {
-    return Rectangle(r.a + b, r.b + b);
+    return Rectangle3D(r.a + b, r.b + b);
 }
 
 /**
 *  \brief Apply vector \f$b\f$ translation to corner positions
 */
 __host__ __device__ inline
-Rectangle operator+(float3 b, Rectangle r)
+Rectangle3D operator+(float3 b, Rectangle3D r)
 {
-    return Rectangle(r.a + b, r.b + b);
+    return Rectangle3D(r.a + b, r.b + b);
 }
 
 /**
 *  \brief Apply vector \f$b\f$ translation to corner positions
 */
 __host__ __device__ inline
-void operator+=(Rectangle &r, float3 b)
+void operator+=(Rectangle3D &r, float3 b)
 {
     r.a += b;
     r.b += b;
@@ -180,25 +180,25 @@ void operator+=(Rectangle &r, float3 b)
 *  \brief Apply vector \f$-b\f$ translation to corner positions
 */
 __host__ __device__ inline
-Rectangle operator-(Rectangle r, float3 b)
+Rectangle3D operator-(Rectangle3D r, float3 b)
 {
-    return Rectangle(r.a - b, r.b - b);
+    return Rectangle3D(r.a - b, r.b - b);
 }
 
 /**
 *  \brief Apply vector \f$-b\f$ translation to corner positions
 */
 __host__ __device__ inline
-Rectangle operator-(float3 b, Rectangle r)
+Rectangle3D operator-(float3 b, Rectangle3D r)
 {
-    return Rectangle(b - r.a, b - r.b);
+    return Rectangle3D(b - r.a, b - r.b);
 }
 
 /**
 *  \brief Apply vector \f$-b\f$ translation to corner positions
 */
 __host__ __device__ inline
-void operator-=(Rectangle &r, float3 b)
+void operator-=(Rectangle3D &r, float3 b)
 {
     r.a -= b;
     r.b -= b;
