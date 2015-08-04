@@ -736,6 +736,42 @@ struct Matrix3D : public Managed
     }
 
     /**
+         *  \brief Access functions
+         *
+         *  \param row index of row
+         *  \param col index of column
+         *  \return Reference to specified element
+         *
+         *  \details
+         */
+    __host__ __device__ inline
+    float & at(unsigned char row, unsigned char col)
+    {
+        if (col == 0) return r[row].x;
+        if (col == 1) return r[row].y;
+        if (col == 2) return r[row].z;
+        return r[0].x;
+    }
+
+    /**
+         *  \brief Const access functions
+         *
+         *  \param row index of row
+         *  \param col index of column
+         *  \return Const reference to specified element
+         *
+         *  \details
+         */
+    __host__ __device__ inline
+    const float & at(unsigned char row, unsigned char col) const
+    {
+        if (col == 0) return r[row].x;
+        if (col == 1) return r[row].y;
+        if (col == 2) return r[row].z;
+        return r[0].x;
+    }
+
+    /**
          *  \brief Access operator
          *
          *  \param row index of row
