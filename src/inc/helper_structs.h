@@ -1,3 +1,7 @@
+/**
+ *  \file helper_structs.h
+ *  \brief Header file containing useful operators for structures in structs.h and other device functions
+ */
 #ifndef HELPER_STRUCTS_H
 #define HELPER_STRUCTS_H
 

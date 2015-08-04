@@ -77,8 +77,7 @@ public:
      *  \param ptr pointer to memory to deallocate
      *  \return Returns \a cudaError_t (CUDA error code)
      *
-     *  \details If \a _onDevice is set to true, pointer has to point to memory on the device, otherwise it has to point
-     * to memory on the host.
+     *  \details Pointer has to point to a memory location indicated by \p memT
      */
     __host__ inline
     static cudaError_t CleanUp(T * ptr)
