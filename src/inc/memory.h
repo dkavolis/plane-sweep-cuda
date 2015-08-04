@@ -97,7 +97,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Malloc(T * &ptr, size_t & len)
+    static cudaError_t Malloc(T *ptr, size_t & len)
     {
         if (memT == Device) return cudaMalloc(&ptr, len * sizeof(T));
 #if CUDA_VERSION_MAJOR >= 6
@@ -118,7 +118,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Malloc(T * &ptr, size_t & w, size_t & h, size_t &pitch)
+    static cudaError_t Malloc(T *ptr, size_t & w, size_t & h, size_t &pitch)
     {
         if (memT == Device) return cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h);
         pitch = w * sizeof(T);
@@ -142,7 +142,7 @@ public:
      *  \details Allocate 3D memory and return pointer \a ptr to it.
      */
     __host__ inline
-    static cudaError_t Malloc(T * &ptr, size_t & w, size_t & h, size_t & d, size_t &pitch, size_t &spitch)
+    static cudaError_t Malloc(T *ptr, size_t & w, size_t & h, size_t & d, size_t &pitch, size_t &spitch)
     {
         cudaError_t err;
         if (memT == Device) err = cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h * d);
@@ -166,7 +166,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Device2DeviceCopy(T * &pDst, T * &pSrc, size_t len)
+    static cudaError_t Device2DeviceCopy(T * pDst, T * pSrc, size_t len)
     {
         return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToDevice);
     }
@@ -182,7 +182,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Device2HostCopy(T * &pDst, T * &pSrc, size_t len)
+    static cudaError_t Device2HostCopy(T *pDst, T *pSrc, size_t len)
     {
         return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToHost);
     }
@@ -198,7 +198,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Host2DeviceCopy(T * &pDst, T * &pSrc, size_t len)
+    static cudaError_t Host2DeviceCopy(T *pDst, T *pSrc, size_t len)
     {
         return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToDevice);
     }
@@ -214,7 +214,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Host2HostCopy(T * &pDst, T * &pSrc, size_t len)
+    static cudaError_t Host2HostCopy(T *pDst, T *pSrc, size_t len)
     {
         return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToHost);
     }
@@ -233,7 +233,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Device2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
+    static cudaError_t Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToDevice);
     }
@@ -252,7 +252,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Device2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
+    static cudaError_t Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToHost);
     }
@@ -271,7 +271,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Host2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
+    static cudaError_t Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToDevice);
     }
@@ -290,7 +290,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Host2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
+    static cudaError_t Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToHost);
     }
@@ -310,7 +310,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Device2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
+    static cudaError_t Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToDevice);
     }
@@ -330,7 +330,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Device2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
+    static cudaError_t Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToHost);
     }
@@ -350,7 +350,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Host2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
+    static cudaError_t Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToDevice);
     }
@@ -370,7 +370,7 @@ public:
      *  \details
      */
     __host__ inline
-    static cudaError_t Host2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
+    static cudaError_t Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToHost);
     }
