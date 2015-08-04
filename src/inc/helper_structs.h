@@ -228,7 +228,7 @@ float3 operator*(Matrix3D R, float3 vec) // matrix - vector multiplication
 __host__ __device__ inline
 Matrix3D operator*(Matrix3D A, Matrix3D B) // matrix - matrix multiplication
 {
-    B.trans();
+    B = B.trans();
     Matrix3D r;
     r.r[0] = make_float3(dot(A(0), B(0)), dot(A(0), B(1)), dot(A(0), B(2)));
     r.r[1] = make_float3(dot(A(1), B(0)), dot(A(1), B(1)), dot(A(1), B(2)));
