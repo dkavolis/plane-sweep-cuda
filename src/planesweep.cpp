@@ -583,6 +583,7 @@ void PlaneSweep::CmatrixToRT(ublas::matrix<double> &C, ublas::matrix<double> &R,
 
 PlaneSweep::~PlaneSweep()
 {
+    nppiFree(d_depthmap);
     cudaDeviceReset();
 }
 
@@ -612,6 +613,7 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
             cudaDeviceReset();
             return false;
         }
+        nppiFree(d_depthmap);
 
         int h = depthmap.height, w = depthmap.width;
 
@@ -659,26 +661,8 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         X.copyTo(depthmapdenoised.data, depthmapdenoised.pitch);
         ConvertDepthtoUChar(depthmapdenoised, depthmap8udenoised);
 
-        ublas::matrix<double> Rr, t, I(3,3), T(3,1);
-        I <<=   1.f, 0.f, 0.f,
-                0.f, 1.f, 0.f,
-                0.f, 0.f, 1.f;
-        T <<=   0.f, 0.f, 0.f;
-        RelativeMatrices(Rr, t, HostRef.R, HostRef.t, I, T);
-        double r[3][3], tr[3], invk[3][3];
-        matrixToArray(r, Rr);
-        TmatrixToArray(tr, t);
-        matrixToArray(invk, invK);
-
-        compute3D(Px.data(), Py.data(), X.data(), r, tr, invk, w, h, blocks, threads);
-        coord_x.setSize(w, h);
-        coord_y.setSize(w, h);
-        coord_z.setSize(w, h);
-        Px.copyTo(coord_x.data, coord_x.pitch);
-        Py.copyTo(coord_y.data, coord_y.pitch);
-        X.copyTo(coord_z.data, coord_z.pitch);
-
-        nppiFree(X.data());
+        d_depthmap = X.data();
+        //nppiFree(X.data());
         nppiFree(R.data());
         nppiFree(Px.data());
         nppiFree(Py.data());
@@ -946,4 +930,32 @@ void PlaneSweep::RelativeMatrices(ublas::matrix<double> & Rrel, ublas::matrix<do
         Rrel = prod(trans(Rsrc), Rref);
         trel = prod(trans(Rsrc), tref - tsrc);
     }
+}
+
+void PlaneSweep::get3Dcoordinates(camImage<float> *&x, camImage<float> *&y, camImage<float> *&z)
+{
+    ublas::matrix<double> Rr, t, I(3,3), T(3,1);
+    I <<=   1.f, 0.f, 0.f,
+            0.f, 1.f, 0.f,
+            0.f, 0.f, 1.f;
+    T <<=   0.f, 0.f, 0.f;
+    RelativeMatrices(Rr, t, HostRef.R, HostRef.t, I, T);
+    double r[3][3], tr[3], invk[3][3];
+    matrixToArray(r, Rr);
+    TmatrixToArray(tr, t);
+    matrixToArray(invk, invK);
+    int w = HostRef.width, h = HostRef.height;
+    npp::ImageNPP_32f_C1 Px(w,h), Py(w,h), X(w,h);
+    X.copyFrom(depthmapdenoised.data, depthmapdenoised.pitch);
+    compute3D(Px.data(), Py.data(), X.data(), r, tr, invk, w, h, blocks, threads);
+    coord_x.setSize(w, h);
+    coord_y.setSize(w, h);
+    coord_z.setSize(w, h);
+    Px.copyTo(coord_x.data, coord_x.pitch);
+    Py.copyTo(coord_y.data, coord_y.pitch);
+    X.copyTo(coord_z.data, coord_z.pitch);
+    x = &coord_x; y = &coord_y; z = &coord_z;
+    nppiFree(X.data());
+    nppiFree(Px.data());
+    nppiFree(Py.data());
 }

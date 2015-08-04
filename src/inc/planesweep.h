@@ -525,6 +525,15 @@ public:
     camImage<float> * getDepthmapDenoised(){ return &depthmapdenoised; }
 
     /**
+     *  \brief Get pointer to denoised planesweep depthmap on device memory
+     *
+     *  \return pointer to denoised planesweep depthmap on the device
+     *
+     *  \details Data pointed to by the pointer is overwritten on each new \a CudaDenoise() call
+     */
+    float * getDepthmapDenoisedPtr(){ return d_depthmap; }
+
+    /**
      *  \brief Get pointer to raw normalized planesweep depthmap
      *
      *  \return pointer to raw normalized planesweep depthmap
@@ -568,9 +577,9 @@ public:
      *  \param z pointer to z coordinate, returned by reference
      *  \return No return value
      *
-     *  \details Coordinates at the moment are calculated every time after running \a CudaDenoise()
+     *  \details Coordinates are computed at the time of the call.
      */
-    void get3Dcoordinates(camImage<float> * &x, camImage<float> * &y, camImage<float> * &z){ x = &coord_x; y = &coord_y; z = &coord_z; }
+    void get3Dcoordinates(camImage<float> * &x, camImage<float> * &y, camImage<float> * &z);
 
     /**
      *  \brief Get currently set planesweep near plane depth
@@ -817,6 +826,9 @@ protected:
     camImage<uchar> depthmap8udenoised;
     camImage<float> depthmapTGV;
     camImage<uchar> depthmap8uTGV;
+
+    // pointer to depthmap on the device after TVL1 denoising
+    float * d_depthmap;
 
     // stored coordinates
     camImage<float> coord_x, coord_y, coord_z;

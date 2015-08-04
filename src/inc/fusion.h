@@ -71,7 +71,7 @@ public:
      */
     __device__ __host__ inline
     fusionData(size_t w, size_t h, size_t d, float3 x, float3 y) :
-        _w(w), _h(h), _d(d), _vol(Rectangle(x,y))
+        _w(w), _h(h), _d(d), _vol(Rectangle3D(x,y))
     {
         binParams();
         Malloc(_voxel, _w, _h, _d, _pitch, _spitch);
@@ -83,12 +83,12 @@ public:
      *  \param w   width in number of voxels
      *  \param h   height in number of voxels
      *  \param d   depth in number of voxels
-     *  \param vol bounding volume Rectangle
+     *  \param vol bounding volume Rectangle3D
      *
      *  \details Allocates memory on call
      */
     __device__ __host__ inline
-    fusionData(size_t w, size_t h, size_t d, Rectangle& vol) :
+    fusionData(size_t w, size_t h, size_t d, Rectangle3D& vol) :
         _w(w), _h(h), _d(d), _vol(vol)
     {
         binParams();
@@ -165,7 +165,7 @@ public:
      *  \details
      */
     __device__ __host__ inline
-    unsigned char bins(){ return _histBins; }
+    const unsigned char bins(){ return _histBins; }
 
     /**
      *  \brief Get bounding volume rectangle in world coordinates
@@ -175,7 +175,7 @@ public:
      *  \details
      */
     __device__ __host__ inline
-    Rectangle volume(){ return _vol; }
+    Rectangle3D volume(){ return _vol; }
 
     /**
      *  \brief Get number of voxels
@@ -253,7 +253,7 @@ public:
      *  \details
      */
     __device__ __host__ inline
-    void volume(Rectangle &vol){ _vol = vol; }
+    void setVolume(Rectangle3D &vol){ _vol = vol; }
 
     /**
          *  \brief Set bounding volume rectangle in world coordinates
@@ -265,7 +265,7 @@ public:
          *  \details
          */
     __device__ __host__ inline
-    void volume(float3 x, float3 y){ _vol = Rectangle(x, y); }
+    void setVolume(float3 x, float3 y){ _vol = Rectangle3D(x, y); }
 
     // Access to elements:
     /**
@@ -711,7 +711,7 @@ protected:
     /**
     *  \brief Bounding rectangle in world coordinates
     */
-    Rectangle _vol;
+    Rectangle3D _vol;
 
     /**
      *  \brief Calculate and set histogram bin parameters
