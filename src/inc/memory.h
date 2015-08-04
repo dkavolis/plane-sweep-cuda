@@ -41,6 +41,7 @@ enum MemoryKind {
  * libraries of major version 6 or greater.
  */
 class Managed {
+public:
 #if CUDA_VERSION_MAJOR >= 6
     /**
      *  \brief Operator \a new overload to allocate managed memory instead of host.
