@@ -176,6 +176,14 @@ public:
      */
     __device__ __host__ inline
     Rectangle3D volume(){ return _vol; }
+	
+	/**
+     *  \brief Get index in the array of element at (x,y,z)
+	 *
+     *  \return index of the element
+     */
+	__device__ __host__ inline
+	unsigned int index(int nx = 0, int ny = 0, int nz = 0) { return nx+ny*_w+nz*_w*_h; }
 
     /**
      *  \brief Get number of voxels

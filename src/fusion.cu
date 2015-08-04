@@ -8,9 +8,8 @@ __global__ void FusionUpdateHistogram_kernel(fusionData<_bins> * f, const float 
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
     const int z = threadIdx.z + blockDim.z * blockIdx.z;
-    const int i = x + f->width() * (y + z * f->height()); // element index
 
-    if (i < f->elements())
+    if ((x < f->width()) && (y < f->height()) && (z < f->depth()))
     {
         // Get world coordinates of the voxel
         float3 c = f->worldCoords(x, y, z);
@@ -23,18 +22,18 @@ __global__ void FusionUpdateHistogram_kernel(fusionData<_bins> * f, const float 
         float2 px = make_float2(c / c.z);
 
         // Check if pixel coordinates fall inside image range
-        if ((px.x >= 0) && (px.x <= width-1) && (px.y >= 0) && (px.y <= height-1)) return;
+        if ((px.x < 0) || (px.x > width-1) || (px.y < 0) || (px.y > height-1)) return;
 
         // Get int pixel coords
-        int2 pxc = make_int2(floorf(px));
-        int2 pxc1 = make_int2(ceilf(px.x), ceilf(px.y));
+        int2 pxc = make_int2(maxf(floorf(px), 0));
+        int2 pxc1 = make_int2(minf(pxc.x+1, width-1), minf(pxc.y+1, height-1));
 
         // Get fractions
         float2 frac = fracf(px);
 
         // Read image values for bilinterp
-        float2 y0 = make_float2(depthmap[pxc.x+pxc.y*width], depthmap[pxc1.x+pxc.y*width]);
-        float2 y1 = make_float2(depthmap[pxc.x+pxc1.y*width], depthmap[pxc1.x+pxc1.y*width]);
+        float2 y0 = make_float2(depthmap[pxc.x+pxc.y*width], depthmap[pxc1.x+pxc.y*width]); // values at (x,y) and (x+1,y)
+        float2 y1 = make_float2(depthmap[pxc.x+pxc1.y*width], depthmap[pxc1.x+pxc1.y*width]); // values at (x,y+1) and (x+1,y+1)
 
         // Interpolate voxel depth
         float depth = bilinterp(y0, y1, frac);
@@ -50,9 +49,8 @@ __global__ void FusionUpdateU_kernel(fusionData<_bins> * f, const double tau, co
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
     const int z = threadIdx.z + blockDim.z * blockIdx.z;
-    const int i = x + f->width() * (y + z * f->height()); // element index
-
-    if (i < f->elements())
+	
+    if ((x < f->width()) && (y < f->height()) && (z < f->depth()))
     {
         const double un = f->u(x, y, z);
         const double u = un - tau * (- f->divPBwd(x, y, z));
@@ -67,9 +65,8 @@ __global__ void FusionUpdateP_kernel(fusionData<_bins> * f, const double sigma)
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
     const int z = threadIdx.z + blockDim.z * blockIdx.z;
-    const int i = x + f->width() * (y + z * f->height()); // element index
-
-    if (i < f->elements())
+	
+    if ((x < f->width()) && (y < f->height()) && (z < f->depth()))
     {
         f->p(x, y, z) = f->projectUnitBall(f->p(x, y, z) + sigma * f->gradVFwd(x, y, z));
     }
