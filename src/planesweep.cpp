@@ -1,10 +1,8 @@
-#include <planesweep.h>
-#include <iostream>
+#include "planesweep.h"
 #include <chrono>
 #include <fstream>
 #include <thread>
-#include <functional>
-#include <vector>
+#include <mutex>
 
 // OpenCV:
 #ifdef OpenCV_FOUND
@@ -15,10 +13,10 @@
 // Boost:
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/vector_proxy.hpp>
-#include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/triangular.hpp>
 #include <boost/numeric/ublas/lu.hpp>
 #include <boost/numeric/ublas/io.hpp>
+#include <boost/numeric/ublas/assignment.hpp>
 
 // CUDA: (header files contain definitions)
 #if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)

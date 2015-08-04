@@ -43,15 +43,7 @@
 
 #include <iostream>
 #include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/io.hpp>
-#include <boost/numeric/ublas/assignment.hpp>
-#include <string.h>
-#include <fstream>
-#include <cstdio>
-#include <ctime>
-#include <algorithm>
 #include <cuda_runtime_api.h>
-#include <mutex>
 
 namespace ublas = boost::numeric::ublas;
 typedef unsigned char uchar;
@@ -798,7 +790,7 @@ public:
     void CtoRT(double C[3][4], ublas::matrix<double> &R, ublas::matrix<double> &t);
     
     /**
-         *  \brief \a boost [R | t] split
+         *  \brief \a boost matrix [R | t] split
          *
          *  \param C input \a boost [R | t] matrix
          *  \param R \a boost rotation matrix of size (3,3) returned by reference

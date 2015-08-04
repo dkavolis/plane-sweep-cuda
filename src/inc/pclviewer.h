@@ -35,7 +35,7 @@
 #include <vtkRenderWindow.h>
 #include <QVTKWidget.h>
 
-#include <planesweep.h>
+#include "planesweep.h"
 #include "fusion.cu.h"
 
 typedef pcl::PointXYZRGBA PointT;

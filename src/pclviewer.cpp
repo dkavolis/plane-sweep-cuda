@@ -8,6 +8,7 @@
 #include <QByteArray>
 #include <QBuffer>
 #include <boost/numeric/ublas/assignment.hpp>
+#include <boost/numeric/ublas/io.hpp>
 #include <QPixmap>
 #include <QColor>
 #include <QFileDialog>
@@ -28,7 +29,6 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ps(argc, argv),
     fd(448, 336, 160)
 {
-
     std::cerr << "Size of fusion data = " << fd.sizeMBytes() << "MB\n";
 
     QChar alpha = QChar(0xb1, 0x03);
