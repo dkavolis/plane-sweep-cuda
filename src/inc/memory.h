@@ -47,7 +47,7 @@ class Managed {
      */
     void *operator new(size_t len) {
         void *ptr;
-        cudaMallocManaged(&ptr, len);
+        cudaMallocManaged(&ptr, len, cudaMemAttachGlobal);
         return ptr;
     }
 
@@ -79,11 +79,30 @@ public:
      *  \details If \a _onDevice is set to true, pointer has to point to memory on the device, otherwise it has to point
      * to memory on the host.
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t CleanUp(T * ptr)
     {
         if (memT == Host) return cudaFreeHost(ptr);
         return cudaFree(ptr);
+    }
+
+    /**
+     *  \brief Allocate 1D memory and return pointer \a ptr to it
+     *
+     *  \param ptr   pointer to allocated memory returned by reference
+     *  \param len   number of elements
+     *  \return Returns \a cudaError_t (CUDA error code)
+     *
+     *  \details
+     */
+    __host__ inline
+    static cudaError_t Malloc(T * &ptr, size_t & len)
+    {
+        if (memT == Device) return cudaMalloc(&ptr, len * sizeof(T));
+#if CUDA_VERSION_MAJOR >= 6
+        if (memT == Managed) return cudaMallocManaged(&ptr, len * sizeof(T), cudaMemAttachGlobal);
+#endif
+        return cudaMallocHost(&ptr, len * sizeof(T));
     }
 
     /**
@@ -95,16 +114,15 @@ public:
      *  \param pitch step size in bytes returned by reference
      *  \return Returns \a cudaError_t (CUDA error code)
      *
-     *  \details If \a _onDevice is set to true, memory is allocated on the device, else it is allocated
-     * on the host.
+     *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Malloc(T * &ptr, size_t & w, size_t & h, size_t &pitch)
     {
         if (memT == Device) return cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h);
         pitch = w * sizeof(T);
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == Managed) return cudaMallocManaged(&ptr, pitch * h);
+        if (memT == Managed) return cudaMallocManaged(&ptr, pitch * h, cudaMemAttachGlobal);
 #endif
         return cudaMallocHost(&ptr, pitch * h);
     }
@@ -121,22 +139,83 @@ public:
      *  \return Returns \a cudaError_t (CUDA error code)
      *
      *  \details Allocate 3D memory and return pointer \a ptr to it.
-     *
-     * If \a _onDevice is set to true, memory is allocated on the device, else it is allocated
-     * on the host.
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Malloc(T * &ptr, size_t & w, size_t & h, size_t & d, size_t &pitch, size_t &spitch)
     {
         cudaError_t err;
         if (memT == Device) err = cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h * d);
         pitch = w * sizeof(T);
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == Managed) err = cudaMallocManaged(&ptr, pitch * h * d);
+        if (memT == Managed) err = cudaMallocManaged(&ptr, pitch * h * d, cudaMemAttachGlobal);
 #endif
         if (memT == Host) err = cudaMallocHost(&ptr, pitch * h * d);
         spitch = h * pitch;
         return err;
+    }
+
+    /**
+     *  \brief Device to device 1D memory copy
+     *
+     *  \param pDst     pointer to destination memory
+     *  \param pSrc     pointer to source memory
+     *  \param len      number of elements to copy
+     *  \return Returns \a cudaError_t (CUDA error code)
+     *
+     *  \details
+     */
+    __host__ inline
+    static cudaError_t Device2DeviceCopy(T * &pDst, T * &pSrc, size_t len)
+    {
+        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToDevice);
+    }
+
+    /**
+     *  \brief Device to host 1D memory copy
+     *
+     *  \param pDst     pointer to destination memory
+     *  \param pSrc     pointer to source memory
+     *  \param len      number of elements to copy
+     *  \return Returns \a cudaError_t (CUDA error code)
+     *
+     *  \details
+     */
+    __host__ inline
+    static cudaError_t Device2HostCopy(T * &pDst, T * &pSrc, size_t len)
+    {
+        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToHost);
+    }
+
+    /**
+     *  \brief Host to device 1D memory copy
+     *
+     *  \param pDst     pointer to destination memory
+     *  \param pSrc     pointer to source memory
+     *  \param len      number of elements to copy
+     *  \return Returns \a cudaError_t (CUDA error code)
+     *
+     *  \details
+     */
+    __host__ inline
+    static cudaError_t Host2DeviceCopy(T * &pDst, T * &pSrc, size_t len)
+    {
+        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToDevice);
+    }
+
+    /**
+     *  \brief Host to host 1D memory copy
+     *
+     *  \param pDst     pointer to destination memory
+     *  \param pSrc     pointer to source memory
+     *  \param len      number of elements to copy
+     *  \return Returns \a cudaError_t (CUDA error code)
+     *
+     *  \details
+     */
+    __host__ inline
+    static cudaError_t Host2HostCopy(T * &pDst, T * &pSrc, size_t len)
+    {
+        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToHost);
     }
 
     /**
@@ -152,7 +231,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Device2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToDevice);
@@ -171,7 +250,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Device2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToHost);
@@ -190,7 +269,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Host2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToDevice);
@@ -209,7 +288,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Host2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToHost);
@@ -229,7 +308,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Device2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToDevice);
@@ -249,7 +328,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Device2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToHost);
@@ -269,7 +348,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Host2DeviceCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToDevice);
@@ -289,7 +368,7 @@ public:
      *
      *  \details
      */
-    __host__ __device__ inline
+    __host__ inline
     static cudaError_t Host2HostCopy(T * &pDst, size_t & DstPitch, T * &pSrc, size_t & SrcPitch, size_t width, size_t height, size_t depth)
     {
         return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToHost);
