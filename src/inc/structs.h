@@ -813,16 +813,9 @@ struct Vector3D : public Managed
 {
     float x, y, z;
 
-    /** \brief Default constructor
-     *  \details values are initialized to 0
-    */
+    /** \brief Constructor from float values*/
     __host__ __device__ inline
-    Vector3D() : x(0), y(0), z(0)
-    {}
-
-    /** \brief Constructor overload from float values*/
-    __host__ __device__ inline
-    Vector3D(float x, float y, float z) : x(x), y(y), z(z)
+    Vector3D(float x = 0, float y = 0, float z = 0) : x(x), y(y), z(z)
     {}
 
     /** \brief Constructor overload from array of floats*/
@@ -845,7 +838,7 @@ struct Vector3D : public Managed
     Vector3D(const Vector3D & v) : x(v.x), y(v.y), z(v.z)
     {}
 
-    /** \brief Assignement operator */
+    /** \brief Assignment operator */
     __host__ __device__ inline
     Vector3D& operator=(float3 f)
     {
@@ -855,7 +848,7 @@ struct Vector3D : public Managed
         return *this;
     }
 
-    /** \brief Assignement operator */
+    /** \brief Assignment operator */
     __host__ __device__ inline
     Vector3D& operator=(Vector3D & f)
     {
