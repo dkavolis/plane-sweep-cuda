@@ -802,4 +802,78 @@ struct Matrix3D : public Managed
 
 /** @} */ // group matrix3D
 
+/** \addtogroup vector Vector3D
+* \brief 3D vector structure fully compatible with float3 operators and functions but
+* with overloaded \a new and \a delete operators for managed memory.
+* @{
+*/
+
+/** \brief 3D vector structure */
+struct Vector3D : public Managed
+{
+    float x, y, z;
+
+    /** \brief Default constructor
+     *  \details values are initialized to 0
+    */
+    __host__ __device__ inline
+    Vector3D() : x(0), y(0), z(0)
+    {}
+
+    /** \brief Constructor overload from float values*/
+    __host__ __device__ inline
+    Vector3D(float x, float y, float z) : x(x), y(y), z(z)
+    {}
+
+    /** \brief Constructor overload from array of floats*/
+    __host__ __device__ inline
+    Vector3D(float v[3]) : x(v[0]), y(v[1]), z(v[2])
+    {}
+
+    /** \brief Constructor overload from array of doubles*/
+    __host__ __device__ inline
+    Vector3D(double v[3]) : x(v[0]), y(v[1]), z(v[2])
+    {}
+
+    /** \brief Constructor overload from float3*/
+    __host__ __device__ inline
+    Vector3D(float3 f) : x(f.x), y(f.y), z(f.z)
+    {}
+
+    /** \brief Copy constructor */
+    __host__ __device__ inline
+    Vector3D(const Vector3D & v) : x(v.x), y(v.y), z(v.z)
+    {}
+
+    /** \brief Assignement operator */
+    __host__ __device__ inline
+    Vector3D& operator=(float3 f)
+    {
+        x = f.x;
+        y = f.y;
+        z = f.z;
+        return *this;
+    }
+
+    /** \brief Assignement operator */
+    __host__ __device__ inline
+    Vector3D& operator=(Vector3D & f)
+    {
+        if (this == &f) return *this;
+        x = f.x;
+        y = f.y;
+        z = f.z;
+        return *this;
+    }
+
+    /** \brief Typecast to float3 operator */
+    __host__ __device__ inline
+    operator float3() const
+    {
+        return make_float3(x, y, z);
+    }
+};
+
+/** @} */ // group vector
+
 #endif // STRUCTS_H
