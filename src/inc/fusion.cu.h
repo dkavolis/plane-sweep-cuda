@@ -38,7 +38,8 @@
  *  \details Signed distance is clamped to [-threshold,threshold] and divided by \a threshold before updating any histogram bins.
  */
 template<unsigned char _bins>
-void FusionUpdateHistogram(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R, const float3 & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+void FusionUpdateHistogram(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
+                           const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
 
 /**
  *  \brief Update primal variable \f$u\f$ and helper variable \f$v\f$ using histogram depthmap fusion algorithm
@@ -90,7 +91,9 @@ void FusionUpdateP(fusionData<_bins> * f, const double sigma, dim3 blocks, dim3 
  *  \details Signed distance is clamped to [-threshold,threshold] and divided by \a threshold before updating any histogram bins.
  */
 template<unsigned char _bins>
-void FusionUpdateIteration(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R, const float3 & t, const float threshold, const double tau, const double lambda, const double sigma, const int width, const int height, dim3 blocks, dim3 threads);
+void FusionUpdateIteration(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
+                           const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+                           const int width, const int height, dim3 blocks, dim3 threads);
 
 /** @} */ // group fusion
 

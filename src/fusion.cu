@@ -3,7 +3,7 @@
 
 template<unsigned char _bins>
 __global__ void FusionUpdateHistogram_kernel(fusionData<_bins> * f, const float * __restrict__ depthmap, const Matrix3D & K,
-                                             const Matrix3D & R, const float3 & t, const float threshold, const int width, const int height)
+                                             const Matrix3D & R, const Vector3D & t, const float threshold, const int width, const int height)
 {
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -88,13 +88,13 @@ void FusionUpdateP(fusionData<_bins> * f, const double sigma, dim3 blocks, dim3 
 
 template<unsigned char _bins>
 void FusionUpdateHistogram(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                           const float3 & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads)
+                           const Vector3D &t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads)
 {
     FusionUpdateHistogram_kernel<_bins><<<blocks, threads>>>(f, depthmap, K, R, t, threshold, width, height);
 }
 
 template<unsigned char _bins>
-void FusionUpdateIteration(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R, const float3 & t,
+void FusionUpdateIteration(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R, const Vector3D & t,
                            const float threshold, const double tau, const double lambda, const double sigma,
                            const int width, const int height, dim3 blocks, dim3 threads)
 {
