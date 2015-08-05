@@ -61,6 +61,12 @@ int PlaneSweep::cudaDevInit(int argc, const char **argv)
     checkCudaErrors(cudaSetDevice(dev));
 
     maxThreadsPerBlock = deviceProps.maxThreadsPerBlock;
+//    std::cerr << "Max pitch allowed = " << deviceProps.memPitch << std::endl;
+//    std::cerr << "Max grid dimensions: x = " << deviceProps.maxGridSize[0] << ", y = " << deviceProps.maxGridSize[1] << ", z = " <<
+//                 deviceProps.maxGridSize[2] << std::endl;
+//    std::cerr << "Max block dimensions: x = " << deviceProps.maxThreadsDim[0] << ", y = " << deviceProps.maxThreadsDim[1] << ", z = " <<
+//                 deviceProps.maxThreadsDim[2] << std::endl;
+//    std::cerr << "Warp size = " << deviceProps.warpSize << std::endl << std::endl;
 
     return dev;
 }
