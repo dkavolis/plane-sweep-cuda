@@ -25,7 +25,7 @@
  *  \details This class holds and implements some useful functions to work with depthmap fusion algorithm
  */
 template<unsigned char _histBins, MemoryKind memT = Device>
-class fusionData : public MemoryManagement<fusionvoxel<_histBins>, memT>
+class fusionData : public MemoryManagement<fusionvoxel<_histBins>, memT>, public Managed
 {
 public:
 
@@ -36,7 +36,7 @@ public:
      */
     __device__ __host__ inline
     fusionData() :
-        _w(0), _h(0), _d(0), _pitch(0), _spitch(0), _vol()
+        _w(0), _h(0), _d(0), _pitch(0), _spitch(0), _vol(), _own_data(true)
     {
         binParams();
     }
@@ -52,7 +52,7 @@ public:
      */
     __device__ __host__ inline
     fusionData(size_t w, size_t h, size_t d) :
-        _w(w), _h(h), _d(d), _vol()
+        _w(w), _h(h), _d(d), _vol(), _own_data(true)
     {
         binParams();
         Malloc(_voxel, _w, _h, _d, _pitch, _spitch);
@@ -71,7 +71,7 @@ public:
      */
     __device__ __host__ inline
     fusionData(size_t w, size_t h, size_t d, float3 x, float3 y) :
-        _w(w), _h(h), _d(d), _vol(Rectangle3D(x,y))
+        _w(w), _h(h), _d(d), _vol(Rectangle3D(x,y)), _own_data(true)
     {
         binParams();
         Malloc(_voxel, _w, _h, _d, _pitch, _spitch);
@@ -89,10 +89,18 @@ public:
      */
     __device__ __host__ inline
     fusionData(size_t w, size_t h, size_t d, Rectangle3D& vol) :
-        _w(w), _h(h), _d(d), _vol(vol)
+        _w(w), _h(h), _d(d), _vol(vol), _own_data(true)
     {
         binParams();
         Malloc(_voxel, _w, _h, _d, _pitch, _spitch);
+    }
+
+    __device__ __host__ inline
+    fusionData(fusionData<_histBins, memT> & fd) :
+        _w(fd.width()), _h(fd.height()), _d(fd.depth()), _pitch(fd.pitch()),
+        _spitch(fd.slicePitch()), _vol(fd.volume()), _voxel(fd.voxelPtr()), _own_data(false)
+    {
+        binParams();
     }
 
     /**
@@ -103,7 +111,7 @@ public:
     __device__ __host__ inline
     ~fusionData()
     {
-        CleanUp(_voxel);
+        if (_own_data) CleanUp(_voxel);
     }
 
     // Getters:
@@ -165,7 +173,7 @@ public:
      *  \details
      */
     __device__ __host__ inline
-    const unsigned char bins(){ return _histBins; }
+    unsigned char bins(){ return _histBins; }
 
     /**
      *  \brief Get bounding volume rectangle in world coordinates
@@ -289,7 +297,7 @@ public:
     __device__ __host__ inline
     float& u(int nx = 0, int ny = 0, int nz = 0)
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].u;
+        return Get(nx, ny, nz).u;
     }
 
     /**
@@ -305,7 +313,7 @@ public:
     __device__ __host__ inline
     const float& u(int nx = 0, int ny = 0, int nz = 0) const
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].u;
+        return Get(nx, ny, nz).u;
     }
 
     /**
@@ -321,7 +329,7 @@ public:
     __device__ __host__ inline
     float& v(int nx = 0, int ny = 0, int nz = 0)
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].v;
+        return Get(nx, ny, nz).v;
     }
 
     /**
@@ -337,7 +345,7 @@ public:
     __device__ __host__ inline
     const float& v(int nx = 0, int ny = 0, int nz = 0) const
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].v;
+        return Get(nx, ny, nz).v;
     }
 
     /**
@@ -353,7 +361,7 @@ public:
     __device__ __host__ inline
     float3& p(int nx = 0, int ny = 0, int nz = 0)
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].p;
+        return Get(nx, ny, nz).p;
     }
 
     /**
@@ -369,7 +377,7 @@ public:
     __device__ __host__ inline
     const float3& p(int nx = 0, int ny = 0, int nz = 0) const
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].p;
+        return Get(nx, ny, nz).p;
     }
 
     /**
@@ -385,7 +393,7 @@ public:
     __device__ __host__ inline
     histogram<_histBins>& h(int nx = 0, int ny = 0, int nz = 0)
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].h;
+        return Get(nx, ny, nz).h;
     }
 
     /**
@@ -401,39 +409,95 @@ public:
     __device__ __host__ inline
     const histogram<_histBins>& h(int nx = 0, int ny = 0, int nz = 0) const
     {
-        return _voxel[nx+ny*_w+nz*_w*_h].h;
+        return Get(nx, ny, nz).h;
     }
 
-    /**
-    *  \brief Pointer to fusionvoxel element
-    *
-    *  \param nx voxel x index
-    *  \param ny voxel y index
-    *  \param nz voxel z index
-    *  \return Pointer to fusionvoxel element
-    *
-    *  \details
-    */
     __device__ __host__ inline
-    fusionvoxel<_histBins> * voxelPtr(int nx = 0, int ny = 0, int nz = 0)
+    const fusionvoxel<_histBins> * voxelPtr(size_t nz = 0) const
     {
-        return &_voxel[nx+ny*_w+nz*_w*_h];
+        return (fusionvoxel<_histBins> *)((unsigned char*)(_voxel) + nz*_spitch);
     }
 
-    /**
-    *  \brief Constant pointer to fusionvoxel element
-    *
-    *  \param nx voxel x index
-    *  \param ny voxel y index
-    *  \param nz voxel z index
-    *  \return Constant pointer to fusionvoxel element
-    *
-    *  \details
-    */
     __device__ __host__ inline
-    const fusionvoxel<_histBins> * voxelPtr(int nx = 0, int ny = 0, int nz = 0) const
+    fusionvoxel<_histBins> * voxelPtr(size_t nz = 0)
     {
-        return &_voxel[nx+ny*_w+nz*_w*_h];
+        return (fusionvoxel<_histBins> *)((unsigned char*)(_voxel) + nz*_spitch);
+    }
+
+    __device__ __host__ inline
+    fusionvoxel<_histBins> * voxelRowPtr(size_t ny = 0, size_t nz = 0)
+    {
+        return (fusionvoxel<_histBins> *)((unsigned char*)(_voxel) + nz*_spitch + ny*_pitch);
+    }
+
+    __device__ __host__ inline
+    const fusionvoxel<_histBins> * voxelRowPtr(size_t ny = 0, size_t nz = 0) const
+    {
+        return (fusionvoxel<_histBins> *)((unsigned char*)(_voxel) + nz*_spitch + ny*_pitch);
+    }
+
+    __device__ __host__ inline
+    fusionvoxel<_histBins> & operator()(size_t nx = 0, size_t ny = 0, size_t nz = 0)
+    {
+        return voxelRowPtr(ny,nz)[nx];
+    }
+
+    __device__ __host__ inline
+    const fusionvoxel<_histBins> & operator()(size_t nx = 0, size_t ny = 0, size_t nz = 0) const
+    {
+        return voxelRowPtr(ny,nz)[nx];
+    }
+
+    __device__ __host__ inline
+    fusionvoxel<_histBins> & operator[](size_t ix)
+    {
+        return _voxel[ix];
+    }
+
+    __device__ __host__ inline
+    const fusionvoxel<_histBins> & operator[](size_t ix) const
+    {
+        return _voxel[ix];
+    }
+
+    __device__ __host__ inline
+    fusionvoxel<_histBins> & Get(int nx, int ny, int nz)
+    {
+        return voxelRowPtr(ny,nz)[nx];
+    }
+
+    __device__ __host__ inline
+    const fusionvoxel<_histBins> & Get(int nx, int ny, int nz) const
+    {
+        return voxelRowPtr(ny,nz)[nx];
+    }
+
+    __device__ __host__ inline
+    fusionvoxel<_histBins> & Get(int3 p)
+    {
+        return voxelRowPtr(p.y,p.z)[p.x];
+    }
+
+    __device__ __host__ inline
+    const fusionvoxel<_histBins> & Get(int3 p) const
+    {
+        return voxelRowPtr(p.y,p.z)[p.x];
+    }
+
+    __device__ __host__ inline
+    fusionData<_histBins, memT>& operator=(fusionData<_histBins, memT> & fd)
+    {
+        if (this == &fd) return *this;
+        _voxel = fd.voxelPtr();
+        _w = fd.width();
+        _h = fd.height();
+        _d = fd.depth();
+        _pitch = fd.pitch();
+        _spitch = fd.slicePitch();
+        _vol = fd.volume();
+        binParams();
+        _own_data = false;
+        return *this;
     }
 
     // Get bin parameters:
@@ -451,6 +515,9 @@ public:
         if (binindex < _histBins) return _bincenters[binindex];
         else return 0.f;
     }
+
+    __device__ __host__ inline
+    const double * binCenters(){ return &_bincenters[0]; }
 
     /**
      *  \brief Get distance between histogram centers
@@ -670,7 +737,7 @@ public:
     {
         if (memT == Device) return Device2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == Managed) return Device2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
+        if (memT == MemoryKind::Managed) return Device2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
 #endif // CUDA_VERSION_MAJOR >= 6
         return Host2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
     }
@@ -706,20 +773,16 @@ protected:
     */
     size_t _d;
 
-    /**
-    *  \brief Step size in bytes of voxel data
-    */
+    /** \brief Step size in bytes of voxel data */
     size_t _pitch;
 
-    /**
-    *  \brief Slice size in bytes of voxel data
-    */
+    /** \brief Slice size in bytes of voxel data */
     size_t _spitch;
 
-    /**
-    *  \brief Bounding rectangle in world coordinates
-    */
+    /** \brief Bounding rectangle in world coordinates */
     Rectangle3D _vol;
+
+    bool _own_data = true;
 
     /**
      *  \brief Calculate and set histogram bin parameters
@@ -732,12 +795,18 @@ protected:
     void binParams()
     {
         // index = 0 bin is reserved for occluded voxel (signed distance < -1)
-        // index = _histBins - 1 is reserced for empty voxel (signed distance > 1)
+        // index = _histBins - 1 is reserved for empty voxel (signed distance > 1)
         // other bins store signed distance values in the range (-1; 1)
         _bincenters[0] = -1.f;
         _bincenters[_histBins - 1] = 1.f;
-        for (unsigned char i = 1; i < _histBins - 1; i++) _bincenters[i] = 2.f * float(i - 1) / float(_histBins - 3) - 1.f;
-        _binstep = 2 / float(_histBins - 3);
+        if (_histBins > 3){
+            for (unsigned char i = 1; i < _histBins - 1; i++) _bincenters[i] = 2.f * float(i - 1) / float(_histBins - 3) - 1.f;
+            _binstep = 2 / float(bins() - 3);
+        }
+        else {
+            if (_histBins == 3) _bincenters[1] = 0.f;
+            _binstep = 0.f;
+        }
     }
 };
 
