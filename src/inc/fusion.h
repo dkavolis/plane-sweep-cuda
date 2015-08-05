@@ -742,7 +742,7 @@ public:
         return Host2HostCopy(data, npitch, _voxel, _pitch, _w, _h, _d);
     }
 
-public:
+protected:
     /**
     *  \brief Pointer to stored voxel data
     */
