@@ -488,6 +488,7 @@ public:
     fusionData<_histBins, memT>& operator=(fusionData<_histBins, memT> & fd)
     {
         if (this == &fd) return *this;
+        if (_own_data) CleanUp(_voxel);
         _voxel = fd.voxelPtr();
         _w = fd.width();
         _h = fd.height();
