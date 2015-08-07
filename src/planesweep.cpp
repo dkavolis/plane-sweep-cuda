@@ -226,7 +226,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cout << "Time taken for the algorithm to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return true;
 
     }
@@ -244,7 +244,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cerr << "Caught system error with code " << e.code()
                   << " meaning " << e.what() << '\n';
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return false;
     }
     catch(const std::exception& e)
@@ -253,7 +253,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cerr << e.what() << std::endl;
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return false;
     }
     catch (...)
@@ -261,7 +261,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return false;
     }
     return false;
@@ -397,7 +397,7 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return;
     }
 }
@@ -466,7 +466,7 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
 
         //-----------------------------------------------------
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return;
 
     }
@@ -484,7 +484,7 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return;
 
     }
@@ -683,7 +683,7 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         std::cout << "Time taken for the TVL1 denoising to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return true;
 
     }
@@ -701,7 +701,7 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return false;
 
     }
@@ -897,7 +897,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         std::cout << "Time taken for the TGV to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-        NPP_CHECK_CUDA(cudaDeviceReset());
+        //NPP_CHECK_CUDA(cudaDeviceReset());
         return true;
 
     }
@@ -915,7 +915,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        //cudaDeviceReset();
         return false;
 
     }
