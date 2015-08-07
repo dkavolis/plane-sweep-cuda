@@ -34,7 +34,7 @@ typedef unsigned int uint;
 * Bin signed distance can be calculated as \f$2 \frac{index}{nBins - 3} - 1\f$.
 */
 template<unsigned char _nBins>
-struct histogram : public Managed
+struct histogram : public Manage
 {
     /**
          *  \brief Array of bins
@@ -118,7 +118,7 @@ struct histogram : public Managed
 *  \details
 */
 template<unsigned char _nBins>
-struct fusionvoxel : public Managed
+struct fusionvoxel : public Manage
 {
     /**
          *  \brief Primal variable \f$u\f$
@@ -194,7 +194,7 @@ struct fusionvoxel : public Managed
 *  \details
 */
 template<unsigned char _nBins>
-struct sortedHist : public Managed
+struct sortedHist : public Manage
 {
     /**
          *  \brief Array of elements
@@ -283,7 +283,7 @@ struct sortedHist : public Managed
 /**
 *  \brief Simple struct to hold coordinates of volume rectangle
 */
-struct Rectangle3D : public Managed
+struct Rectangle3D : public Manage
 {
     /**
          *  \brief Corner of rectangle
@@ -346,7 +346,7 @@ struct Rectangle3D : public Managed
      *  \brief Assignment operator
      */
     __host__ __device__ inline
-    Rectangle3D& operator=(Rectangle3D & r)
+    Rectangle3D& operator=(const Rectangle3D & r)
     {
         if (this == &r) return *this;
         a = r.a;
@@ -368,7 +368,7 @@ struct Rectangle3D : public Managed
 *  \details Useful for storing and performing operations with \f$R\f$ and \f$K\f$ matrices.
 * Host operators are overloaded to work with \a boost \a matrix.
 */
-struct Matrix3D : public Managed
+struct Matrix3D : public Manage
 {
     /**
          *  \brief Row vectors
@@ -809,7 +809,7 @@ struct Matrix3D : public Managed
 */
 
 /** \brief 3D vector structure */
-struct Vector3D : public Managed
+struct Vector3D : public Manage
 {
     float x, y, z;
 

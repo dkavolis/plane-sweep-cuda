@@ -18,7 +18,7 @@
 /**
  *  \brief Enum for indicating memory location
  */
-enum MemoryKind {
+typedef enum MemoryKind{
 #if CUDA_VERSION_MAJOR >= 6
     Standard,
     Host,
@@ -29,7 +29,7 @@ enum MemoryKind {
     Host,
     Device
 #endif // CUDA_VERSION_MAJOR >= 6
-};
+}  MemoryKind;
 
 
 /**
@@ -42,7 +42,7 @@ enum MemoryKind {
  * \a cudaDeviceSynchronize() before accessing it. Only works with \a CUDA
  * libraries of major version 6 or greater.
  */
-class Managed {
+class Manage {
 public:
 #if CUDA_VERSION_MAJOR >= 6
     /**
@@ -50,7 +50,7 @@ public:
      */
     void *operator new(size_t len) {
         void *ptr;
-        cudaMallocManaged(&ptr, len, cudaMemAttachGlobal);
+        cudaMallocManaged((void **)&ptr, len, cudaMemAttachGlobal);
         return ptr;
     }
 
@@ -108,11 +108,11 @@ public:
             ptr = new T[len];
             return cudaSuccess;
         }
-        if (memT == Device) return cudaMalloc(&ptr, len * sizeof(T));
+        if (memT == Device) return cudaMalloc((void **)&ptr, len * sizeof(T));
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) return cudaMallocManaged(&ptr, len * sizeof(T), cudaMemAttachGlobal);
+        if (memT == MemoryKind::Managed) return cudaMallocManaged((void **)&ptr, len * sizeof(T), cudaMemAttachGlobal);
 #endif
-        return cudaMallocHost(&ptr, len * sizeof(T));
+        return cudaMallocHost((void **)&ptr, len * sizeof(T));
     }
 
     /**
@@ -129,16 +129,16 @@ public:
     __host__ inline
     static cudaError_t Malloc(T *&ptr, size_t w, size_t h, size_t &pitch)
     {
-        if (memT == Device) return cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h);
+        if (memT == Device) return cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h);
         pitch = w * sizeof(T);
         if (memT == Standard) {
             ptr = new T[w * h];
             return cudaSuccess;
         }
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) return cudaMallocManaged(&ptr, pitch * h, cudaMemAttachGlobal);
+        if (memT == MemoryKind::Managed) return cudaMallocManaged((void **)&ptr, pitch * h, cudaMemAttachGlobal);
 #endif
-        return cudaMallocHost(&ptr, pitch * h);
+        return cudaMallocHost((void **)&ptr, pitch * h);
     }
 
     /**
@@ -158,16 +158,16 @@ public:
     static cudaError_t Malloc(T *&ptr, size_t w, size_t h, size_t d, size_t &pitch, size_t &spitch)
     {
         cudaError_t err;
-        if (memT == Device) err = cudaMallocPitch(&ptr, &pitch, w * sizeof(T), h * d);
+        if (memT == Device) err = cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h * d);
         pitch = w * sizeof(T);
         if (memT == Standard) {
             ptr = new T[w*h*d];
             err = cudaSuccess;
         }
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) err = cudaMallocManaged(&ptr, pitch * h * d, cudaMemAttachGlobal);
+        if (memT == MemoryKind::Managed) err = cudaMallocManaged((void **)&ptr, pitch * h * d, cudaMemAttachGlobal);
 #endif
-        if (memT == Host) err = cudaMallocHost(&ptr, pitch * h * d);
+        if (memT == Host) err = cudaMallocHost((void **)&ptr, pitch * h * d);
         spitch = h * pitch;
         return err;
     }
