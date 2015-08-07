@@ -23,6 +23,7 @@ include(${VTK_USE_FILE})
 
 find_package(CUDA REQUIRED)
 add_definitions(-DCUDA_VERSION_MAJOR=${CUDA_VERSION_MAJOR})
+SET(CUDA_NVCC_FLAGS -DCUDA_VERSION_MAJOR=${CUDA_VERSION_MAJOR})
 
 # includes from CUDA samples:
 include_directories(
