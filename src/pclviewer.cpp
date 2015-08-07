@@ -4,9 +4,6 @@
 #include "pclviewer.h"
 #include "ui_pclviewer.h"
 #include <iostream>
-#include <QDir>
-#include <QByteArray>
-#include <QBuffer>
 #include <boost/numeric/ublas/assignment.hpp>
 #include <boost/numeric/ublas/io.hpp>
 #include <QPixmap>
@@ -18,6 +15,7 @@
 #include <QMessageBox>
 #include <cmath>
 #include <pcl/io/pcd_io.h>
+#include <chrono>
 
 PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     QMainWindow (parent),
@@ -27,7 +25,8 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     dendepthsc (new QGraphicsScene()),
     tgvscene (new QGraphicsScene()),
     ps(argc, argv),
-    fd(448, 336, 160)
+    fd(448, 336, 160),
+    f(448, 336, 160)
 {
     std::cerr << "Size of fusion data = " << fd.sizeMBytes() << "MB\n";
 
@@ -153,8 +152,8 @@ PCLViewer::pSliderValueChanged (int value)
 
 void PCLViewer::LoadImages()
 {
-    QString loc = "/../src/PlaneSweep/im";
-    QString ref = QDir::currentPath();
+    QString loc = "/PlaneSweep/im";
+    QString ref = SOURCE_DIR;
     ref += loc;
     ref += QString::number(0);
     ref += ".png";
@@ -516,6 +515,7 @@ void PCLViewer::on_imageNameButton_clicked()
                                                 loc,
                                                 tr("Images (*.png *.xpm *.jpg *.jpeg *.bmp *.dds *.mng *.tga *.tiff)"));
 
+    if (name.isEmpty()) return;
     // Find the last forward slash, meaning end directory path
     int i = name.lastIndexOf('/');
 
@@ -903,63 +903,74 @@ void PCLViewer::on_tvl1_gamma_valueChanged(double arg1)
 
 void PCLViewer::on_reconstruct_button_clicked()
 {
-    Rectangle3D volm;
-    volm.a = make_float3(0,0,0);
-    volm.b = make_float3(5.5,3,9);
+    Rectangle3D volm(make_float3(0,0,0), make_float3(5.5,3,9));
     volm = volm - volm.size()/2.f + make_float3(0.04, 1.4, -.3);
     fd.setVolume(volm);
     float * ptr;
-    Matrix3D &K = *(new Matrix3D);
+
+    Matrix3D * K = new Matrix3D;
     double k[3][3], t[3];
     ps.getK(k);
-    K = k;
-    Matrix3D &R = *(new Matrix3D);
-    Vector3D &T = *(new Vector3D);
-    R = k;
+    *K = k;
+    Matrix3D * R = new Matrix3D;
+    Vector3D * T = new Vector3D;
     ublas::matrix<double> rrel(3,3), trel(3,1), I(3,3), tm(3,1);
     I <<=   1.f, 0.f, 0.f,
             0.f, 1.f, 0.f,
             0.f, 0.f, 1.f;
     tm <<=  0.f, 0.f, 0.f;
-    dim3 threads(16, 16, 1024/16/16);
-    dim3 blocks(ceil((float)fd.width()/(float)threads.x), ceil((float)fd.height()/(float)threads.y), ceil((float)fd.depth()/(float)threads.z));
-    for (int i = 0; i < 1; i++){
+    dim3 threads(32, 32);
+    dim3 blocks(448*14);
+    blocks.y = ceil(fd.elements() / blocks.x);
+    auto fusionptr = fd.toDevice();
+    for (int i = 0; i < 5; i++){
+        auto t1 = std::chrono::high_resolution_clock::now();
+
         ui->refNumber->setValue(ui->refNumber->value() + 5);
         on_loadfromdir_clicked();
         checkCudaErrors(cudaDeviceSynchronize());
         ps.RelativeMatrices(rrel, trel, I, tm, ps.HostRef.R, ps.HostRef.t); // from world to ref
         ps.matrixToArray(k, rrel);
         ps.TmatrixToArray(t, trel);
-        R = k;
-        T = t;
-        ps.RunAlgorithm(argc, argv);
-        checkCudaErrors(cudaPeekAtLastError());
+        *R = k;
+        *T = t;
         ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value(), ui->tvl1_tau->value(),
                        ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value());
-        checkCudaErrors(cudaPeekAtLastError());
         ptr = ps.getDepthmapDenoisedPtr();
-        FusionUpdateIteration<8>(&fd, ptr, K, R, t, 0.05, 0.16, 0.5, 1, ps.HostRef.width, ps.HostRef.height, blocks, threads);
-        checkCudaErrors(cudaPeekAtLastError());
+        // problems happen when a kernel attemps to write anything to voxel data pointer, reading is fine
+        FusionUpdateIteration<8>(fusionptr, ptr, K, R, T, 0.05, 0.16, 0.5, 1, ps.HostRef.width, ps.HostRef.height, blocks, threads);
+
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::cerr << "Time of 1 fusion iteration: " <<
+                     std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
     }
-    clouddenoised.reset();
-    float3 c;
-    PointT p;
-    fusionData8 f(fd.width(), fd.height(), fd.depth(), fd.volume());
-    checkCudaErrors(MemoryManagement<fusionvoxel<8>>::Device2HostCopy(f.voxelPtr(), f.pitch(), fd.voxelPtr(), fd.pitch(), fd.width(), fd.height(), fd.depth()));
-    for (int z = 0; z < fd.depth(); z++)
-        for (int y = 0; y < fd.height(); y++)
-            for (int x = 0; x < fd.width(); x++)
-            {
-                if (f.u(x,y,z) <= 0.1){
-                    c = fd.worldCoords(x,y,z);
-                    p.x = c.x; p.y = c.y; p.z = c.z;
-                    p.r = 128; p.g = 128; p.b = 128;
-                    clouddenoised->points.push_back(p);
-                }
-            }
-    clouddenoised->width = 1;
-    clouddenoised->height = clouddenoised->points.size();
-    viewerdenoised->updatePointCloud(clouddenoised, "cloud");
-    viewerdenoised->resetCamera();
-    ui->qvtkDenoised->update();
+
+    // below works
+//    clouddenoised->points.resize(fd.elements());
+//    size_t voxels = 0;
+//    float3 c;
+
+//    checkCudaErrors(fd.copyTo(f.voxelPtr(), f.pitch()));
+//    for (int z = 0; z < fd.depth(); z++)
+//        for (int y = 0; y < fd.height(); y++)
+//            for (int x = 0; x < fd.width(); x++)
+//            {
+//                if (f.u(x,y,z) <= 0.1){
+//                    c = fd.worldCoords(x,y,z);
+//                    clouddenoised->points[voxels].x = c.x;
+//                    clouddenoised->points[voxels].y = c.y;
+//                    clouddenoised->points[voxels].z = c.z;
+//                    clouddenoised->points[voxels].r = 128;
+//                    clouddenoised->points[voxels].g = 128;
+//                    clouddenoised->points[voxels].b = 128;
+//                    voxels++;
+//                }
+//            }
+//    clouddenoised->points.resize(voxels);
+//    clouddenoised->width = 1;
+//    clouddenoised->height = voxels;
+//    viewerdenoised->updatePointCloud(clouddenoised, "cloud");
+//    viewerdenoised->resetCamera();
+//    ui->qvtkDenoised->update();
+    cudaFree(fusionptr);
 }

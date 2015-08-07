@@ -105,6 +105,7 @@ protected:
     // classes that implement 3d reconstruction methods
     PlaneSweep ps;
     dfusionData8 fd;
+    fusionData<8, Standard> f;
 
 private slots: // GUI widget slots
     void pSliderValueChanged (int value);
