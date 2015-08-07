@@ -38,8 +38,8 @@
  *  \details Signed distance is clamped to [-threshold,threshold] and divided by \a threshold before updating any histogram bins.
  */
 template<unsigned char _bins>
-void FusionUpdateHistogram(fusionData<_bins> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                           const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+void FusionUpdateHistogram(fusionData<_bins> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                           const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
 
 /**
  *  \brief Update primal variable \f$u\f$ and helper variable \f$v\f$ using histogram depthmap fusion algorithm
@@ -91,46 +91,46 @@ void FusionUpdateP(fusionData<_bins> * f, const double sigma, dim3 blocks, dim3 
  *  \details Signed distance is clamped to [-threshold,threshold] and divided by \a threshold before updating any histogram bins.
  */
 template<unsigned char _bins>
-void FusionUpdateIteration(fusionData<_bins, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                           const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+void FusionUpdateIteration(fusionData<_bins, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                           const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                            const int width, const int height, dim3 blocks, dim3 threads);
 
 // Explicit template instantiations
 template void
-FusionUpdateIteration<2>(fusionData<2, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<2>(fusionData<2, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<3>(fusionData<3, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<3>(fusionData<3, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<4>(fusionData<4, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<4>(fusionData<4, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<5>(fusionData<5, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<5>(fusionData<5, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<6>(fusionData<6, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<6>(fusionData<6, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<7>(fusionData<7, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<7>(fusionData<7, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<8>(fusionData<8, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<8>(fusionData<8, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<9>(fusionData<9, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                         const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<9>(fusionData<9, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                         const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                          const int width, const int height, dim3 blocks, dim3 threads);
 template void
-FusionUpdateIteration<10>(fusionData<10, Device> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                          const Vector3D & t, const float threshold, const double tau, const double lambda, const double sigma,
+FusionUpdateIteration<10>(fusionData<10, Device> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                          const Vector3D * t, const float threshold, const double tau, const double lambda, const double sigma,
                           const int width, const int height, dim3 blocks, dim3 threads);
 
 template void FusionUpdateP<2>(fusionData<2> * f, const double sigma, dim3 blocks, dim3 threads);
@@ -153,24 +153,24 @@ template void FusionUpdateU<8>(fusionData<8> * f, const double tau, const double
 template void FusionUpdateU<9>(fusionData<9> * f, const double tau, const double lambda, dim3 blocks, dim3 threads);
 template void FusionUpdateU<10>(fusionData<10> * f, const double tau, const double lambda, dim3 blocks, dim3 threads);
 
-template void FusionUpdateHistogram<2>(fusionData<2> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                      const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<3>(fusionData<3> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                       const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<4>(fusionData<4> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                       const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<5>(fusionData<5> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                       const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<6>(fusionData<6> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                       const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<7>(fusionData<7> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                       const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<8>(fusionData<8> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                       const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<9>(fusionData<9> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                       const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
-template void FusionUpdateHistogram<10>(fusionData<10> * f, const float * depthmap, const Matrix3D & K, const Matrix3D & R,
-                                        const Vector3D & t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<2>(fusionData<2> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                      const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<3>(fusionData<3> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                       const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<4>(fusionData<4> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                       const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<5>(fusionData<5> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                       const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<6>(fusionData<6> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                       const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<7>(fusionData<7> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                       const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<8>(fusionData<8> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                       const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<9>(fusionData<9> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                       const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
+template void FusionUpdateHistogram<10>(fusionData<10> * f, const float * depthmap, const Matrix3D * K, const Matrix3D * R,
+                                        const Vector3D * t, const float threshold, const int width, const int height, dim3 blocks, dim3 threads);
 /** @} */ // group fusion
 
 #endif // FUSION_CU_H
