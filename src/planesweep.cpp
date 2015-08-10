@@ -210,7 +210,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
 
         // Copy depthmap to host
         devDepthmap.copyTo(depthmap.data, depthmap.pitch);
-//        ConvertDepthtoUChar(depthmap, depthmap8u);
+        ConvertDepthtoUChar(depthmap, depthmap8u);
         depthavailable = true;
 
         // Free up resources
@@ -658,8 +658,8 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         element_scale(d_depthmap, (zfar - znear), w, h, blocks, threads);
         element_add(d_depthmap, znear, w, h, blocks, threads);
 
-//        NPP_CHECK_CUDA(cudaMemcpy2D(depthmapdenoised.data, depthmapdenoised.pitch, d_depthmap, pitch, w * sizeof(float), h, cudaMemcpyDeviceToHost));
-//        ConvertDepthtoUChar(depthmapdenoised, depthmap8udenoised);
+        NPP_CHECK_CUDA(cudaMemcpy2D(depthmapdenoised.data, depthmapdenoised.pitch, d_depthmap, pitch, w * sizeof(float), h, cudaMemcpyDeviceToHost));
+        ConvertDepthtoUChar(depthmapdenoised, depthmap8udenoised);
 
 
         nppiFree(R.data());
