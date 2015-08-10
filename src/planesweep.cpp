@@ -56,7 +56,7 @@ int PlaneSweep::cudaDevInit(int argc, const char **argv)
 
     cudaDeviceProp deviceProps;
     cudaGetDeviceProperties(&deviceProps, dev);
-    std::cerr << "cudaSetDevice GPU" << dev << " = " << deviceProps.name << std::endl;
+//    std::cerr << "cudaSetDevice GPU" << dev << " = " << deviceProps.name << std::endl;
 
     checkCudaErrors(cudaSetDevice(dev));
 
@@ -75,14 +75,14 @@ bool PlaneSweep::printfNPPinfo()
 {
     const NppLibraryVersion *libVer   = nppGetLibVersion();
 
-    printf("NPP Library Version %d.%d.%d\n", libVer->major, libVer->minor, libVer->build);
+//    printf("NPP Library Version %d.%d.%d\n", libVer->major, libVer->minor, libVer->build);
 
     int driverVersion, runtimeVersion;
     cudaDriverGetVersion(&driverVersion);
     cudaRuntimeGetVersion(&runtimeVersion);
 
-    printf("  CUDA Driver  Version: %d.%d\n", driverVersion/1000, (driverVersion%100)/10);
-    printf("  CUDA Runtime Version: %d.%d\n", runtimeVersion/1000, (runtimeVersion%100)/10);
+//    printf("  CUDA Driver  Version: %d.%d\n", driverVersion/1000, (driverVersion%100)/10);
+//    printf("  CUDA Runtime Version: %d.%d\n", runtimeVersion/1000, (runtimeVersion%100)/10);
 
     // Min spec is SM 1.0 devices
     bool Val = checkCudaCapabilities(1, 0);
@@ -90,7 +90,8 @@ bool PlaneSweep::printfNPPinfo()
 }
 
 PlaneSweep::PlaneSweep() :
-    threads(dim3 (DEFAULT_BLOCK_XDIM))
+    threads(dim3 (DEFAULT_BLOCK_XDIM)),
+    d_depthmap(0)
 {
     K.resize(3,3);
     invK.resize(3,3);
@@ -102,7 +103,8 @@ PlaneSweep::PlaneSweep() :
     n(2,0) = 1;
 }
 
-PlaneSweep::PlaneSweep(int argc, char **argv)
+PlaneSweep::PlaneSweep(int argc, char **argv) :
+    d_depthmap(0)
 {
     K.resize(3,3);
     invK.resize(3,3);
@@ -115,7 +117,7 @@ PlaneSweep::PlaneSweep(int argc, char **argv)
 
     cudaDevInit(argc, (const char **)argv);
     threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
-    cudaDeviceReset();
+    cudaReset();
 }
 
 bool PlaneSweep::RunAlgorithm(int argc, char **argv)
@@ -126,7 +128,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
 
     depthmap.setSize(HostRef.width, HostRef.height);
     depthmap.channels = 1;
-    //depthmap8u.setSize(HostRef.width, HostRef.height);
 
     printf("Starting plane sweep algorithm...\n\n");
 
@@ -134,13 +135,13 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
     {
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
         {
-            cudaDeviceReset();
+            cudaReset();
             return false;
         }
 
         if (printfNPPinfo() == false)
         {
-            cudaDeviceReset();
+            cudaReset();
             return false;
         }
 
@@ -203,13 +204,13 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         set_QNAN_value(devDepthmap.data(), zfar, imSize.width, imSize.height, blocks, threads);
 
         // Check for kernel errors
+        cudaError_t err = cudaPeekAtLastError();
+        if (err != cudaSuccess) std::cerr << cudaGetErrorString(err) << std::endl;
         NPP_CHECK_CUDA(cudaPeekAtLastError());
 
         // Copy depthmap to host
         devDepthmap.copyTo(depthmap.data, depthmap.pitch);
-        //convert_float_to_uchar(devN8u.data(), devDepthmap.data(), znear, zfar, imSize.width, imSize.height, blocks, threads);
-        //devN8u.copyTo(depthmap8u.data, depthmap8u.pitch);
-        ConvertDepthtoUChar(depthmap, depthmap8u);
+//        ConvertDepthtoUChar(depthmap, depthmap8u);
         depthavailable = true;
 
         // Free up resources
@@ -226,7 +227,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cout << "Time taken for the algorithm to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-        //cudaDeviceReset();
         return true;
 
     }
@@ -236,7 +236,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cerr << rExcep << std::endl;
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        cudaReset();
         return false;
     }
     catch(const std::system_error& e)
@@ -244,7 +244,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cerr << "Caught system error with code " << e.code()
                   << " meaning " << e.what() << '\n';
 
-        //cudaDeviceReset();
         return false;
     }
     catch(const std::exception& e)
@@ -253,7 +252,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cerr << e.what() << std::endl;
         std::cerr << "Aborting." << std::endl;
 
-        //cudaDeviceReset();
         return false;
     }
     catch (...)
@@ -261,7 +259,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        //cudaDeviceReset();
         return false;
     }
     return false;
@@ -389,7 +386,7 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
         std::cerr << rExcep << std::endl;
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        cudaReset();
         return;
     }
     catch (...)
@@ -397,7 +394,6 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        //cudaDeviceReset();
         return;
     }
 }
@@ -412,13 +408,13 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
 
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
         {
-            cudaDeviceReset();
+            cudaReset();
             return;
         }
 
         if (printfNPPinfo() == false)
         {
-            cudaDeviceReset();
+            cudaReset();
             return;
         }
         // Algorithm here:-------------------------------------
@@ -466,7 +462,6 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
 
         //-----------------------------------------------------
 
-        //cudaDeviceReset();
         return;
 
     }
@@ -476,7 +471,7 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
         std::cerr << rExcep << std::endl;
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        cudaReset();
         return;
     }
     catch (...)
@@ -484,9 +479,7 @@ void PlaneSweep::Convert8uTo32f(int argc, char **argv)
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        //cudaDeviceReset();
         return;
-
     }
 }
 
@@ -537,7 +530,6 @@ void PlaneSweep::ConvertDepthtoUChar(const camImage<float>& input, camImage<ucha
             // Check if QNAN
             if (input.data[i] == input.data[i]) output.data[i] = uchar(UCHAR_MAX * std::min(std::max((input.data[i] - znear) / (zfar - znear), 0.f), 1.f));
             else output.data[i] = UCHAR_MAX;
-            //std::cout << (float)input.data[i] << " ";
         }
 }
 
@@ -589,8 +581,7 @@ void PlaneSweep::CmatrixToRT(ublas::matrix<double> &C, ublas::matrix<double> &R,
 
 PlaneSweep::~PlaneSweep()
 {
-    nppiFree(d_depthmap);
-    cudaDeviceReset();
+    cudaReset();
 }
 
 void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output)
@@ -610,18 +601,22 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
 
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
         {
-            cudaDeviceReset();
+            cudaReset();
             return false;
         }
 
         if (printfNPPinfo() == false)
         {
-            cudaDeviceReset();
+            cudaReset();
             return false;
         }
-        nppiFree(d_depthmap);
 
         int h = depthmap.height, w = depthmap.width;
+        cudaError_t err = cudaFree(d_depthmap);
+        if (err != cudaSuccess) std::cerr << cudaGetErrorString(err) << std::endl;
+        NPP_CHECK_CUDA(err);
+        size_t pitch;
+        NPP_CHECK_CUDA(cudaMallocPitch(&d_depthmap, &pitch, w * sizeof(float), h));
 
         if (threads.x * threads.y == 0) threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
         blocks = dim3(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
@@ -629,7 +624,6 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         depthmapdenoised.setSize(w, h);
         depthmap8udenoised.setSize(w, h);
 
-        npp::ImageNPP_32f_C1 X(w, h);
         npp::ImageNPP_32f_C1 R(w, h);
         npp::ImageNPP_32f_C1 Px(w,h);
         npp::ImageNPP_32f_C1 Py(w,h);
@@ -637,38 +631,37 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         npp::ImageNPP_32f_C1 T11(w,h), T12(w,h), T21(w,h), T22(w,h), ref(w,h);
 
         ref.copyFrom(HostRef.data, HostRef.pitch);
-        X.copyFrom(depthmap.data, depthmap.pitch);
+        NPP_CHECK_CUDA(cudaMemcpy2D(d_depthmap, pitch, depthmap.data, depthmap.pitch, w * sizeof(float), h, cudaMemcpyHostToDevice));
         rawInput.copyFrom(depthmap.data, depthmap.pitch);
 
         element_scale(ref.data(), 1/255.f, w, h, blocks, threads);
         Anisotropic_diffusion_tensor(T11.data(), T12.data(), T21.data(), T22.data(), ref.data(), beta, gamma, w, h, blocks, threads);
 
-        element_add(X.data(), -znear, w, h, blocks, threads);
+        element_add(d_depthmap, -znear, w, h, blocks, threads);
         element_add(rawInput.data(), -znear, w, h, blocks, threads);
 
         double xscale = 1.f/(zfar - znear);
         double inputscale = -sigma/(zfar - znear);
 
-        element_scale(X.data(), xscale, w, h, blocks, threads);
+        element_scale(d_depthmap, xscale, w, h, blocks, threads);
         element_scale(rawInput.data(), inputscale, w, h, blocks, threads);
 
         for (unsigned int i = 0; i < niters; i++){
             double currsigma = i == 0 ? 1 + sigma : sigma;
             denoising_TVL1_calculateP_tensor_weighed(Px.data(), Py.data(), T11.data(), T12.data(), T21.data(), T22.data(),
-                                                     X.data(), currsigma, w, h, blocks, threads);
-            denoising_TVL1_update_tensor_weighed(X.data(), R.data(), Px.data(), Py.data(), rawInput.data(),
+                                                     d_depthmap, currsigma, w, h, blocks, threads);
+            denoising_TVL1_update_tensor_weighed(d_depthmap, R.data(), Px.data(), Py.data(), rawInput.data(),
                                                  T11.data(), T12.data(), T21.data(), T22.data(),tau, theta, lambda, sigma,
                                                  w, h, blocks, threads);
         }
 
-        element_scale(X.data(), (zfar - znear), w, h, blocks, threads);
-        element_add(X.data(), znear, w, h, blocks, threads);
+        element_scale(d_depthmap, (zfar - znear), w, h, blocks, threads);
+        element_add(d_depthmap, znear, w, h, blocks, threads);
 
-        X.copyTo(depthmapdenoised.data, depthmapdenoised.pitch);
-        ConvertDepthtoUChar(depthmapdenoised, depthmap8udenoised);
+//        NPP_CHECK_CUDA(cudaMemcpy2D(depthmapdenoised.data, depthmapdenoised.pitch, d_depthmap, pitch, w * sizeof(float), h, cudaMemcpyDeviceToHost));
+//        ConvertDepthtoUChar(depthmapdenoised, depthmap8udenoised);
 
-        d_depthmap = X.data();
-        //nppiFree(X.data());
+
         nppiFree(R.data());
         nppiFree(Px.data());
         nppiFree(Py.data());
@@ -683,7 +676,6 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         std::cout << "Time taken for the TVL1 denoising to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-        //cudaDeviceReset();
         return true;
 
     }
@@ -693,7 +685,7 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         std::cerr << rExcep << std::endl;
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        cudaReset();
         return false;
     }
     catch (...)
@@ -701,9 +693,7 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        //cudaDeviceReset();
         return false;
-
     }
 
     return false;
@@ -720,13 +710,13 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
 
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
         {
-            cudaDeviceReset();
+            cudaReset();
             return false;
         }
 
         if (printfNPPinfo() == false)
         {
-            cudaDeviceReset();
+            cudaReset();
             return false;
         }
 
@@ -897,7 +887,6 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         std::cout << "Time taken for the TGV to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
 
-        //NPP_CHECK_CUDA(cudaDeviceReset());
         return true;
 
     }
@@ -907,7 +896,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         std::cerr << rExcep << std::endl;
         std::cerr << "Aborting." << std::endl;
 
-        cudaDeviceReset();
+        cudaReset();
         return false;
     }
     catch (...)
@@ -915,7 +904,6 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         std::cerr << "Program error! An unknow type of exception occurred. \n";
         std::cerr << "Aborting." << std::endl;
 
-        //cudaDeviceReset();
         return false;
 
     }
@@ -964,4 +952,10 @@ void PlaneSweep::get3Dcoordinates(camImage<float> *&x, camImage<float> *&y, camI
     nppiFree(X.data());
     nppiFree(Px.data());
     nppiFree(Py.data());
+}
+
+void PlaneSweep::cudaReset()
+{
+    NPP_CHECK_CUDA(cudaDeviceReset());
+    d_depthmap = 0;
 }

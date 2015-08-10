@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 2.8)
 
 SET(OpenCV_DIR "D:/Software/opencv/build")
@@ -30,7 +29,7 @@ include_directories(
     "common\\inc"
     "common\\UtilNPP"
     "common\\FreeImage\\include"
-    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}     # generated header files from *.ui
     )
 link_directories(
     "common\\FreeImage\\lib\\x64"

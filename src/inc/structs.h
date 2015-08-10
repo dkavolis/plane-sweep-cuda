@@ -199,7 +199,7 @@ struct sortedHist : public Manage
     /**
          *  \brief Array of elements
          */
-    double element[2 * _nBins + 1];
+    float element[2 * _nBins + 1];
     /**
          *  \brief Number of elements
          */
@@ -222,7 +222,7 @@ struct sortedHist : public Manage
      *  \details Sets \a elements to \a _nBins.
      */
     __host__ __device__ inline
-    sortedHist(double bincenter[_nBins]) : elements(_nBins)
+    sortedHist(float bincenter[_nBins]) : elements(_nBins)
     {
         for (unsigned char i = 0; i < _nBins; i++) element[i] = bincenter[i];
     }
@@ -246,13 +246,13 @@ struct sortedHist : public Manage
      *  \details
      */
     __host__ __device__ inline
-    void insert(double val)
+    void insert(float val)
     {
         unsigned char next;
         if (elements != 0)
         {
             for (char i = elements - 1; i >= 0; i--){
-                next = fmaxf(i + 1, 2 * _nBins + 1);
+                next = fminf(i + 1, size() - 1);
                 if (val < element[i]) element[next] = element[i];
                 else {
                     element[next] = val;
@@ -261,7 +261,7 @@ struct sortedHist : public Manage
             }
         }
         else element[0] = val;
-        elements = fminf(elements + 1, 2 * _nBins + 1);
+        elements = fminf(elements + 1, size());
     }
 
     /**
@@ -272,7 +272,12 @@ struct sortedHist : public Manage
      *  \details
      */
     __host__ __device__ inline
-    double median(){ return element[_nBins]; }
+    float median(){ return element[_nBins]; }
+
+    /**
+     *  \brief Get size of the array
+     */
+    int size(){ return 2 * _nBins + 1; }
 };
 
 /** \addtogroup rectangle Rectangle3D
@@ -340,6 +345,12 @@ struct Rectangle3D : public Manage
     float3 size()
     {
         return (b - a);
+    }
+
+    __host__ __device__ inline
+    float3 center()
+    {
+        return (b + a) / 2.f;
     }
 
     /**

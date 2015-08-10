@@ -91,12 +91,14 @@ protected:
     // PCLVisualizer pointers, one for each qvtkwidget
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewerdenoised;
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> tgvviewer;
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewertgv;
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewerfusion;
 
     // Point cloud pointers, one for each qvtkwidget
     PointCloudT::Ptr cloud;
     PointCloudT::Ptr clouddenoised;
-    PointCloudT::Ptr tgvcloud;
+    PointCloudT::Ptr cloudtgv;
+    PointCloudT::Ptr cloudfusion;
 
     // command line arguments
     int argc;
@@ -165,6 +167,8 @@ private slots: // GUI widget slots
     void on_tvl1_gamma_valueChanged(double arg1);
 
     void on_reconstruct_button_clicked();
+
+    void on_fusion_psize_valueChanged(int value);
 
 private:
     // pointer to UI
@@ -300,6 +304,8 @@ private:
    */
     template<typename T>
     void rgb2gray(T * data, const QImage & img);
+
+    uchar3 RGBdepthmapColor(uchar depth);
 };
 
 /** @} */ // group gui

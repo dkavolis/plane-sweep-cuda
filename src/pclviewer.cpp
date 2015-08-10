@@ -55,13 +55,22 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->qvtkDenoised->update ();
 
     // Setup the cloud pointer
-    tgvcloud.reset (new PointCloudT);
+    cloudtgv.reset (new PointCloudT);
 
     // Set up the QVTK window
-    tgvviewer.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
-    ui->qvtktgv->SetRenderWindow (tgvviewer->getRenderWindow ());
-    tgvviewer->setupInteractor (ui->qvtktgv->GetInteractor (), ui->qvtktgv->GetRenderWindow ());
+    viewertgv.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
+    ui->qvtktgv->SetRenderWindow (viewertgv->getRenderWindow ());
+    viewertgv->setupInteractor (ui->qvtktgv->GetInteractor (), ui->qvtktgv->GetRenderWindow ());
     ui->qvtktgv->update ();
+
+    // Setup the cloud pointer
+    cloudfusion.reset (new PointCloudT);
+
+    // Set up the QVTK window
+    viewerfusion.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
+    ui->qvtkfusion->SetRenderWindow (viewerfusion->getRenderWindow ());
+    viewerfusion->setupInteractor (ui->qvtkfusion->GetInteractor (), ui->qvtkfusion->GetRenderWindow ());
+    ui->qvtkfusion->update ();
 
     connect(ui->pSlider, SIGNAL(valueChanged(int)), this, SLOT(pSliderValueChanged(int)));
 
@@ -75,10 +84,15 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     viewerdenoised->resetCamera ();
     ui->qvtkDenoised->update ();
 
-    tgvviewer->addPointCloud (tgvcloud, "cloud");
+    viewertgv->addPointCloud (cloudtgv, "cloud");
     ui->tgv_psize->setValue(2);
-    tgvviewer->resetCamera ();
+    viewertgv->resetCamera ();
     ui->qvtktgv->update ();
+
+    viewerfusion->addPointCloud (cloudtgv, "cloud");
+    ui->fusion_psize->setValue(2);
+    viewerfusion->resetCamera ();
+    ui->qvtkfusion->update ();
 
     ui->depthview->setScene(depthscene);
 
@@ -439,11 +453,11 @@ void PCLViewer::on_tgv_button_pressed()
         if (refchangedtgv)
         {
             // The number of points in the cloud
-            if ((tgvcloud->height != tgvdepth8u->height) || (tgvcloud->width != tgvdepth8u->width))
+            if ((cloudtgv->height != tgvdepth8u->height) || (cloudtgv->width != tgvdepth8u->width))
             {
-                tgvcloud->points.resize(tgvdepth8u->width * tgvdepth8u->height);
-                tgvcloud->width = tgvdepth8u->width;
-                tgvcloud->height = tgvdepth8u->height;
+                cloudtgv->points.resize(tgvdepth8u->width * tgvdepth8u->height);
+                cloudtgv->width = tgvdepth8u->width;
+                cloudtgv->height = tgvdepth8u->height;
             }
         }
 
@@ -463,16 +477,16 @@ void PCLViewer::on_tgv_button_pressed()
                 i = x + y * tgvdepth8u->width;
 
                 z = ((float)tgvdepth8u->data[i] / 255.f * (zf - zn));
-                tgvcloud->points[i].z = -z;
-                tgvcloud->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
-                tgvcloud->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                cloudtgv->points[i].z = -z;
+                cloudtgv->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
+                cloudtgv->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
 
                 if (refchangedtgv)
                 {
                     c = refim.pixel(x, y);
-                    tgvcloud->points[i].r = c.red();
-                    tgvcloud->points[i].g = c.green();
-                    tgvcloud->points[i].b = c.blue();
+                    cloudtgv->points[i].r = c.red();
+                    cloudtgv->points[i].g = c.green();
+                    cloudtgv->points[i].b = c.blue();
                 }
             }
 
@@ -483,8 +497,8 @@ void PCLViewer::on_tgv_button_pressed()
         tgvscene->setSceneRect(tgvdepthim.rect());
         ui->tgvview->setScene(tgvscene);
 
-        tgvviewer->updatePointCloud(tgvcloud, "cloud");
-        if (refchangedtgv) tgvviewer->resetCamera();
+        viewertgv->updatePointCloud(cloudtgv, "cloud");
+        if (refchangedtgv) viewertgv->resetCamera();
         ui->qvtktgv->update();
         refchangedtgv = false;
     }
@@ -493,7 +507,7 @@ void PCLViewer::on_tgv_button_pressed()
 void PCLViewer::on_tgv_psize_valueChanged(int value)
 {
     ui->tgv_psizebox->setValue(value);
-    tgvviewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
+    viewertgv->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
     ui->qvtktgv->update ();
 }
 
@@ -579,7 +593,7 @@ void PCLViewer::on_loadfromdir_clicked()
     if (!getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)) return;
     getcamK(K, cam_dir, cam_up, cam_right);
 
-    std::cout << "cam_dir = " << cam_dir << std::endl;
+//    std::cout << "cam_dir = " << cam_dir << std::endl;
     ps.setK(K);
     computeRT(R, t, cam_dir, cam_pos, cam_up);
 
@@ -595,8 +609,6 @@ void PCLViewer::on_loadfromdir_clicked()
     ps.HostRef.R = R;
     ps.HostRef.t = t;
     rgb2gray<float>(ps.HostRef.data, refim);
-    std::cout << "K = " << K << std::endl;
-    std::cout << "Rref = " << R << "\ntref = " << t << std::endl << std::endl;
 
     int nsrc = ui->imNumber->value() - 1;
 
@@ -617,7 +629,6 @@ void PCLViewer::on_loadfromdir_clicked()
             ps.HostSrc.back().R = R;
             ps.HostSrc.back().t = t;
             rgb2gray<float>(ps.HostSrc.back().data, src);
-            std::cout << "i = "<< i << "\nRsens = " << R << "\ntsens = " << t << std::endl << std::endl;
         }
     }
 
@@ -858,7 +869,7 @@ void PCLViewer::on_save_clicked()
     try {
         pcl::io::savePCDFileASCII("planesweep.pcd", *cloud);
         pcl::io::savePCDFileASCII("planesweep_tvl1.pcd", *clouddenoised);
-        pcl::io::savePCDFileASCII("tgv.pcd", *tgvcloud);
+        pcl::io::savePCDFileASCII("tgv.pcd", *cloudtgv);
     }
     catch (pcl::IOException & excep){
         std::cerr << "Error occured while saving PCD:\n" << excep.detailedMessage() << std::endl;
@@ -903,74 +914,170 @@ void PCLViewer::on_tvl1_gamma_valueChanged(double arg1)
 
 void PCLViewer::on_reconstruct_button_clicked()
 {
+    // Set 3D volume for the voxels
     Rectangle3D volm(make_float3(0,0,0), make_float3(5.5,3,9));
     volm = volm - volm.size()/2.f + make_float3(0.04, 1.4, -.3);
     fd.setVolume(volm);
-    float * ptr;
 
-    Matrix3D * K = new Matrix3D;
+    // Initialize variables
+    float * ptr = 0;
+    double  threshold = 0.05,
+            tau = 0.1,
+            lambda = 0.5,
+            sigma = 1;
     double k[3][3], t[3];
-    ps.getK(k);
-    *K = k;
-    Matrix3D * R = new Matrix3D;
-    Vector3D * T = new Vector3D;
+
+    // Create matrices and translation vector
+    Matrix3D K;
+    Matrix3D R;
+    Vector3D T;
+
+    // Create boost matrices
     ublas::matrix<double> rrel(3,3), trel(3,1), I(3,3), tm(3,1);
     I <<=   1.f, 0.f, 0.f,
             0.f, 1.f, 0.f,
             0.f, 0.f, 1.f;
     tm <<=  0.f, 0.f, 0.f;
-    dim3 threads(32, 32);
-    dim3 blocks(448*14);
-    blocks.y = ceil(fd.elements() / blocks.x);
-    auto fusionptr = fd.toDevice();
-    for (int i = 0; i < 5; i++){
+
+    // Calculate 3D threads per blocks and blocks per grid
+    dim3 threads(16, 16, 4);
+    int3 th = make_int3(threads.x, threads.y, threads.z);
+    int3 b = make_int3(fd.width(), fd.height(), fd.depth());
+    b = (b + th - 1);
+    b = make_int3(b.x / th.x, b.y / th.y, b.z / th.z);
+    dim3 blocks(b.x, b.y, b.z);
+    std::cerr << blocks.x << '\t' << blocks.y << '\t' << blocks.z << std::endl;
+
+    // Run iterations
+    int iterations = 176;
+    for (int i = 0; i < iterations; i++){
+        printf("Reconstruction iteration: %d/%d\n", i+1, iterations);
         auto t1 = std::chrono::high_resolution_clock::now();
 
+        // Load images and set K
         ui->refNumber->setValue(ui->refNumber->value() + 5);
         on_loadfromdir_clicked();
-        checkCudaErrors(cudaDeviceSynchronize());
+        ps.getK(k);
+        K = k;
+
+        // Calculate and set R and T
         ps.RelativeMatrices(rrel, trel, I, tm, ps.HostRef.R, ps.HostRef.t); // from world to ref
         ps.matrixToArray(k, rrel);
         ps.TmatrixToArray(t, trel);
-        *R = k;
-        *T = t;
+        R = k;
+        T = t;
+
+        // Get planesweep depthmap
+        ps.RunAlgorithm(argc, argv);
+
+        // Get TVL1 denoised planesweep depthmap
         ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value(), ui->tvl1_tau->value(),
                        ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value());
         ptr = ps.getDepthmapDenoisedPtr();
-        // problems happen when a kernel attemps to write anything to voxel data pointer, reading is fine
-        FusionUpdateIteration<8>(fusionptr, ptr, K, R, T, 0.05, 0.16, 0.5, 1, ps.HostRef.width, ps.HostRef.height, blocks, threads);
+
+        // Fuse the depthmap
+        FusionUpdateIteration<8>(fd, ptr, K, R, T, threshold, tau, lambda, sigma, ps.HostRef.width, ps.HostRef.height, blocks, threads);
 
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cerr << "Time of 1 fusion iteration: " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
     }
 
-    // below works
-//    clouddenoised->points.resize(fd.elements());
-//    size_t voxels = 0;
-//    float3 c;
+    // Resize point cloud to fit all voxels
+    cloudfusion->points.resize(fd.elements());
+    size_t voxels = 0;
+    float3 c;
+    uchar gray;
+    uchar3 color;
 
-//    checkCudaErrors(fd.copyTo(f.voxelPtr(), f.pitch()));
-//    for (int z = 0; z < fd.depth(); z++)
-//        for (int y = 0; y < fd.height(); y++)
-//            for (int x = 0; x < fd.width(); x++)
-//            {
-//                if (f.u(x,y,z) <= 0.1){
-//                    c = fd.worldCoords(x,y,z);
-//                    clouddenoised->points[voxels].x = c.x;
-//                    clouddenoised->points[voxels].y = c.y;
-//                    clouddenoised->points[voxels].z = c.z;
-//                    clouddenoised->points[voxels].r = 128;
-//                    clouddenoised->points[voxels].g = 128;
-//                    clouddenoised->points[voxels].b = 128;
-//                    voxels++;
-//                }
-//            }
-//    clouddenoised->points.resize(voxels);
-//    clouddenoised->width = 1;
-//    clouddenoised->height = voxels;
-//    viewerdenoised->updatePointCloud(clouddenoised, "cloud");
-//    viewerdenoised->resetCamera();
-//    ui->qvtkDenoised->update();
-    cudaFree(fusionptr);
+    // Copy data to host
+    checkCudaErrors(fd.copyTo(f.voxelPtr(), f.pitch()));
+
+    // Only show voxels which are occluded
+    for (int z = 0; z < fd.depth(); z++)
+        for (int y = 0; y < fd.height(); y++)
+            for (int x = 0; x < fd.width(); x++)
+            {
+                if ((f.u(x,y,z) < 0) && (f.u(x,y,z) > -1)){
+                    c = fd.worldCoords(x,y,z);
+                    cloudfusion->points[voxels].x = c.x;
+                    cloudfusion->points[voxels].y = -c.y;
+                    cloudfusion->points[voxels].z = c.z;
+                    gray = 255 * (c.z - fd.volume().a.z) / fd.volume().size().z;
+                    color = RGBdepthmapColor(gray);
+                    cloudfusion->points[voxels].r = color.x;
+                    cloudfusion->points[voxels].g = color.y;
+                    cloudfusion->points[voxels].b = color.z;
+                    voxels++;
+                }
+            }
+
+    // update point cloud and qvtkwidget
+    cloudfusion->points.resize(voxels);
+    cloudfusion->width = 1;
+    cloudfusion->height = voxels;
+    viewerfusion->updatePointCloud(cloudfusion, "cloud");
+    viewerfusion->resetCamera();
+    ui->qvtkfusion->update();
+}
+
+uchar3 PCLViewer::RGBdepthmapColor(uchar depth)
+{
+    uchar3 color;
+    if(depth < 43){
+        color.x = depth * 6;
+        color.y = 0;
+        color.z = depth * 6;
+        return color;
+    }
+
+    if(depth > 42 && depth < 85){
+        color.x = 255 - (depth - 43) * 6;
+        color.y = 0;
+        color.z = 255;
+        return color;
+    }
+
+    if(depth > 84 && depth < 128){
+        color.x = 0;
+        color.y = (depth - 85) * 6;
+        color.z = 255;
+        return color;
+    }
+
+    if(depth > 127 && depth < 169){
+        color.x = 0;
+        color.y = 255;
+        color.z = 255 - (depth - 128) * 6;
+        return color;
+    }
+
+    if(depth > 168 && depth < 212){
+        color.x = (depth - 169) * 6;
+        color.y = 255;
+        color.z = 0;
+        return color;
+    }
+
+    if(depth > 211 && depth < 254){
+        color.x = 255;
+        color.y = 255 - (depth - 212) * 6;
+        color.z = 0;
+        return color;
+    }
+
+    if(depth > 253){
+        color.x = 255;
+        color.y = 0;
+        color.z = 0;
+        return color;
+    }
+    return color;
+}
+
+void PCLViewer::on_fusion_psize_valueChanged(int value)
+{
+    ui->fusion_psizebox->setValue(value);
+    viewerfusion->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
+    ui->qvtkfusion->update ();
 }

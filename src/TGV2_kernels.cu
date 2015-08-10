@@ -384,21 +384,18 @@ void TGV2_updateP(float * d_Px, float * d_Py, const float * d_u, const float * d
                   const float alpha1, const float sigma, const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_updateP_kernel<<<blocks, threads>>>(d_Px, d_Py, d_u, d_u1x, d_u1y, alpha1, sigma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_updateQ(float * d_Qx, float * d_Qy, float * d_Qz, float * d_Qw, const float * d_u1x, const float * d_u1y,
                   const float alpha0, const float sigma, const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_updateQ_kernel<<<blocks, threads>>>(d_Qx, d_Qy, d_Qz, d_Qw, d_u1x, d_u1y, alpha0, sigma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_updateR(float * d_r, float * d_prodsum, const float * d_u, const float * d_u0, const float * d_It, const float * d_Iu,
                   const float sigma, const float lambda, const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_updateR_kernel<<<blocks, threads>>>(d_r, d_prodsum, d_u, d_u0, d_It, d_Iu, sigma, lambda, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, float * d_u1xbar, float * d_u1ybar,
@@ -409,7 +406,6 @@ void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, flo
 {
     TGV2_updateU_kernel<<<blocks, threads>>>(d_u, d_u1x, d_u1y, d_ubar, d_u1xbar, d_u1ybar, d_Px, d_Py, d_Qx, d_Qy,
                                              d_Qz, d_Qw, d_prodsum, alpha0, alpha1, tau, lambda, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_transform_coordinates(float * d_x, float * d_y, float * d_X, float * d_Y, float * d_Z, const float * d_u,
@@ -422,13 +418,11 @@ const int width, const int height, dim3 blocks, dim3 threads)
             trel[0], trel[1], trel[2],
             invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
             width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void subtract(float * d_out, const float * d_in1, const float * d_in2, const int width, const int height, dim3 blocks, dim3 threads)
 {
     subtract_kernel<<<blocks, threads>>>(d_out, d_in1, d_in2, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const double invK[3][3], const double Rrel[3][3],
@@ -438,7 +432,6 @@ const int width, const int height, dim3 blocks, dim3 threads)
                                                                       invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
             Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
             width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_calculate_derivativeF(float * d_dfx, float * d_dfy, const float * d_X, const float * d_dX, const float * d_Y, const float * d_dY,
@@ -446,14 +439,12 @@ void TGV2_calculate_derivativeF(float * d_dfx, float * d_dfy, const float * d_X,
                                 const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_calculate_derivativeF_kernel<<<blocks, threads>>>(d_dfx, d_dfy, d_X, d_dX, d_Y, d_dY, d_Z, d_dZ, fx, fy, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_calculate_Iu(float * d_Iu, const float * d_I, const float * d_dfx, const float * d_dfy,
                        const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_calculate_Iu_kernel<<<blocks, threads>>>(d_Iu, d_I, d_dfx, d_dfy, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void Anisotropic_diffusion_tensor(float * d_T11, float * d_T12, float * d_T21, float * d_T22, const float * d_Img,
@@ -461,7 +452,6 @@ void Anisotropic_diffusion_tensor(float * d_T11, float * d_T12, float * d_T21, f
                                   dim3 blocks, dim3 threads)
 {
     Anisotropic_diffusion_tensor_kernel<<<blocks, threads>>>(d_T11, d_T12, d_T21, d_T22, d_Img, beta, gamma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_updateU_tensor_weighed(float * d_u, float * d_u1x, float * d_u1y, const float * d_T11, const float * d_T12,
@@ -474,7 +464,6 @@ void TGV2_updateU_tensor_weighed(float * d_u, float * d_u1x, float * d_u1y, cons
     TGV2_updateU_tensor_weighed_kernel<<<blocks, threads>>>(d_u, d_u1x, d_u1y, d_T11, d_T12, d_T21, d_T22, d_ubar, d_u1xbar, d_u1ybar,
                                                             d_Px, d_Py, d_Qx, d_Qy, d_Qz, d_Qw, d_prodsum, alpha0, alpha1, tau, lambda,
                                                             width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }
 
 void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
@@ -483,5 +472,4 @@ void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11
 {
     TGV2_updateP_tensor_weighed_kernel<<<blocks, threads>>>(d_Px, d_Py, d_T11, d_T12, d_T21, d_T22, d_u, d_u1x, d_u1y, alpha1,
                                                             sigma, width, height);
-    checkCudaErrors(cudaPeekAtLastError());
 }

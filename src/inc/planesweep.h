@@ -907,6 +907,9 @@ private:
     int cudaDevInit(int argc, const char **argv);
     bool printfNPPinfo();
 
+    // CUDA reset function
+    void cudaReset();
+
 };
 
 /** @} */ // group planesweep

@@ -42,14 +42,19 @@ struct fusionDataSettings : public Manage
             depth,
             pitch,
             spitch;
-    double binstep;
+    float binstep;
     Rectangle3D volume;
-    double bin[_bins];
+    float bin[_bins];
     bool own;
     fusionvoxel<_bins> * ptr;
 
     __host__ __device__ inline
-    fusionDataSettings(size_t width, size_t height, size_t depth, size_t pitch, size_t spitch, double step, bool manage,
+    fusionDataSettings() :
+        width(0), height(0), depth(0), pitch(0), spitch(0), binstep(0), volume(), own(false), ptr(0)
+    {}
+
+    __host__ __device__ inline
+    fusionDataSettings(size_t width, size_t height, size_t depth, size_t pitch, size_t spitch, float step, bool manage,
                        fusionvoxel<_bins> * pointer, Rectangle3D volume) :
         width(width), height(height), depth(depth), pitch(pitch), spitch(spitch),
         binstep(step), volume(volume), own(manage), ptr(pointer)
@@ -57,8 +62,8 @@ struct fusionDataSettings : public Manage
 
     __host__ __device__ inline
     fusionDataSettings(const fusionDataSettings<_bins> & f) :
-        width(f.w), height(f.h), depth(f.d), pitch(f.pitch), spitch(f.spitch),
-        binstep(f.binstep), volume(f.vol), own(f.own), ptr(f.ptr)
+        width(f.width), height(f.height), depth(f.depth), pitch(f.pitch), spitch(f.spitch),
+        binstep(f.binstep), volume(f.volume), own(f.own), ptr(f.ptr)
     {
         for (int i = 0; i < _bins; i++) bin[i] = f.bin[i];
     }
@@ -169,9 +174,10 @@ public:
     }
 
     __device__ __host__ inline
-    fusionData(fusionData<_histBins, memT> & fd) :
-        stg(fd)
+    fusionData(const fusionData<_histBins, memT> & fd)
     {
+        stg = fd.exportSettings();
+        stg.own = false;
         binParams();
     }
 
@@ -261,7 +267,7 @@ public:
      *  \return index of the element
      */
 	__device__ __host__ inline
-    unsigned int index(int nx = 0, int ny = 0, int nz = 0) {
+    int index(int nx = 0, int ny = 0, int nz = 0) {
         return nx+ny*stg.width+nz*stg.width*stg.height;
     }
 
@@ -271,13 +277,32 @@ public:
      *  \return (x,y,z) indexes of the element in 3D array
      */
     __device__ __host__ inline
-    dim3 indexes(int ix)
+    int3 indexes(int ix)
     {
-        dim3 r;
+        int3 r;
         r.x = ix % stg.width;
         r.y = ix / stg.width % stg.height;
         r.z = ix / (stg.width * stg.height);
         return r;
+    }
+
+    /**
+     *  \brief Resize voxel data
+     *
+     *  \param w    new width
+     *  \param h    new height
+     *  \param d    new depth
+     *  \return If data is managed it is deallocated. In any case, the new data will be managed.
+     */
+    __host__ inline
+    void Resize(size_t w, size_t h, size_t d)
+    {
+        stg.width = w;
+        stg.height = h;
+        stg.depth = d;
+        if (stg.own) CleanUp(stg.ptr);
+        stg.own = true;
+        Malloc(stg.ptr, stg.width, stg.height, stg.depth, stg.pitch, stg.spitch);
     }
 
     /**
@@ -306,7 +331,7 @@ public:
      *  \return Data size in kilobytes
      */
     __device__ __host__ inline
-    double sizeKBytes(){ return sizeBytes() / 1024.f; }
+    float sizeKBytes(){ return sizeBytes() / 1024.f; }
 
     /**
      *  \brief Get data size in Megabytes
@@ -314,7 +339,7 @@ public:
      *  \return Data size in Megabytes
      */
     __device__ __host__ inline
-    double sizeMBytes(){ return sizeKBytes() / 1024.f; }
+    float sizeMBytes(){ return sizeKBytes() / 1024.f; }
 
     /**
      *  \brief Get data size in Gigabytes
@@ -322,7 +347,7 @@ public:
      *  \return Data size in Gigabytes
      */
     __device__ __host__ inline
-    double sizeGBytes(){ return sizeMBytes() / 1024.f; }
+    float sizeGBytes(){ return sizeMBytes() / 1024.f; }
 
     /**
      *  \brief Get world coordinates of voxel center
@@ -505,7 +530,7 @@ public:
      *  \return Const pointer to first element in plane \p nz
      */
     __device__ __host__ inline
-    const fusionvoxel<_histBins> * voxelPtr(size_t nz = 0) const
+    const fusionvoxel<_histBins> * voxelPtr(int nz = 0) const
     {
         return (fusionvoxel<_histBins> *)((unsigned char*)(stg.ptr) + nz*stg.spitch);
     }
@@ -517,7 +542,7 @@ public:
      *  \return Pointer to first element in plane \p nz
      */
     __device__ __host__ inline
-    fusionvoxel<_histBins> * voxelPtr(size_t nz = 0)
+    fusionvoxel<_histBins> * voxelPtr(int nz = 0)
     {
         return (fusionvoxel<_histBins> *)((unsigned char*)(stg.ptr) + nz*stg.spitch);
     }
@@ -530,7 +555,7 @@ public:
      *  \return Pointer to first element in row \p ny and plane \p nz
      */
     __device__ __host__ inline
-    fusionvoxel<_histBins> * voxelRowPtr(size_t ny = 0, size_t nz = 0)
+    fusionvoxel<_histBins> * voxelRowPtr(int ny = 0, int nz = 0)
     {
         return (fusionvoxel<_histBins> *)((unsigned char*)(stg.ptr) + nz*stg.spitch + ny*stg.pitch);
     }
@@ -543,7 +568,7 @@ public:
      *  \return Const pointer to first element in row \p ny and plane \p nz
      */
     __device__ __host__ inline
-    const fusionvoxel<_histBins> * voxelRowPtr(size_t ny = 0, size_t nz = 0) const
+    const fusionvoxel<_histBins> * voxelRowPtr(int ny = 0, int nz = 0) const
     {
         return (fusionvoxel<_histBins> *)((unsigned char*)(stg.ptr) + nz*stg.spitch + ny*stg.pitch);
     }
@@ -561,7 +586,7 @@ public:
      *  \p memT has to be either \p Device or \p Managed for this function to work on kernel.
      */
     __device__ __host__ inline
-    fusionvoxel<_histBins> & operator()(size_t nx = 0, size_t ny = 0, size_t nz = 0)
+    fusionvoxel<_histBins> & operator()(int nx = 0, int ny = 0, int nz = 0)
     {
         return voxelRowPtr(ny,nz)[nx];
     }
@@ -579,7 +604,7 @@ public:
      *  \p memT has to be either \p Device or \p Managed for this function to work on kernel.
      */
     __device__ __host__ inline
-    const fusionvoxel<_histBins> & operator()(size_t nx = 0, size_t ny = 0, size_t nz = 0) const
+    const fusionvoxel<_histBins> & operator()(int nx = 0, int ny = 0, int nz = 0) const
     {
         return voxelRowPtr(ny,nz)[nx];
     }
@@ -595,7 +620,7 @@ public:
      *  \p memT has to be either \p Device or \p Managed for this function to work on kernel.
      */
     __device__ __host__ inline
-    fusionvoxel<_histBins> & operator[](size_t ix)
+    fusionvoxel<_histBins> & operator[](int ix)
     {
         return stg.ptr[ix];
     }
@@ -611,7 +636,7 @@ public:
      *  \p memT has to be either \p Device or \p Managed for this function to work on kernel.
      */
     __device__ __host__ inline
-    const fusionvoxel<_histBins> & operator[](size_t ix) const
+    const fusionvoxel<_histBins> & operator[](int ix) const
     {
         return stg.ptr[ix];
     }
@@ -691,7 +716,7 @@ public:
      *  \return Center of histogram bin
      */
     __device__ __host__ inline
-    double binCenter(unsigned char binindex)
+    float binCenter(unsigned char binindex)
     {
         if (binindex < _histBins) return stg.bin[binindex];
         else return 0.f;
@@ -701,7 +726,7 @@ public:
      *  \brief Get pointer to array of bin centers
      */
     __device__ __host__ inline
-    const double * binCenters(){
+    const float * binCenters(){
         return &stg.bin[0];
     }
 
@@ -711,7 +736,7 @@ public:
      *  \return Distance between histogram centers
      */
     __device__ __host__ inline
-    double binStep(){
+    float binStep(){
         return stg.binstep;
     }
 
@@ -727,7 +752,7 @@ public:
      *  \details Gradient is calculated from forward differences
      */
     __host__ __device__ inline
-    float3 gradUFwd(uint x, uint y, uint z){
+    float3 gradUFwd(int x, int y, int z){
         float u = this->u(x, y, z);
         float3 result = make_float3(0.f, 0.f, 0.f);
         if (x < stg.width - 1) result.x = this->u(x+1, y, z) - u;
@@ -747,7 +772,7 @@ public:
     *  \details Gradient is calculated from forward differences
     */
     __host__ __device__ inline
-    float3 gradVFwd(uint x, uint y, uint z){
+    float3 gradVFwd(int x, int y, int z){
         float v = this->v(x, y, z);
         float3 result = make_float3(0.f, 0.f, 0.f);
         if (x < stg.width - 1) result.x = this->v(x+1, y, z) - v;
@@ -790,8 +815,8 @@ public:
     int Wi(unsigned char i, int x, int y, int z)
     {
         int r = 0;
-        for (unsigned char j = 1; j <= i; j++) r -= this->h(x, y, z)(j);
-        for (unsigned char j = i + 1; j <= _histBins; j++) r += this->h(x, y, z)(j);
+        for (unsigned char j = 1; j <= i; j++) r -= this->h(x, y, z)(j-1);
+        for (unsigned char j = i + 1; j <= _histBins; j++) r += this->h(x, y, z)(j-1);
         return r;
     }
 
@@ -808,7 +833,7 @@ public:
      *  \return \f$p_i\f$ intermediate variable in \f$\operatorname{prox}_{hist}\f$ calculation
      */
     __host__ __device__ inline
-    float pi(double u, unsigned char i, int x, int y, int z, double tau, double lambda)
+    float pi(float u, unsigned char i, int x, int y, int z, float tau, float lambda)
     {
         return u + tau * lambda * Wi(i, x, y, z);
     }
@@ -825,7 +850,7 @@ public:
      *  \return Value of \f$\operatorname{prox}_{hist}(u)\f$
      */
     __host__ __device__ inline
-    float proxHist(double u, int x, int y, int z, double tau, double lambda)
+    float proxHist(float u, int x, int y, int z, float tau, float lambda)
     {
         sortedHist<_histBins> prox(stg.bin);
         prox.insert(u); // insert p0
@@ -859,25 +884,27 @@ public:
     __host__ __device__ inline
     void updateHist(int x, int y, int z, float voxdepth, float depth, float threshold)
     {
-        float sd = voxdepth - depth;
-        if (_histBins == 2) threshold = 0.f;
+        float sd = depth - voxdepth;
+        float thresh = threshold;
+        if (_histBins == 2) thresh = 0.f;
 
         // check if empty
-        if (sd >= threshold)
+        if (sd >= thresh)
         {
             this->h(x, y, z).last()++;
             return;
         }
 
         // check if occluded
-        if (sd <= - threshold)
+        if (sd <= - thresh)
         {
             this->h(x, y, z).first()++;
             return;
         }
 
         // close to surface
-        this->h(x, y, z)(roundf((sd + threshold) / (2.f * threshold) * (_histBins - 3)) + 1)++;
+        unsigned char i = (unsigned char)fminf(roundf((sd + thresh) / (2.f * thresh) * (_histBins - 3) + 1), _histBins - 2);
+        this->h(x, y, z).bin[i]++;
     }
 
     /**
@@ -925,21 +952,23 @@ public:
     fusionData<_histBins, Device> * toDevice()
     {
         size_t p = stg.pitch, s = stg.spitch;
+        bool owned = stg.own;
 
         // Copy the elements to the device.
         fusionvoxel<_histBins> * voxels, * voxelsthis = stg.ptr;
         if (memT != Device) {
             size_t pitch, spitch;
-            Malloc(voxels, stg.width, stg.height, stg.depth, pitch, spitch);
+            MemoryManagement<fusionvoxel<_histBins>, Device>::Malloc(voxels, stg.width, stg.height, stg.depth, pitch, spitch);
             Host2DeviceCopy(voxels, pitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
             stg.pitch = pitch;
             stg.spitch = spitch;
         }
         else {
             voxels = stg.ptr;
+            stg.own = false;
         }
 
-        // Copy the dynArray to the device.
+        // Copy this to the device.
         stg.ptr = voxels;
         fusionData<_histBins, Device> * deviceArray;
         cudaMalloc((void **)&deviceArray, sizeof(fusionData<_histBins, memT>));
@@ -949,6 +978,7 @@ public:
         stg.pitch = p;
         stg.spitch = s;
         stg.ptr = voxelsthis;
+        stg.own = owned;
 
         return deviceArray;
     }
