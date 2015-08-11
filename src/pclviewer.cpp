@@ -25,52 +25,40 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     dendepthsc (new QGraphicsScene()),
     tgvscene (new QGraphicsScene()),
     ps(argc, argv),
-    fd(448, 336, 160),
-    f(448, 336, 160)
+    fd(DEFAULT_FUSION_VOXELS_X, DEFAULT_FUSION_VOXELS_Y, DEFAULT_FUSION_VOXELS_Z),
+    f(DEFAULT_FUSION_VOXELS_X, DEFAULT_FUSION_VOXELS_Y, DEFAULT_FUSION_VOXELS_Z)
 {
     std::cerr << "Size of fusion data = " << fd.sizeMBytes() << "MB\n";
 
-    QChar alpha = QChar(0xb1, 0x03);
-    QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3), theta(0x03B8);
-
     ui->setupUi (this);
-    this->setWindowTitle ("PCL viewer");
+    this->setWindowTitle ("3D Reconstruction Program");
 
-    // Setup the cloud pointer
+    setupPlanesweep();
+    setupTGV();
+    setupFusion();
+
+    LoadImages();
+}
+
+void PCLViewer::setupPlanesweep()
+{
+    // Setup the raw planesweep cloud pointer
     cloud.reset (new PointCloudT);
 
-    // Set up the QVTK window
+    // Set up the raw planesweep QVTK window
     viewer.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
     ui->qvtkWidget->SetRenderWindow (viewer->getRenderWindow ());
     viewer->setupInteractor (ui->qvtkWidget->GetInteractor (), ui->qvtkWidget->GetRenderWindow ());
     ui->qvtkWidget->update ();
 
-    // Setup the cloud pointer
+    // Setup the tvl1 denoised cloud pointer
     clouddenoised.reset (new PointCloudT);
 
-    // Set up the QVTK window
+    // Set up the tvl1 denoised QVTK window
     viewerdenoised.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
     ui->qvtkDenoised->SetRenderWindow (viewerdenoised->getRenderWindow ());
     viewerdenoised->setupInteractor (ui->qvtkDenoised->GetInteractor (), ui->qvtkDenoised->GetRenderWindow ());
     ui->qvtkDenoised->update ();
-
-    // Setup the cloud pointer
-    cloudtgv.reset (new PointCloudT);
-
-    // Set up the QVTK window
-    viewertgv.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
-    ui->qvtktgv->SetRenderWindow (viewertgv->getRenderWindow ());
-    viewertgv->setupInteractor (ui->qvtktgv->GetInteractor (), ui->qvtktgv->GetRenderWindow ());
-    ui->qvtktgv->update ();
-
-    // Setup the cloud pointer
-    cloudfusion.reset (new PointCloudT);
-
-    // Set up the QVTK window
-    viewerfusion.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
-    ui->qvtkfusion->SetRenderWindow (viewerfusion->getRenderWindow ());
-    viewerfusion->setupInteractor (ui->qvtkfusion->GetInteractor (), ui->qvtkfusion->GetRenderWindow ());
-    ui->qvtkfusion->update ();
 
     connect(ui->pSlider, SIGNAL(valueChanged(int)), this, SLOT(pSliderValueChanged(int)));
 
@@ -84,16 +72,6 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     viewerdenoised->resetCamera ();
     ui->qvtkDenoised->update ();
 
-    viewertgv->addPointCloud (cloudtgv, "cloud");
-    ui->tgv_psize->setValue(2);
-    viewertgv->resetCamera ();
-    ui->qvtktgv->update ();
-
-    viewerfusion->addPointCloud (cloudtgv, "cloud");
-    ui->fusion_psize->setValue(2);
-    viewerfusion->resetCamera ();
-    ui->qvtkfusion->update ();
-
     ui->depthview->setScene(depthscene);
 
     ui->imNumber->setValue(ps.getNumberofImages());
@@ -104,6 +82,17 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->zNear->setValue(ps.getZnear());
     ui->zFar->setValue(ps.getZfar());
     ui->stdThresh->setMaximum(255 * 1.f);
+
+    ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
+    ui->threadsx->setMaximum(ui->maxthreads->value());
+    ui->threadsy->setMaximum(ui->maxthreads->value());
+    dim3 t = ps.getThreadsPerBlock();
+    ui->threadsx->setValue(t.x);
+    ui->threadsy->setValue(t.y);
+
+    ui->altmethod->setChecked(ps.getAlternativeRelativeMatrixMethod());
+
+    QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3), theta(0x03B8);
 
     ui->tvl1_lambda_label->setText( trUtf8( "\xce\xbb" ) );
     ui->tvl1_sigma_label->setText(sigma);
@@ -119,12 +108,26 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->tvl1_beta->setValue(DEFAULT_TVL1_BETA);
     ui->tvl1_gamma->setValue(DEFAULT_TVL1_GAMMA);
 
-    ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
-    ui->threadsx->setMaximum(ui->maxthreads->value());
-    ui->threadsy->setMaximum(ui->maxthreads->value());
-    dim3 t = ps.getThreadsPerBlock();
-    ui->threadsx->setValue(t.x);
-    ui->threadsy->setValue(t.y);
+}
+
+void PCLViewer::setupTGV()
+{
+    // Setup the TGV cloud pointer
+    cloudtgv.reset (new PointCloudT);
+
+    // Set up the TGV QVTK window
+    viewertgv.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
+    ui->qvtktgv->SetRenderWindow (viewertgv->getRenderWindow ());
+    viewertgv->setupInteractor (ui->qvtktgv->GetInteractor (), ui->qvtktgv->GetRenderWindow ());
+    ui->qvtktgv->update ();
+
+    viewertgv->addPointCloud (cloudtgv, "cloud");
+    ui->tgv_psize->setValue(2);
+    viewertgv->resetCamera ();
+    ui->qvtktgv->update ();
+
+    QChar alpha = QChar(0xb1, 0x03);
+    QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3);
 
     QString a0 = alpha, a1 = alpha;
     a0 += "<sub>";
@@ -150,10 +153,112 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->tgv_tau->setValue(DEFAULT_TGV_TAU);
     ui->tgv_beta->setValue(DEFAULT_TGV_BETA);
     ui->tgv_gamma->setValue(DEFAULT_TGV_GAMMA);
+}
 
-    ui->altmethod->setChecked(ps.getAlternativeRelativeMatrixMethod());
+void PCLViewer::setupFusion()
+{
+    // Setup the fusion cloud pointer
+    cloudfusion.reset (new PointCloudT);
 
-    LoadImages();
+    // Set up the fusion QVTK window
+    viewerfusion.reset (new pcl::visualization::PCLVisualizer ("viewer", false));
+    ui->qvtkfusion->SetRenderWindow (viewerfusion->getRenderWindow ());
+    viewerfusion->setupInteractor (ui->qvtkfusion->GetInteractor (), ui->qvtkfusion->GetRenderWindow ());
+    ui->qvtkfusion->update ();
+
+    viewerfusion->addPointCloud (cloudtgv, "cloud");
+    on_fusion_psize_valueChanged(2);
+    viewerfusion->resetCamera ();
+    ui->qvtkfusion->update ();
+
+    QChar sigma(0x03C3), tau(0x03C4);
+
+    ui->fusion_lambda_label->setText(trUtf8( "\xce\xbb" ));
+    ui->fusion_sigma_label->setText(sigma);
+    ui->fusion_tau_label->setText(tau);
+
+    connect(ui->fusion_volx1, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_x_changed()));
+    connect(ui->fusion_voly1, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_y_changed()));
+    connect(ui->fusion_volz1, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_z_changed()));
+    connect(ui->fusion_volx2, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_x_changed()));
+    connect(ui->fusion_voly2, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_y_changed()));
+    connect(ui->fusion_volz2, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_z_changed()));
+
+    connect(ui->fusion_cx, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_center_x_changed()));
+    connect(ui->fusion_cy, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_center_y_changed()));
+    connect(ui->fusion_cz, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_center_z_changed()));
+
+    ui->fusion_d->setValue(fd.depth());
+    ui->fusion_h->setValue(fd.height());
+    ui->fusion_w->setValue(fd.width());
+    ui->fusion_imstep->setValue(DEFAULT_FUSION_IMSTEP);
+    ui->fusion_iters->setValue(DEFAULT_FUSION_ITERATIONS);
+    ui->fusion_lambda->setValue(DEFAULT_FUSION_LAMBDA);
+    ui->fusion_sigma->setValue(DEFAULT_FUSION_SIGMA);
+    ui->fusion_tau->setValue(DEFAULT_FUSION_TAU);
+    ui->fusion_threshold->setValue(DEFAULT_FUSION_SD_THRESHOLD);
+    ui->fusion_volx1->setValue(DEFAULT_FUSION_VOLUME_X1);
+    ui->fusion_voly1->setValue(DEFAULT_FUSION_VOLUME_Y1);
+    ui->fusion_volz1->setValue(DEFAULT_FUSION_VOLUME_Z1);
+    ui->fusion_volx2->setValue(DEFAULT_FUSION_VOLUME_X2);
+    ui->fusion_voly2->setValue(DEFAULT_FUSION_VOLUME_Y2);
+    ui->fusion_volz2->setValue(DEFAULT_FUSION_VOLUME_Z2);
+
+    ui->fusion_threadsw->setMaximum(ui->maxthreads->value());
+    ui->fusion_threadsh->setMaximum(ui->maxthreads->value());
+    ui->fusion_threadsd->setMaximum(ui->maxthreads->value());
+
+    ui->fusion_threadsw->setValue(DEFAULT_FUSION_THREADS_X);
+    ui->fusion_threadsh->setValue(DEFAULT_FUSION_THREADS_Y);
+    ui->fusion_threadsd->setValue(ui->maxthreads->value() / ui->fusion_threadsw->value() / ui->fusion_threadsh->value());
+}
+
+void PCLViewer::fusion_volume_center_x_changed()
+{
+    // Translate corners
+    float t;
+    t = ui->fusion_cx->value() - (ui->fusion_volx1->value() + ui->fusion_volx2->value()) / 2.f;
+
+    ui->fusion_volx1->setValue(ui->fusion_volx1->value() + t);
+    ui->fusion_volx2->setValue(ui->fusion_volx2->value() + t);
+}
+
+void PCLViewer::fusion_volume_center_y_changed()
+{
+    // Translate corners
+    float t;
+    t = ui->fusion_cy->value() - (ui->fusion_voly1->value() + ui->fusion_voly2->value()) / 2.f;
+
+    ui->fusion_voly1->setValue(ui->fusion_voly1->value() + t);
+    ui->fusion_voly2->setValue(ui->fusion_voly2->value() + t);
+}
+
+void PCLViewer::fusion_volume_center_z_changed()
+{
+    // Translate corners
+    float t;
+    t = ui->fusion_cz->value() - (ui->fusion_volz1->value() + ui->fusion_volz2->value()) / 2.f;
+
+    ui->fusion_volz1->setValue(ui->fusion_volz1->value() + t);
+    ui->fusion_volz2->setValue(ui->fusion_volz2->value() + t);
+}
+
+void PCLViewer::fusion_volume_corner_x_changed()
+{
+    // Recalculate new center coordinates
+    ui->fusion_cx->setValue((ui->fusion_volx1->value() + ui->fusion_volx2->value()) / 2.f);
+}
+
+void PCLViewer::fusion_volume_corner_y_changed()
+{
+    // Recalculate new center coordinate
+    ui->fusion_cy->setValue((ui->fusion_voly1->value() + ui->fusion_voly2->value()) / 2.f);
+}
+
+void PCLViewer::fusion_volume_corner_z_changed()
+{
+    // Recalculate new center coordinate
+    ui->fusion_cz->setValue((ui->fusion_volz1->value() + ui->fusion_volz2->value()) / 2.f);
 }
 
 void
@@ -564,6 +669,7 @@ void PCLViewer::on_imageNameButton_clicked()
     ui->imageFormat->setText(format);
     ui->imageDigits->setValue(digits);
     ui->refNumber->setValue(ref);
+    ui->fusion_simage->setValue(ref);
 }
 
 void PCLViewer::on_altmethod_toggled(bool checked)
@@ -780,10 +886,10 @@ bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_p
     return true;
 }
 
-ublas::matrix<double> & PCLViewer::cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B)
+ublas::matrix<double> PCLViewer::cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B)
 {
     ublas::matrix<double> x = A, y = B;
-    ublas::matrix<double> * result = new ublas::matrix<double>(3,1);
+    ublas::matrix<double> result(3,1);
     int xdim = 3, ydim = 3;
     if (x.size1() == 1) x = trans(x);
     if (y.size1() == 1) y = trans(y);
@@ -794,7 +900,7 @@ ublas::matrix<double> & PCLViewer::cross(const ublas::matrix<double> & A, const 
     }
     else if (x.size1() != 3) {
         std::cerr << "Matrix dimensions must be 3 by 1 or 2 by 1 only" << std::endl;
-        return *result;
+        return result;
     }
     if (y.size1() == 2) {
         ydim = 2;
@@ -803,14 +909,14 @@ ublas::matrix<double> & PCLViewer::cross(const ublas::matrix<double> & A, const 
     }
     else if (y.size1() != 3) {
         std::cerr << "Matrix dimensions must be 3 by 1 or 2 by 1 only" << std::endl;
-        return *result;
+        return result;
     }
 
-    *result <<=  x(1,0) * y(2,0) - x(2,0) * y(1,0),
+    result <<=  x(1,0) * y(2,0) - x(2,0) * y(1,0),
             -(x(0,0) * y(2,0) - x(2,0) * y(0,0)),
             x(0,0) * y(1,0) - x(1,0) * y(0,0);
 
-    return *result;
+    return result;
 }
 
 template<typename T>
@@ -915,16 +1021,20 @@ void PCLViewer::on_tvl1_gamma_valueChanged(double arg1)
 void PCLViewer::on_reconstruct_button_clicked()
 {
     // Set 3D volume for the voxels
-    Rectangle3D volm(make_float3(0,0,0), make_float3(5.5,3,9));
-    volm = volm - volm.size()/2.f + make_float3(0.04, 1.4, -.3);
+    Rectangle3D volm(make_float3(ui->fusion_volx1->value(),
+                                 ui->fusion_voly1->value(),
+                                 ui->fusion_volz1->value()),
+                     make_float3(ui->fusion_volx2->value(),
+                                 ui->fusion_voly2->value(),
+                                 ui->fusion_volz2->value()));
     fd.setVolume(volm);
 
     // Initialize variables
-    float * ptr = 0;
-    double  threshold = 0.05,
-            tau = 0.1,
-            lambda = 0.5,
-            sigma = 1;
+    float * ptr = 0; // null pointer
+    double  threshold = ui->fusion_threshold->value(),
+            tau = ui->fusion_tau->value(),
+            lambda = ui->fusion_lambda->value(),
+            sigma = ui->fusion_sigma->value();
     double k[3][3], t[3];
 
     // Create matrices and translation vector
@@ -940,7 +1050,9 @@ void PCLViewer::on_reconstruct_button_clicked()
     tm <<=  0.f, 0.f, 0.f;
 
     // Calculate 3D threads per blocks and blocks per grid
-    dim3 threads(16, 16, 4);
+    dim3 threads(ui->fusion_threadsw->value(),
+                 ui->fusion_threadsh->value(),
+                 ui->fusion_threadsd->value());
     int3 th = make_int3(threads.x, threads.y, threads.z);
     int3 b = make_int3(fd.width(), fd.height(), fd.depth());
     b = (b + th - 1);
@@ -949,13 +1061,15 @@ void PCLViewer::on_reconstruct_button_clicked()
     std::cerr << blocks.x << '\t' << blocks.y << '\t' << blocks.z << std::endl;
 
     // Run iterations
-    int iterations = 176;
+    int iterations = ui->fusion_iters->value();
+    int sref = ui->refNumber->value();
+
     for (int i = 0; i < iterations; i++){
         printf("Reconstruction iteration: %d/%d\n", i+1, iterations);
         auto t1 = std::chrono::high_resolution_clock::now();
 
         // Load images and set K
-        ui->refNumber->setValue(ui->refNumber->value() + 5);
+        ui->refNumber->setValue(ui->refNumber->value() + ui->fusion_imstep->value() - sref);
         on_loadfromdir_clicked();
         ps.getK(k);
         K = k;
@@ -1000,10 +1114,10 @@ void PCLViewer::on_reconstruct_button_clicked()
             {
                 if ((f.u(x,y,z) < 0) && (f.u(x,y,z) > -1)){
                     c = fd.worldCoords(x,y,z);
-                    cloudfusion->points[voxels].x = c.x;
-                    cloudfusion->points[voxels].y = -c.y;
+                    cloudfusion->points[voxels].x = -c.x;
+                    cloudfusion->points[voxels].y = c.y;
                     cloudfusion->points[voxels].z = c.z;
-                    gray = 255 * (c.z - fd.volume().a.z) / fd.volume().size().z;
+                    gray = 255 * (c.x - fd.volume().a.x) / fd.volume().size().x;
                     color = RGBdepthmapColor(gray);
                     cloudfusion->points[voxels].r = color.x;
                     cloudfusion->points[voxels].g = color.y;
@@ -1080,4 +1194,29 @@ void PCLViewer::on_fusion_psize_valueChanged(int value)
     ui->fusion_psizebox->setValue(value);
     viewerfusion->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, value, "cloud");
     ui->qvtkfusion->update ();
+}
+
+void PCLViewer::on_fusion_resize_clicked()
+{
+    if ((ui->fusion_d->value() != fd.depth()) || (ui->fusion_h->value() != fd.height()) || (ui->fusion_w->value() != fd.width()))
+    {
+        fd.Resize(ui->fusion_w->value(), ui->fusion_h->value(), ui->fusion_d->value());
+        f.Resize(ui->fusion_w->value(), ui->fusion_h->value(), ui->fusion_d->value());
+
+        std::cerr << "New size of fusion data is " << fd.sizeMBytes() << "MB\n\n";
+    }
+}
+void PCLViewer::on_fusion_threadsw_valueChanged(int arg1)
+{
+    ui->fusion_threadsw->setValue(min(arg1, ui->maxthreads->value() / ui->fusion_threadsh->value() / ui->fusion_threadsd->value()));
+}
+
+void PCLViewer::on_fusion_threadsh_valueChanged(int arg1)
+{
+    ui->fusion_threadsh->setValue(min(arg1, ui->maxthreads->value() / ui->fusion_threadsw->value() / ui->fusion_threadsd->value()));
+}
+
+void PCLViewer::on_fusion_threadsd_valueChanged(int arg1)
+{
+    ui->fusion_threadsd->setValue(min(arg1, ui->maxthreads->value() / ui->fusion_threadsh->value() / ui->fusion_threadsw->value()));
 }

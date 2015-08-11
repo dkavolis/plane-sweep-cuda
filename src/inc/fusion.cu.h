@@ -21,9 +21,9 @@
 */
 
 /**
- *  \brief Update histogram from given \a depthmap
+ *  \brief Update histogram from given \p depthmap
  *
- *  \param f            pointer to \a fusionData containing histogram
+ *  \param f            \p fusionData containing histogram
  *  \param depthmap     pointer to depthmap data
  *  \param K            3x3 camera calibration matrix \f$K\f$
  *  \param R            3x3 rotation matrix from world to camera coordinates
@@ -44,7 +44,7 @@ void FusionUpdateHistogram(fusionData<_bins> f, const float * depthmap, const Ma
 /**
  *  \brief Update primal variable \f$u\f$ and helper variable \f$v\f$ using histogram depthmap fusion algorithm
  *
- *  \param f       pointer to \a fusionData containing \f$u\f$
+ *  \param f       \p fusionData containing \f$u\f$
  *  \param tau     fusion parameter \f$\tau\f$
  *  \param lambda  fusion parameter \f$\lambda\f$
  *  \param blocks  kernel grid dimensions
@@ -59,7 +59,7 @@ void FusionUpdateU(fusionData<_bins> f, const double tau, const double lambda, d
 /**
  *  \brief Update dual variable \f$p\f$ using histogram depthmap fusion algorithm
  *
- *  \param f       pointer to \a fusionData containing \f$p\f$
+ *  \param f       \p fusionData containing \f$p\f$
  *  \param sigma   fusion parameter \f$\sigma\f$
  *  \param blocks  kernel grid dimensions
  *  \param threads single block dimensions
@@ -73,7 +73,7 @@ void FusionUpdateP(fusionData<_bins> f, const double sigma, dim3 blocks, dim3 th
 /**
  *  \brief Single depthmap fusion iteration function
  *
- *  \param f            pointer to \a fusionData
+ *  \param f            \p fusionData
  *  \param depthmap     pointer to depthmap to be used in updating histograms
  *  \param K            3x3 camera calibration matrix \f$K\f$
  *  \param R            3x3 rotation matrix from world to camera coordinates

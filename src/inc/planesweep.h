@@ -5,42 +5,7 @@
 #ifndef PLANESWEEP_H
 #define PLANESWEEP_H
 
-// Default planesweep parameters
-#define DEFAULT_Z_NEAR 0.1f
-#define DEFAULT_Z_FAR 1.0f
-#define DEFAULT_NUMBER_OF_PLANES 200
-#define DEFAULT_NUMBER_OF_IMAGES 4
-#define DEFAULT_WINDOW_SIZE 5
-#define DEFAULT_STD_THRESHOLD 0.0001f
-#define DEFAULT_NCC_THRESHOLD 0.5f
-#define NO_DEPTH -1
-
-// Default GPU parameters
-#define NO_CUDA_DEVICE -1
-#define MAX_THREADS_PER_BLOCK 512
-#define MAX_PLANESWEEP_THREADS 1 // multithreading does not reduce execution time
-#define DEFAULT_BLOCK_XDIM 32
-
-// Default TVL1 denoising parameters
-#define DEFAULT_TVL1_ITERATIONS 100
-#define DEFAULT_TVL1_LAMBDA .3
-#define DEFAULT_TVL1_TAU 0.02
-#define DEFAULT_TVL1_SIGMA 6.f
-#define DEFAULT_TVL1_THETA 1.f
-#define DEFAULT_TVL1_BETA 0.f
-#define DEFAULT_TVL1_GAMMA 1.f
-
-// Default TGV2 parameters
-#define DEFAULT_TGV_LAMBDA 0.5
-#define DEFAULT_TGV_ALPHA0 2.0
-#define DEFAULT_TGV_ALPHA1 1.5
-#define DEFAULT_TGV_NITERS 30
-#define DEFAULT_TGV_NWARPS 15
-#define DEFAULT_TGV_SIGMA 1.f
-#define DEFAULT_TGV_TAU 0.02
-#define DEFAULT_TGV_BETA 0.f
-#define DEFAULT_TGV_GAMMA 1.f
-
+#include "defines.h"
 #include <iostream>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <cuda_runtime_api.h>

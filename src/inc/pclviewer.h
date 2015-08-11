@@ -5,19 +5,7 @@
 #ifndef PCLVIEWER_H
 #define PCLVIEWER_H
 
-#define CAM_POS "cam_pos"
-#define CAM_DIR "cam_dir"
-#define CAM_UP "cam_up"
-#define CAM_LOOKAT "cam_lookat"
-#define CAM_SKY "cam_sky"
-#define CAM_RIGHT "cam_right"
-#define CAM_FPOINT "cam_fpoint"
-#define CAM_ANGLE "cam_angle"
-
-#define RGB2GRAY_WEIGHT_RED 0.2989
-#define RGB2GRAY_WEIGHT_GREEN 0.5870
-#define RGB2GRAY_WEIGHT_BLUE 0.1140
-
+#include "defines.h"
 #include <iostream>
 
 // Qt
@@ -110,6 +98,19 @@ protected:
     fusionData<8, Standard> f;
 
 private slots: // GUI widget slots
+
+    void fusion_volume_center_x_changed();
+
+    void fusion_volume_center_y_changed();
+
+    void fusion_volume_center_z_changed();
+
+    void fusion_volume_corner_x_changed();
+
+    void fusion_volume_corner_y_changed();
+
+    void fusion_volume_corner_z_changed();
+
     void pSliderValueChanged (int value);
 
     void on_pushButton_pressed();
@@ -169,6 +170,14 @@ private slots: // GUI widget slots
     void on_reconstruct_button_clicked();
 
     void on_fusion_psize_valueChanged(int value);
+
+    void on_fusion_resize_clicked();
+
+    void on_fusion_threadsw_valueChanged(int arg1);
+
+    void on_fusion_threadsh_valueChanged(int arg1);
+
+    void on_fusion_threadsd_valueChanged(int arg1);
 
 private:
     // pointer to UI
@@ -290,7 +299,7 @@ private:
    *
    *  \details Both matrices must be of size (1,2), (1,3), (2,1) or (3,1).
    */
-    ublas::matrix<double> &cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B);
+    ublas::matrix<double> cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B);
 
     /**
    *  \brief RGB Qimage to grayscale conversion using predefined colour weights
@@ -306,6 +315,12 @@ private:
     void rgb2gray(T * data, const QImage & img);
 
     uchar3 RGBdepthmapColor(uchar depth);
+
+    void setupPlanesweep();
+
+    void setupTGV();
+
+    void setupFusion();
 };
 
 /** @} */ // group gui
