@@ -2,7 +2,6 @@
 **C++ plane sweep algorithm using CUDA**
 
 Works with living room image set from [here](http://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html). Download *ICL-NUIM PNGs*  
-Depthmap fusion in progress.
 
 **Not bug free.** [CMakeLists.txt](https://github.com/DKavolis/plane-sweep-cuda/blob/master/src/CMakeLists.txt) 
 will most likely need to be configured for your system.
