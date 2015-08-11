@@ -4,40 +4,40 @@ Dataset used: http://www.doc.ic.ac.uk/~ahanda/living_room_traj2_loop.tgz
 Planesweep parameters:
 	total # of images	5
 	NCC window size		5
-	# of planes			250
-	z near				0.1
-	z far 				5
+	# of planes		250
+	z near			0.1
+	z far 			5
 	STD threshold		0.5
 	NCC threshold		0.6
 	
 TVL1 denoising parameters:
 	# of iterations		100
-	lambda				0.3
-	tau					0.02
-	sigma				6
-	theta				1
-	beta				0
-	gamma				1
+	lambda			0.3
+	tau			0.02
+	sigma			6
+	theta			1
+	beta			0
+	gamma			1
 	
 Fusion parameters
 	SD threshold		0.05
-	tau					0.1
-	lambda				0.5
-	sigma				1
+	tau			0.1
+	lambda			0.5
+	sigma			1
 	starting images		2
 	# of iterations		293
-	image step			3
+	image step		3
 	
 	Volume:
-		x1				-2.71
-		y1				0.1
-		z1				-3.5
+		x1		-2.71
+		y1		0.1
+		z1		-3.5
 		
-		x2				2.79
-		y2				3.1
-		z2				4.2
+		x2		2.79
+		y2		3.1
+		z2		4.2
 		
 	# of voxels:
-		width			336
-		height			160
-		depth			448
+		width		336
+		height		160
+		depth		448
