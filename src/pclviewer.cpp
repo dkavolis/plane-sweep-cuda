@@ -973,9 +973,10 @@ void PCLViewer::on_save_clicked()
     }
 
     try {
-        pcl::io::savePCDFileASCII("planesweep.pcd", *cloud);
-        pcl::io::savePCDFileASCII("planesweep_tvl1.pcd", *clouddenoised);
-        pcl::io::savePCDFileASCII("tgv.pcd", *cloudtgv);
+        if (cloud->points.size() > 0) pcl::io::savePCDFileASCII("planesweep.pcd", *cloud);
+        if (clouddenoised->points.size() > 0) pcl::io::savePCDFileASCII("planesweep_tvl1.pcd", *clouddenoised);
+        if (cloudtgv->points.size() > 0) pcl::io::savePCDFileASCII("tgv.pcd", *cloudtgv);
+        if (cloudfusion->points.size() > 0) pcl::io::savePCDFileASCII("reconstructed.pcd", *cloudfusion);
     }
     catch (pcl::IOException & excep){
         std::cerr << "Error occured while saving PCD:\n" << excep.detailedMessage() << std::endl;
@@ -1062,14 +1063,13 @@ void PCLViewer::on_reconstruct_button_clicked()
 
     // Run iterations
     int iterations = ui->fusion_iters->value();
-    int sref = ui->refNumber->value();
 
     for (int i = 0; i < iterations; i++){
         printf("Reconstruction iteration: %d/%d\n", i+1, iterations);
         auto t1 = std::chrono::high_resolution_clock::now();
 
         // Load images and set K
-        ui->refNumber->setValue(ui->refNumber->value() + ui->fusion_imstep->value() - sref);
+        ui->refNumber->setValue(ui->fusion_simage->value() + i * ui->fusion_imstep->value());
         on_loadfromdir_clicked();
         ps.getK(k);
         K = k;
