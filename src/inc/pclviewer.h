@@ -49,30 +49,24 @@ class PCLViewer : public QMainWindow
 public:
 
     /**
-         *  \brief Constructor
-         *
-         *  \param argc number of command line arguments
-         *  \param argv pointer to command line argument strings
-         *  \param parent pointer to parent widget
-         *
-         *  \details
-         */
+    *  \brief Constructor
+    *
+    *  \param argc number of command line arguments
+    *  \param argv pointer to command line argument strings
+    *  \param parent pointer to parent widget
+    */
     PCLViewer (int argc, char **argv, QWidget *parent = 0);
 
-    /**
-         *  \brief Default destructor
-         */
+    /** \brief Default destructor */
     ~PCLViewer ();
 
     /**
-   *  \brief Set command line arguments
-   *
-   *  \param ac number of arguments
-   *  \param av pointer to command line argument strings
-   *  \return No return value
-   *
-   *  \details
-   */
+    *  \brief Set command line arguments
+    *
+    *  \param ac number of arguments
+    *  \param av pointer to command line argument strings
+    *  \return No return value
+    */
     void setArgs(int ac, char **av){ argc = ac; argv = av; }
 
 protected:
@@ -97,8 +91,9 @@ protected:
     dfusionData8 fd;
     fusionData<8, Standard> f;
 
-private slots: // GUI widget slots
+private slots: // GUI widgets slots
 
+    // Fusion volume widgets slots:///////////////////
     void fusion_volume_center_x_changed();
 
     void fusion_volume_center_y_changed();
@@ -110,11 +105,15 @@ private slots: // GUI widget slots
     void fusion_volume_corner_y_changed();
 
     void fusion_volume_corner_z_changed();
+    ////////////////////////////////////////////
 
+    /** \brief Planesweep QVTK widget point size slider slot */
     void pSliderValueChanged (int value);
 
+    /** \brief Planesweep start push button slot */
     void on_pushButton_pressed();
 
+    // Planesweep settings widgets slots:////////////
     void on_imNumber_valueChanged(int arg1);
 
     void on_winSize_valueChanged(int arg1);
@@ -129,30 +128,41 @@ private slots: // GUI widget slots
 
     void on_nccThresh_valueChanged(double arg1);
 
-    void on_pSlider2_valueChanged(int value);
-
-    void on_denoiseBtn_clicked();
-
     void on_threadsx_valueChanged(int arg1);
 
     void on_threadsy_valueChanged(int arg1);
 
+    void on_altmethod_toggled(bool checked);
+    ////////////////////////////////////////////
+
+    /** \brief Planesweep + TVL1 denoising QVTK widget point size slider slot */
+    void on_pSlider2_valueChanged(int value);
+
+    /** \brief TVL1 denoising on planesweep depthmap push button slot */
+    void on_denoiseBtn_clicked();
+
+    /** \brief TGV push button slot */
     void on_tgv_button_pressed();
 
+    /** \brief TGV QVTK widget point size slider slot */
     void on_tgv_psize_valueChanged(int value);
 
+    /** \brief Select path to images push button slot */
     void on_imagePathButton_clicked();
 
+    /** \brief Select reference image push button slot */
     void on_imageNameButton_clicked();
 
-    void on_altmethod_toggled(bool checked);
-
+    /** \brief Load images from source push button slot */
     void on_loadfromsrc_clicked();
 
+    /** \brief Load images from selected directory push button slot */
     void on_loadfromdir_clicked();
 
+    /** \brief Save all results push button slot */
     void on_save_clicked();
 
+    // TVL1 denoising widgets slots, only useful if 'denoise on parameter change' is checked:
     void on_nIters_valueChanged(int arg1);
 
     void on_lambda_valueChanged(double arg1);
@@ -166,9 +176,12 @@ private slots: // GUI widget slots
     void on_tvl1_beta_valueChanged(double arg1);
 
     void on_tvl1_gamma_valueChanged(double arg1);
+    //////////////////////////////////////////////////
 
+    /** \brief Planesweep + TVL1 + fusion reconstruction push button slot */
     void on_reconstruct_button_clicked();
 
+    // Fusion widgets slots:////////////////////////////////////////////
     void on_fusion_psize_valueChanged(int value);
 
     void on_fusion_resize_clicked();
@@ -178,6 +191,7 @@ private slots: // GUI widget slots
     void on_fusion_threadsh_valueChanged(int arg1);
 
     void on_fusion_threadsd_valueChanged(int arg1);
+    //////////////////////////////////////////////////////////////////////
 
 private:
     // pointer to UI
@@ -213,6 +227,9 @@ private:
     PlaneSweep::camImage<float> * cy;
     PlaneSweep::camImage<float> * cz;
 
+    // sparse depthmap
+    PlaneSweep::camImage<float> sparsedepth;
+
     // variables to track if reference image has changed before last depthmap generation
     // for each method
     bool  refchanged = true,
@@ -220,37 +237,31 @@ private:
     refchangedtgv = true;
 
     /**
-   *  \brief Load images from source directory
-   *
-   *  \return No return value
-   *
-   *  \details Images are assumed to be at \a "../src/PlaneSweep/". This requires build directory to be in the same folder as
-   *  source directory.
-   */
+    *  \brief Load images from source directory
+    *
+    *  \details Images are assumed to be source directory.
+    */
     void LoadImages();
 
     /**
-   *  \brief Concatenate strings from UI and given \a number to create image file name
-   *
-   *  \param number   image number
-   *  \param imagePos camera parameter file for this image returned by reference
-   *  \return Image file name
-   *
-   *  \details
-   */
+    *  \brief Concatenate strings from UI and given \a number to create image file name
+    *
+    *  \param number   image number
+    *  \param imagePos camera parameter file for this image returned by reference
+    *  \return Image file name
+    */
     QString ImageName(int number, QString & imagePos);
 
     /**
-   *  \brief Compute camera calibration matrix \f$K\f$
-   *
-   *  \param K         camera calibration matrix \f$K\f$
-   *  \param cam_dir   camera parameter
-   *  \param cam_up    camera parameter
-   *  \param cam_right camera parameter
-   *  \return No return value
-   *
-   *  \details Camera parameters must first be obtained via getcamParameters
-   */
+    *  \brief Compute camera calibration matrix \f$K\f$
+    *
+    *  \param K         camera calibration matrix \f$K\f$
+    *  \param cam_dir   camera parameter
+    *  \param cam_up    camera parameter
+    *  \param cam_right camera parameter
+    *
+    *  \details Camera parameters must first be obtained via getcamParameters().
+    */
     void getcamK(ublas::matrix<double> & K, const ublas::matrix<double> & cam_dir,
                  const ublas::matrix<double> & cam_up, const ublas::matrix<double> & cam_right);
 
@@ -262,7 +273,6 @@ private:
    *  \param cam_dir camera parameter
    *  \param cam_pos camera parameter
    *  \param cam_up  camera parameter
-   *  \return No return value
    *
    *  \details Camera parameters must first be obtained via getcamParameters
    */
@@ -270,57 +280,67 @@ private:
                    const ublas::matrix<double> & cam_pos, const ublas::matrix<double> & cam_up);
 
     /**
-   *  \brief Get cam parameters from \a txt file
-   *
-   *  \param filename   name of \a .txt file, including extension
-   *  \param cam_pos    camera parameter
-   *  \param cam_dir    camera parameter
-   *  \param cam_up     camera parameter
-   *  \param cam_lookat camera parameter
-   *  \param cam_sky    camera parameter
-   *  \param cam_right  camera parameter
-   *  \param cam_fpoint camera parameter
-   *  \param cam_angle  camera parameter
-   *  \return Success/failure of opening \a filename
-   *
-   *  \details Must be the same format as ones found on http://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html
-   */
+    *  \brief Get cam parameters from \a txt file
+    *
+    *  \param filename   name of \a .txt file, including extension
+    *  \param cam_pos    camera parameter
+    *  \param cam_dir    camera parameter
+    *  \param cam_up     camera parameter
+    *  \param cam_lookat camera parameter
+    *  \param cam_sky    camera parameter
+    *  \param cam_right  camera parameter
+    *  \param cam_fpoint camera parameter
+    *  \param cam_angle  camera parameter
+    *  \return Success/failure of opening \a filename
+    *
+    *  \details Must be the same format as ones found on http://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html
+    */
     bool getcamParameters(QString filename, ublas::matrix<double> & cam_pos, ublas::matrix<double> & cam_dir,
                           ublas::matrix<double> & cam_up, ublas::matrix<double> & cam_lookat,
                           ublas::matrix<double> & cam_sky, ublas::matrix<double> & cam_right,
                           ublas::matrix<double> & cam_fpoint, double & cam_angle);
 
     /**
-   *  \brief Compute vector product of 2 \a boost matrices
-   *
-   *  \param A \f$1^{st}\f$ vector
-   *  \param B \f$2^{nd}\f$ vector
-   *  \return Vector product of \a A and \a B
-   *
-   *  \details Both matrices must be of size (1,2), (1,3), (2,1) or (3,1).
-   */
+    *  \brief Compute vector product of 2 \a boost matrices
+    *
+    *  \param A \f$1^{st}\f$ vector
+    *  \param B \f$2^{nd}\f$ vector
+    *  \return Vector product of \a A and \a B
+    *
+    *  \details Both matrices must be of size (1,2), (1,3), (2,1) or (3,1).
+    */
     ublas::matrix<double> cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B);
 
     /**
-   *  \brief RGB Qimage to grayscale conversion using predefined colour weights
-   *
-   *  \tparam T type of data to convert to
-   *  \param data pointer to output data
-   *  \param img  RGB image to convert
-   *  \return No return value
-   *
-   *  \details Weights are defined in preprocessor definitions
-   */
+    *  \brief RGB Qimage to grayscale conversion using predefined colour weights
+    *
+    *  \tparam T type of data to convert to
+    *  \param data pointer to output data
+    *  \param img  RGB image to convert
+    *
+    *  \details Weights are defined in preprocessor definitions
+    */
     template<typename T>
     void rgb2gray(T * data, const QImage & img);
 
+    /**
+    *  \brief Depthmap coloring function
+    *
+    *  \param depth normalized depth in range [0, 255]
+    *  \return Uchar3 struct containing RGB colors in this order
+    */
     uchar3 RGBdepthmapColor(uchar depth);
 
+    /** \brief Function to setup planesweep GUI widgets */
     void setupPlanesweep();
 
+    /** \brief Function to setup TGV GUI widgets */
     void setupTGV();
 
+    /** \brief Function to setup fusion GUI widgets */
     void setupFusion();
+
+    bool loadSparseDepthmap(const QString & fileName);
 };
 
 /** @} */ // group gui

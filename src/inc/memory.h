@@ -20,15 +20,11 @@
  */
 typedef enum MemoryKind{
 #if CUDA_VERSION_MAJOR >= 6
-    Standard,
-    Host,
-    Device,
-    Managed
-#else
+    Managed,
+#endif // CUDA_VERSION_MAJOR >= 6
     Standard,
     Host,
     Device
-#endif // CUDA_VERSION_MAJOR >= 6
 }  MemoryKind;
 
 
@@ -45,9 +41,7 @@ typedef enum MemoryKind{
 class Manage {
 public:
 #if CUDA_VERSION_MAJOR >= 6
-    /**
-     *  \brief Operator \a new overload to allocate managed memory instead of host.
-     */
+    /** \brief Operator \a new overload to allocate managed memory instead of host. */
     void *operator new(size_t len) {
         void *ptr;
         cudaMallocManaged((void **)&ptr, len, cudaMemAttachGlobal);
@@ -98,8 +92,6 @@ public:
      *  \param ptr   pointer to allocated memory returned by reference
      *  \param len   number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Malloc(T *&ptr, size_t len)
@@ -123,8 +115,6 @@ public:
      *  \param h     height in number of elements
      *  \param pitch step size in bytes returned by reference
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Malloc(T *&ptr, size_t w, size_t h, size_t &pitch)
@@ -179,8 +169,6 @@ public:
      *  \param pSrc     pointer to source memory
      *  \param len      number of elements to copy
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Device2DeviceCopy(T * pDst, T * pSrc, size_t len)
@@ -195,8 +183,6 @@ public:
      *  \param pSrc     pointer to source memory
      *  \param len      number of elements to copy
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Device2HostCopy(T *pDst, T *pSrc, size_t len)
@@ -211,8 +197,6 @@ public:
      *  \param pSrc     pointer to source memory
      *  \param len      number of elements to copy
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Host2DeviceCopy(T *pDst, T *pSrc, size_t len)
@@ -227,8 +211,6 @@ public:
      *  \param pSrc     pointer to source memory
      *  \param len      number of elements to copy
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Host2HostCopy(T *pDst, T *pSrc, size_t len)
@@ -246,8 +228,6 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
@@ -265,8 +245,6 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
@@ -284,8 +262,6 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
@@ -303,8 +279,6 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
@@ -323,8 +297,6 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
@@ -343,8 +315,6 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
@@ -363,8 +333,6 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
@@ -383,8 +351,6 @@ public:
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
      *  \return Returns \a cudaError_t (CUDA error code)
-     *
-     *  \details
      */
     __host__ inline
     static cudaError_t Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)

@@ -380,6 +380,86 @@ __global__ void TGV2_updateP_tensor_weighed_kernel(float * __restrict__ d_Px, fl
     }
 }
 
+__global__ void TGV2_updateU_sparseDepth_kernel(float * __restrict__ d_u, float * __restrict__ d_u1x, float * __restrict__ d_u1y,
+                                                float * __restrict__ d_ubar, float * __restrict__ d_u1xbar, float * __restrict__ d_u1ybar,
+                                                const float * __restrict__ d_Px, const float * __restrict__ d_Py,
+                                                const float * __restrict__ d_Qx, const float * __restrict__ d_Qy,
+                                                const float * __restrict__ d_Qz, const float * __restrict__ d_Qw,
+                                                const float * __restrict__ d_w, const float * __restrict__ d_Ds, const float alpha0,
+                                                const float alpha1, const float tau, const float theta,
+                                                const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int i = ind_y * width + ind_x;
+
+        int xp = fmaxf(ind_x - 1, 0.f);
+        int yp = fmaxf(ind_y - 1, 0.f);
+
+        float c_px = d_Px[i], c_py = d_Py[i],
+                xp_px = d_Px[ind_y*width+xp],
+                yp_py = d_Py[yp*width+ind_x];
+
+        d_u[i] = (d_u[i] + tau*(alpha1 * ( (c_px - xp_px) + (c_py - yp_py)) + d_w[i] * d_Ds[i])) / (1 + tau * d_w[i]);
+        d_u1x[i] = d_u1x[i] - tau*(-alpha1*(c_px) - alpha0*(d_Qx[i] - d_Qx[ind_y*width + xp] + d_Qz[i] - d_Qz[yp*width + ind_x]));
+        d_u1y[i] = d_u1y[i] - tau*(-alpha1*(c_py) - alpha0*(d_Qz[i] - d_Qz[ind_y*width + xp] + d_Qy[i] - d_Qy[yp*width + ind_x]));
+
+        d_ubar[i] = d_u[i] + theta * (d_u[i] - d_ubar[i]);
+        d_u1xbar[i] = d_u1x[i] + theta * (d_u1x[i] - d_u1xbar[i]);
+        d_u1ybar[i] = d_u1y[i] + theta * (d_u1y[i] - d_u1ybar[i]);
+    }
+}
+
+__global__ void TGV2_updateU_sparseDepthTensor_kernel(float * __restrict__ d_u, float * __restrict__ d_u1x, float * __restrict__ d_u1y,
+                                                      float * __restrict__ d_ubar, float * __restrict__ d_u1xbar, float * __restrict__ d_u1ybar,
+                                                      const float * __restrict__ d_T11, const float * __restrict__ d_T12,
+                                                      const float * __restrict__ d_T21, const float * __restrict__ d_T22,
+                                                      const float * __restrict__ d_Px, const float * __restrict__ d_Py,
+                                                      const float * __restrict__ d_Qx, const float * __restrict__ d_Qy,
+                                                      const float * __restrict__ d_Qz, const float * __restrict__ d_Qw,
+                                                      const float * __restrict__ d_w, const float * __restrict__ d_Ds, const float alpha0,
+                                                      const float alpha1, const float tau, const float theta,
+                                                      const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int i = ind_y * width + ind_x;
+
+        int xp = fmaxf(ind_x - 1, 0.f);
+        int yp = fmaxf(ind_y - 1, 0.f);
+
+        float c_px = d_Px[i], c_py = d_Py[i],
+                xp_px = d_Px[ind_y*width+xp], yp_px = d_Px[yp*width+ind_x],
+                xp_py = d_Py[ind_y*width+xp], yp_py = d_Py[yp*width+ind_x];
+
+        d_u[i] = (d_u[i] + tau*(alpha1 * (d_T11[i] * (c_px - xp_px) + d_T12[i] * (c_py - xp_py) +
+                                          d_T21[i] * (c_px - yp_px) + d_T22[i] * (c_py - yp_py)) + d_w[i] * d_Ds[i])) / (1 + tau * d_w[i]);
+        d_u1x[i] = d_u1x[i] - tau*(-alpha1*(d_T11[i]*c_px+d_T12[i]*c_py) - alpha0*(d_Qx[i] - d_Qx[ind_y*width + xp] + d_Qz[i] - d_Qz[yp*width + ind_x]));
+        d_u1y[i] = d_u1y[i] - tau*(-alpha1*(d_T21[i]*c_px+d_T22[i]*c_py) - alpha0*(d_Qz[i] - d_Qz[ind_y*width + xp] + d_Qy[i] - d_Qy[yp*width + ind_x]));
+
+        d_ubar[i] = d_u[i] + theta * (d_u[i] - d_ubar[i]);
+        d_u1xbar[i] = d_u1x[i] + theta * (d_u1x[i] - d_u1xbar[i]);
+        d_u1ybar[i] = d_u1y[i] + theta * (d_u1y[i] - d_u1ybar[i]);
+    }
+}
+
+__global__ void calculateWeights_sparseDepth_kernel(float * __restrict__ d_w, const float * __restrict__ d_Ds, const int width, const int height)
+{
+    const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int ind_y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if ((ind_x < width) && (ind_y < height)) {
+        const int i = ind_y * width + ind_x;
+
+        if (d_Ds[i] > 0) d_w[i] = 1.f;
+        else d_w[i] = 0.f;
+    }
+}
+
 void TGV2_updateP(float * d_Px, float * d_Py, const float * d_u, const float * d_u1x, const float * d_u1y,
                   const float alpha1, const float sigma, const int width, const int height, dim3 blocks, dim3 threads)
 {
@@ -472,4 +552,38 @@ void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11
 {
     TGV2_updateP_tensor_weighed_kernel<<<blocks, threads>>>(d_Px, d_Py, d_T11, d_T12, d_T21, d_T22, d_u, d_u1x, d_u1y, alpha1,
                                                             sigma, width, height);
+}
+
+void TGV2_updateU_sparseDepth(float * d_u, float * d_u1x, float * d_u1y,
+                              float * d_ubar, float * d_u1xbar, float * d_u1ybar,
+                              const float * d_Px, const float * d_Py,
+                              const float * d_Qx, const float * d_Qy,
+                              const float * d_Qz, const float * d_Qw,
+                              const float * d_w, const float * d_Ds, const float alpha0,
+                              const float alpha1, const float tau, const float theta,
+                              const int width, const int height, dim3 blocks, dim3 threads)
+{
+    TGV2_updateU_sparseDepth_kernel<<<blocks, threads>>>(d_u, d_u1x, d_u1y, d_ubar, d_u1xbar, d_u1ybar, d_Px, d_Py,
+                                                         d_Qx, d_Qy, d_Qz, d_Qw, d_w, d_Ds, alpha0, alpha1, tau, theta, width, height);
+}
+
+void TGV2_updateU_sparseDepthTensor(float * d_u, float * d_u1x, float * d_u1y,
+                                    float * d_ubar, float * d_u1xbar, float * d_u1ybar,
+                                    const float * d_T11, const float * d_T12,
+                                    const float * d_T21, const float * d_T22,
+                                    const float * d_Px, const float * d_Py,
+                                    const float * d_Qx, const float * d_Qy,
+                                    const float * d_Qz, const float * d_Qw,
+                                    const float * d_w, const float * d_Ds, const float alpha0,
+                                    const float alpha1, const float tau, const float theta,
+                                    const int width, const int height, dim3 blocks, dim3 threads)
+{
+    TGV2_updateU_sparseDepthTensor_kernel<<<blocks, threads>>>(d_u, d_u1x, d_u1y, d_ubar, d_u1xbar, d_u1ybar, d_T11, d_T12, d_T21, d_T22,
+                                                               d_Px, d_Py,
+                                                               d_Qx, d_Qy, d_Qz, d_Qw, d_w, d_Ds, alpha0, alpha1, tau, theta, width, height);
+}
+
+void calculateWeights_sparseDepth(float * d_w, const float * d_Ds, const int width, const int height, dim3 blocks, dim3 threads)
+{
+    calculateWeights_sparseDepth_kernel<<<blocks, threads>>>(d_w, d_Ds, width, height);
 }

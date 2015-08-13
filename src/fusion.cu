@@ -19,8 +19,6 @@ __global__ void FusionUpdateHistogram_kernel(fusionData<_bins> f, const float * 
 
     if ((i.x < f.width()) && (i.y < f.height()) && (i.z < f.depth()))
     {
-//        Matrix3D r = *R, k = *K;
-//        Vector3D t = *T;
         // Get world coordinates of the voxel
         float3 c = f.worldCoords(i.x, i.y, i.z);
 

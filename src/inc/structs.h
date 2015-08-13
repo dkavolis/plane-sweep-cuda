@@ -12,17 +12,10 @@
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 #include <helper_math.h>
-//#include <boost/numeric/ublas/matrix.hpp>
 #include "memory.h"
 
-/**
-*  \brief Convenience typedef for <em>unsigned int</em>
-*/
+/** \brief Convenience typedef for <em>unsigned int</em>*/
 typedef unsigned int uint;
-
-//namespace boost { namespace numeric { namespace ublas { template<typename T> class matrix; } } }
-
-//namespace ublas = boost::numeric::ublas;
 
 /**
 *  \brief Simple structure to hold histogram data of each voxel
@@ -36,25 +29,21 @@ typedef unsigned int uint;
 template<unsigned char _nBins>
 struct histogram : public Manage
 {
-    /**
-         *  \brief Array of bins
-         */
+    /** \brief Array of bins */
     unsigned char bin[_nBins];
 
     /**
-     *  \brief Default constructor
-     *
-     *  \details All bins are initialized to 0
-     */
+    *  \brief Default constructor
+    *
+    *  \details All bins are initialized to 0
+    */
     __device__ __host__ inline
     histogram()
     {
         for (unsigned char i = 0; i < _nBins; i++) bin[i] = 0;
     }
 
-    /**
-     *  \brief Copy constructor
-     */
+    /** \brief Copy constructor */
     __device__ __host__ inline
     histogram(const histogram<_nBins> & h)
     {
@@ -62,13 +51,11 @@ struct histogram : public Manage
     }
 
     /**
-     *  \brief Copy operator
-     *
-     *  \param hist histogram to be copied from
-     *  \return Reference to this histogram
-     *
-     *  \details
-     */
+    *  \brief Copy operator
+    *
+    *  \param hist histogram to be copied from
+    *  \return Reference to this histogram
+    */
     __device__ __host__ inline
     histogram<_nBins>& operator=(histogram<_nBins> & hist)
     {
@@ -78,33 +65,27 @@ struct histogram : public Manage
     }
 
     /**
-     *  \brief Access to first bin (occluded voxel)
-     *
-     *  \return Reference to first bin
-     *
-     *  \details
-     */
+    *  \brief Access to first bin (occluded voxel)
+    *
+    *  \return Reference to first bin
+    */
     __device__ __host__ inline
     unsigned char& first(){ return bin[0]; }
 
     /**
-     *  \brief Access to last bin (empty voxel)
-     *
-     *  \return Reference to last bin
-     *
-     *  \details
-     */
+    *  \brief Access to last bin (empty voxel)
+    *
+    *  \return Reference to last bin
+    */
     __device__ __host__ inline
     unsigned char& last(){ return bin[_nBins - 1]; }
 
     /**
-     *  \brief Access operator
-     *
-     *  \param i index of bin
-     *  \return Reference to bin at index \a i
-     *
-     *  \details
-     */
+    *  \brief Access operator
+    *
+    *  \param i index of bin
+    *  \return Reference to bin at index \a i
+    */
     __device__ __host__ inline
     unsigned char& operator()(unsigned char i){ return bin[i]; }
 };
@@ -114,67 +95,55 @@ struct histogram : public Manage
 /**
 *  \brief Simple structure to hold all data of a single voxel required for depthmap fusion
 *  \tparam _nBins   number of histogram bins
-*
-*  \details
 */
 template<unsigned char _nBins>
 struct fusionvoxel : public Manage
 {
-    /**
-         *  \brief Primal variable \f$u\f$
-         */
+    /** \brief Primal variable \f$u\f$ */
     float u;
-    /**
-         *  \brief Helper variable \f$v\f$
-         */
+    /** \brief Helper variable \f$v\f$ */
     float v;
-    /**
-         *  \brief Dual variable \f$p\f$
-         */
+    /** \brief Dual variable \f$p\f$ */
     float3 p;
-    /**
-         *  \brief Histogram
-         */
+    /** \brief Histogram */
     histogram<_nBins> h;
 
     /**
-     *  \brief Default constructor
-     *
-     *  \details All variables are intialized to 0.
-     */
+    * \brief Default constructor
+    *
+    *  \details All variables are intialized to 0.
+    */
     __host__ __device__ inline
     fusionvoxel() :
         u(0), p(make_float3(0, 0, 0)), h(), v(0)
     {}
 
     /**
-     *  \brief Constructor overload.
-     *
-     *  \param u Primal variable \f$u\f$ initialization value
-     *
-     *  \details Details \f$p\f$, \f$v\f$ and \a histogram are initialized to 0.
-     */
+    *  \brief Constructor overload.
+    *
+    *  \param u Primal variable \f$u\f$ initialization value
+    *
+    *  \details Details \f$p\f$, \f$v\f$ and \a histogram are initialized to 0.
+    */
     __host__ __device__ inline
     fusionvoxel(const double u) :
         u(u), p(make_float3(0, 0, 0)), h(), v(0)
     {}
 
-    /**
-     *  \brief Copy constructor
-     */
+    /** \brief Copy constructor */
     __host__ __device__ inline
     fusionvoxel(const fusionvoxel<_nBins>& f) :
         u(f.u), p(f.p), h(f.h), v(f.v)
     {}
 
     /**
-     *  \brief Assignment operator.
-     *
-     *  \param vox Reference to \a fusionvoxel
-     *  \return Reference to this \a fusionvoxel
-     *
-     *  \details Copies data from another \a fusionvoxel
-     */
+    *  \brief Copy operator.
+    *
+    *  \param vox Reference to \a fusionvoxel
+    *  \return Reference to this \a fusionvoxel
+    *
+    *  \details Copies data from another \a fusionvoxel
+    */
     __host__ __device__ inline
     fusionvoxel<_nBins>& operator=(fusionvoxel<_nBins> & vox)
     {
@@ -190,46 +159,38 @@ struct fusionvoxel : public Manage
 /**
 *  \brief Helper structure for calculating \f$\operatorname{prox}_{hist}(u)\f$.
 *  \tparam _nBins   number of histogram bins
-*
-*  \details
 */
 template<unsigned char _nBins>
 struct sortedHist : public Manage
 {
-    /**
-         *  \brief Array of elements
-         */
+    /** \brief Array of elements */
     float element[2 * _nBins + 1];
-    /**
-         *  \brief Number of elements
-         */
+    /** \brief Number of elements */
     unsigned char elements;
 
     /**
-     *  \brief Default constructor
-     *
-     *  \details Sets \a elements to 0
-     */
+    *  \brief Default constructor
+    *
+    *  \details Sets \a elements to 0
+    */
     __host__ __device__ inline
     sortedHist() : elements(0)
     {}
 
     /**
-     *  \brief Constructor overload
-     *
-     *  \param bincenter    array of bin centers sorted from least to greatest
-     *
-     *  \details Sets \a elements to \a _nBins.
-     */
+    *  \brief Constructor overload
+    *
+    *  \param bincenter    array of bin centers sorted from least to greatest
+    *
+    *  \details Sets \a elements to \a _nBins.
+    */
     __host__ __device__ inline
     sortedHist(float bincenter[_nBins]) : elements(_nBins)
     {
         for (unsigned char i = 0; i < _nBins; i++) element[i] = bincenter[i];
     }
 
-    /**
-     *  \brief Copy constructor
-     */
+    /** \brief Copy constructor */
     __host__ __device__ inline
     sortedHist(const sortedHist<_nBins> & sh)
     {
@@ -238,13 +199,10 @@ struct sortedHist : public Manage
     }
 
     /**
-     *  \brief Insertion sort function
-     *
-     *  \param val value to be inserted
-     *  \return No return value
-     *
-     *  \details
-     */
+    *  \brief Insertion sort function
+    *
+    *  \param val value to be inserted
+    */
     __host__ __device__ inline
     void insert(float val)
     {
@@ -265,18 +223,14 @@ struct sortedHist : public Manage
     }
 
     /**
-     *  \brief Get median element value
-     *
-     *  \return Value of median element
-     *
-     *  \details
-     */
+    *  \brief Get median element value
+    *
+    *  \return Value of median element
+    */
     __host__ __device__ inline
     float median(){ return element[_nBins]; }
 
-    /**
-     *  \brief Get size of the array
-     */
+    /** \brief Get size of the array */
     int size(){ return 2 * _nBins + 1; }
 };
 
@@ -285,77 +239,70 @@ struct sortedHist : public Manage
 * @{
 */
 
-/**
-*  \brief Simple struct to hold coordinates of volume rectangle
-*/
+/** \brief Simple struct to hold coordinates of volume rectangle */
 struct Rectangle3D : public Manage
 {
-    /**
-         *  \brief Corner of rectangle
-         */
+    /** \brief Corner of rectangle */
     float3 a;
-    /**
-         *  \brief Opposite corner of rectangle
-         */
+    /** \brief Opposite corner of rectangle */
     float3 b;
 
     /**
-     *  \brief Default constructor
-     *
-     *  \details Corners are initialized to (0,0,0)
-     */
+    *  \brief Default constructor
+    *
+    *  \details Corners are initialized to (0,0,0)
+    */
     __host__ __device__ inline
     Rectangle3D() :
         a(make_float3(0,0,0)), b(make_float3(0,0,0))
     {}
 
     /**
-     *  \brief Constructor overload
-     *
-     *  \param x corner of rectangle
-     *  \param y opposite corner of rectangle
-     *
-     *  \details Constructs Rectangle3D from given corners
-     */
+    *  \brief Constructor overload
+    *
+    *  \param x corner of rectangle
+    *  \param y opposite corner of rectangle
+    *
+    *  \details Constructs Rectangle3D from given corners
+    */
     __host__ __device__ inline
     Rectangle3D(float3 x, float3 y) :
         a(x), b(y)
     {}
 
     /**
-     *  \brief Copy constructor
-     *
-     *  \param r Rectangle3D to be copied
-     *
-     *  \details Constructs Rectangle3D from given Rectangle3D
-     */
+    *  \brief Copy constructor
+    *
+    *  \param r Rectangle3D to be copied
+    *
+    *  \details Constructs Rectangle3D from given Rectangle3D
+    */
     __host__ __device__ inline
     Rectangle3D(const Rectangle3D& r) :
         a(r.a), b(r.b)
     {}
 
     /**
-     *  \brief Get size of rectangle
-     *
-     *  \return Size of rectangle
-     *
-     *  \details Returns <em>b - a</em>
-     */
+    *  \brief Get size of rectangle
+    *
+    *  \return Size of rectangle
+    *
+    *  \details Returns <em>b - a</em>
+    */
     __host__ __device__ inline
     float3 size()
     {
         return (b - a);
     }
 
+    /** \brief Get coordinates of the center of rectangle */
     __host__ __device__ inline
     float3 center()
     {
         return (b + a) / 2.f;
     }
 
-    /**
-     *  \brief Assignment operator
-     */
+    /** \brief Copy operator */
     __host__ __device__ inline
     Rectangle3D& operator=(const Rectangle3D & r)
     {
@@ -377,20 +324,17 @@ struct Rectangle3D : public Manage
 *  \brief 3 by 3 matrix convenience structure that works on device
 *
 *  \details Useful for storing and performing operations with \f$R\f$ and \f$K\f$ matrices.
-* Host operators are overloaded to work with \a boost \a matrix.
 */
 struct Matrix3D : public Manage
 {
-    /**
-         *  \brief Row vectors
-         */
+    /** \brief Row vectors */
     float3 r[3]; // row vectors
 
     /**
-         *  \brief Default constructor
-         *
-         *  \details Initializes to matrix of zeros
-         */
+    *  \brief Default constructor
+    *
+    *  \details Initializes to matrix of zeros
+    */
     __host__ __device__ inline
     Matrix3D()
     {
@@ -400,14 +344,14 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Constructor overload
-         *
-         *  \param r1 \f$1^{st}\f$ row vector
-         *  \param r2 \f$2^{nd}\f$ row vector
-         *  \param r3 \f$3^{rd}\f$ row vector
-         *
-         *  \details Constructs matrix with given row vectors
-         */
+    *  \brief Constructor overload
+    *
+    *  \param r1 \f$1^{st}\f$ row vector
+    *  \param r2 \f$2^{nd}\f$ row vector
+    *  \param r3 \f$3^{rd}\f$ row vector
+    *
+    *  \details Constructs matrix with given row vectors
+    */
     __host__ __device__ inline
     Matrix3D(float3 r1, float3 r2, float3 r3)
     {
@@ -416,43 +360,13 @@ struct Matrix3D : public Manage
         r[2] = (r3);
     }
 
-//    /**
-//         *  \brief Constructor overload
-//         *
-//         *  \param R reference to \a boost matrix of size at least (3,3)
-//         *
-//         *  \details Constructs Matrix3D from given \a boost matrix
-//         */
-//    __host__ inline
-//    Matrix3D(boost::numeric::ublas::matrix<double>& R)
-//    {
-//        r[0] = (make_float3(R(0,0),R(0,1),R(0,2)));
-//        r[1] = (make_float3(R(1,0),R(1,1),R(1,2)));
-//        r[2] = (make_float3(R(2,0),R(2,1),R(2,2)));
-//    }
-
-//    /**
-//         *  \brief Constructor overload
-//         *
-//         *  \param R reference to \a boost matrix of size at least (3,3)
-//         *
-//         *  \details Constructs Matrix3D from given \a boost matrix
-//         */
-//    __host__ inline
-//    Matrix3D(boost::numeric::ublas::matrix<float> & R)
-//    {
-//        r[0] = (make_float3(R(0,0),R(0,1),R(0,2)));
-//        r[1] = (make_float3(R(1,0),R(1,1),R(1,2)));
-//        r[2] = (make_float3(R(2,0),R(2,1),R(2,2)));
-//    }
-
     /**
-         *  \brief Constructor overload
-         *
-         *  \param m array of values
-         *
-         *  \details Constructs Matrix3D from given array
-         */
+    *  \brief Constructor overload
+    *
+    *  \param m array of values
+    *
+    *  \details Constructs Matrix3D from a given 2D array
+    */
     __host__ __device__ inline
     Matrix3D(float m[3][3])
     {
@@ -462,12 +376,12 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Constructor overload
-         *
-         *  \param m array of values
-         *
-         *  \details Constructs Matrix3D from given array
-         */
+    *  \brief Constructor overload
+    *
+    *  \param m array of values
+    *
+    *  \details Constructs Matrix3D from a given 2D array
+    */
     __host__ __device__ inline
     Matrix3D(double m[3][3])
     {
@@ -477,12 +391,12 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Constructor overload
-         *
-         *  \param m array of values
-         *
-         *  \details Constructs Matrix3D from given array
-         */
+    *  \brief Constructor overload
+    *
+    *  \param m array of values
+    *
+    *  \details Constructs Matrix3D from a given row major array
+    */
     __host__ __device__ inline
     Matrix3D(float m[9])
     {
@@ -492,12 +406,12 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Constructor overload
-         *
-         *  \param m array of values
-         *
-         *  \details Constructs Matrix3D from given array
-         */
+    *  \brief Constructor overload
+    *
+    *  \param m array of values
+    *
+    *  \details Constructs Matrix3D from a given row major array
+    */
     __host__ __device__ inline
     Matrix3D(double m[9])
     {
@@ -506,9 +420,7 @@ struct Matrix3D : public Manage
         r[2] = (make_float3(m[6], m[7], m[8]));
     }
 
-    /**
-         *  \brief Copy constructor
-         */
+    /** \brief Copy constructor */
     __host__ __device__ inline
     Matrix3D(const Matrix3D & R)
     {
@@ -518,13 +430,11 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Get reference to row vector
-         *
-         *  \param i index of row
-         *  \return Reference to row vector
-         *
-         *  \details
-         */
+    *  \brief Get reference to row vector
+    *
+    *  \param i index of row
+    *  \return Reference to row vector
+    */
     __host__ __device__ inline
     float3 & row(unsigned char i)
     {
@@ -532,13 +442,11 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Get constant reference to row vector
-         *
-         *  \param i index of row
-         *  \return Constant reference to row vector
-         *
-         *  \details
-         */
+    *  \brief Get constant reference to row vector
+    *
+    *  \param i index of row
+    *  \return Constant reference to row vector
+    */
     __host__ __device__ inline
     const float3 & row(unsigned char i) const
     {
@@ -546,12 +454,10 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Transpose matrix
-         *
-         *  \return Transpose of this Matrix3D
-         *
-         *  \details
-         */
+    *  \brief Transpose matrix
+    *
+    *  \return Transpose of this Matrix3D
+    */
     __host__ __device__ inline
     Matrix3D trans()
     {
@@ -563,12 +469,10 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Calculate determinant of matrix
-         *
-         *  \return Determinant of this Matrix3D
-         *
-         *  \details
-         */
+    *  \brief Calculate determinant of matrix
+    *
+    *  \return Determinant of this Matrix3D
+    */
     __host__ __device__ inline
     float det()
     {
@@ -578,12 +482,10 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Calculate inverse of matrix
-         *
-         *  \return Inverse of this Matrix3D
-         *
-         *  \details
-         */
+    *  \brief Calculate inverse of matrix
+    *
+    *  \return Inverse of this Matrix3D
+    */
     __host__ __device__ inline
     Matrix3D inv()
     {
@@ -595,13 +497,7 @@ struct Matrix3D : public Manage
         return Matrix3D(r1, r2, r3);
     }
 
-    /**
-         *  \brief Set this matrix to identity
-         *
-         *  \return No return value
-         *
-         *  \details
-         */
+    /** \brief Set this matrix to identity */
     __host__ __device__ inline
     void makeIdentity()
     {
@@ -611,12 +507,10 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Construct identity matrix
-         *
-         *  \return Identity Matrix3D
-         *
-         *  \details
-         */
+    *  \brief Construct identity matrix
+    *
+    *  \return Identity Matrix3D
+    */
     __host__ __device__ inline
     static Matrix3D identityMatrix()
     {
@@ -625,9 +519,7 @@ struct Matrix3D : public Manage
         return m;
     }
 
-    /**
-         *  \brief Assignment operator.
-         */
+    /** \brief Copy operator. */
     __host__ __device__ inline
     Matrix3D & operator=(Matrix3D & R)
     {
@@ -638,33 +530,7 @@ struct Matrix3D : public Manage
         return *this;
     }
 
-//    /**
-//         *  \brief Assignment operator.
-//         */
-//    __host__ inline
-//    Matrix3D & operator=(boost::numeric::ublas::matrix<double> & R)
-//    {
-//        r[0] = make_float3(R(0,0),R(0,1),R(0,2));
-//        r[1] = make_float3(R(1,0),R(1,1),R(1,2));
-//        r[2] = make_float3(R(2,0),R(2,1),R(2,2));
-//        return *this;
-//    }
-
-//    /**
-//         *  \brief Assignment operator.
-//         */
-//    __host__ inline
-//    Matrix3D & operator=(boost::numeric::ublas::matrix<float> & R)
-//    {
-//        r[0] = make_float3(R(0,0),R(0,1),R(0,2));
-//        r[1] = make_float3(R(1,0),R(1,1),R(1,2));
-//        r[2] = make_float3(R(2,0),R(2,1),R(2,2));
-//        return *this;
-//    }
-
-    /**
-         *  \brief Assignment operator.
-         */
+    /** \brief Assignment operator. */
     __host__ __device__ inline
     Matrix3D & operator=(float m[3][3])
     {
@@ -674,9 +540,7 @@ struct Matrix3D : public Manage
         return *this;
     }
 
-    /**
-         *  \brief Assignment operator.
-         */
+    /** \brief Assignment operator. */
     __host__ __device__ inline
     Matrix3D & operator=(double m[3][3])
     {
@@ -686,9 +550,7 @@ struct Matrix3D : public Manage
         return *this;
     }
 
-    /**
-         *  \brief Assignment operator.
-         */
+    /** \brief Assignment operator. */
     __host__ __device__ inline
     Matrix3D & operator=(float m[9])
     {
@@ -698,9 +560,7 @@ struct Matrix3D : public Manage
         return *this;
     }
 
-    /**
-         *  \brief Assignment operator.
-         */
+    /** \brief Assignment operator. */
     __host__ __device__ inline
     Matrix3D & operator=(double m[9])
     {
@@ -711,14 +571,12 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Access operator
-         *
-         *  \param row index of row
-         *  \param col index of column
-         *  \return Reference to specified element
-         *
-         *  \details
-         */
+    *  \brief Access operator
+    *
+    *  \param row index of row
+    *  \param col index of column
+    *  \return Reference to specified element
+    */
     __host__ __device__ inline
     float & operator()(unsigned char row, unsigned char col)
     {
@@ -729,14 +587,12 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Constant access operator
-         *
-         *  \param row index of row
-         *  \param col index of column
-         *  \return Constant reference to specified element
-         *
-         *  \details
-         */
+    *  \brief Constant access operator
+    *
+    *  \param row index of row
+    *  \param col index of column
+    *  \return Constant reference to specified element
+    */
     __host__ __device__ inline
     const float & operator()(unsigned char row, unsigned char col) const
     {
@@ -747,14 +603,12 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Access functions
-         *
-         *  \param row index of row
-         *  \param col index of column
-         *  \return Reference to specified element
-         *
-         *  \details
-         */
+    *  \brief Access function
+    *
+    *  \param row index of row
+    *  \param col index of column
+    *  \return Reference to specified element
+    */
     __host__ __device__ inline
     float & at(unsigned char row, unsigned char col)
     {
@@ -765,14 +619,12 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Const access functions
-         *
-         *  \param row index of row
-         *  \param col index of column
-         *  \return Const reference to specified element
-         *
-         *  \details
-         */
+    *  \brief Const access function
+    *
+    *  \param row index of row
+    *  \param col index of column
+    *  \return Const reference to specified element
+    */
     __host__ __device__ inline
     const float & at(unsigned char row, unsigned char col) const
     {
@@ -783,13 +635,11 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Access operator
-         *
-         *  \param row index of row
-         *  \return Reference to specified row
-         *
-         *  \details
-         */
+    *  \brief Access operator
+    *
+    *  \param row index of row
+    *  \return Reference to specified row
+    */
     __host__ __device__ inline
     float3 & operator()(unsigned char row)
     {
@@ -797,13 +647,11 @@ struct Matrix3D : public Manage
     }
 
     /**
-         *  \brief Constant access operator
-         *
-         *  \param row index of row
-         *  \return Constant reference to specified row
-         *
-         *  \details
-         */
+    *  \brief Constant access operator
+    *
+    *  \param row index of row
+    *  \return Constant reference to specified row
+    */
     __host__ __device__ inline
     const float3 & operator()(unsigned char row) const
     {
@@ -859,7 +707,7 @@ struct Vector3D : public Manage
         return *this;
     }
 
-    /** \brief Assignment operator */
+    /** \brief Copy operator */
     __host__ __device__ inline
     Vector3D& operator=(Vector3D & f)
     {

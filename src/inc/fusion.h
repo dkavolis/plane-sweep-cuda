@@ -44,8 +44,8 @@ struct fusionDataSettings : public Manage
             spitch;
     float binstep;
     Rectangle3D volume;
-    float bin[_bins];
-    bool own;
+    float bin[_bins];   // bin centers
+    bool own;           // boolean data management
     fusionvoxel<_bins> * ptr;
 
     __host__ __device__ inline
@@ -695,7 +695,8 @@ public:
     /**
      *  \brief Assignment operator
      *
-     *  \details Does not perform deep copy of the data and does not manage it.
+     *  \details Does not perform deep copy of the data, will not deallocate memory on destructor unless
+     * setManageData(true) is called later.
      */
     __device__ __host__ inline
     fusionData<_histBins, memT>& operator=(fusionData<_histBins, memT> & fd)
@@ -722,9 +723,7 @@ public:
         else return 0.f;
     }
 
-    /**
-     *  \brief Get pointer to array of bin centers
-     */
+    /** \brief Get pointer to array of bin centers */
     __device__ __host__ inline
     const float * binCenters(){
         return &stg.bin[0];
@@ -962,6 +961,7 @@ public:
             Host2DeviceCopy(voxels, pitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
             stg.pitch = pitch;
             stg.spitch = spitch;
+            stg.own = true;
         }
         else {
             voxels = stg.ptr;

@@ -57,6 +57,7 @@ __global__ void calcNCC_kernel(float * __restrict__ d_ncc, const float * __restr
     if ((ind_x < width) && (ind_y < height)) {
         const int ind = ind_y * width + ind_x;
 
+        // If either STD is below threshold, set NCC to 0
         if ((d_std1[ind] < stdthresh1) || (d_std2[ind] < stdthresh2)) d_ncc[ind] = 0.f;
         else {
             d_ncc[ind] = (d_prod_mean[ind] - d_mean1[ind] * d_mean2[ind]) / (d_std1[ind] * d_std2[ind]);
@@ -74,6 +75,7 @@ __global__ void update_arrays_kernel(float * __restrict__ d_depthmap, float * __
     if ((ind_x < width) && (ind_y < height)) {
         const int ind = ind_y * width + ind_x;
 
+        // Update if better correspondance was found
         if (d_currentncc[ind] > d_bestncc[ind]){
             d_bestncc[ind] = d_currentncc[ind];
             d_depthmap[ind] = current_depth;
@@ -92,6 +94,7 @@ __global__ void sum_depthmap_NCC_kernel(float * __restrict__ d_depthmap_out, flo
     if ((ind_x < width) && (ind_y < height)) {
         const int ind = ind_y * width + ind_x;
 
+        // Sum if NCC is above threshold
         if (d_ncc[ind] > nccthreshold){
             d_depthmap_out[ind] += d_depthmap[ind];
             d_count[ind]++;
@@ -109,8 +112,10 @@ __global__ void calculate_STD_kernel(float * __restrict__ d_std, const float * _
     if ((ind_x < width) && (ind_y < height)) {
         const int ind = ind_y * width + ind_x;
 
+        // variance (easy but numerically unstable method)
         float var = d_mean_of_squares[ind] - d_mean[ind] * d_mean[ind];
 
+        // check for negative variance
         if (var > 0) d_std[ind] = sqrt(var);
         else d_std[ind] = 0.f;
     }

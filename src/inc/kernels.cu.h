@@ -30,7 +30,6 @@
  *  \param N2       \a d_xout and \a d_yout height
  *  \param blocks   kernel grid dimensions
  *  \param threads  single block dimensions
- *  \return No return value
  *
  *  \details Any samples that fall outside \a d_data region are set to 0
  */
@@ -54,7 +53,6 @@ void bilinear_interpolation(float * d_result, const float * d_data,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
  *
  *  \details NCC is calculated as <em>(mean of products - product of means) / (std1 * std2)</em>
  *
@@ -78,7 +76,6 @@ void calcNCC(float * d_ncc, const float * d_prod_mean,
  *  \param height              height of given arrays
  *  \param blocks              kernel grid dimensions
  *  \param threads             single block dimensions
- *  \return No return value
  *
  *  \details STD is given by <em>mean of squares - square of mean</em>
  */
@@ -96,9 +93,6 @@ void calculate_STD(float * d_std, const float * d_mean,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void set_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads);
 
@@ -112,7 +106,6 @@ void set_value(float * d_output, const float value, const int width, const int h
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
  *
  *  \details Equivalent to <em>input1 .* input2</em> in \a \b MATLAB
  */
@@ -131,7 +124,6 @@ void element_multiply(float * d_output, const float * d_input1,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
  *
  *  \details Equivalent to <em>input1 ./ input2</em> in \a \b MATLAB
  */
@@ -151,7 +143,6 @@ void element_rdivide(float * d_output, const float * d_input1,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
  *
  *  \details <b>DOES NOT WORK, OUTPUTS WRONG VALUES</b>
  * All values below \a min are set to 0, above \a max - to 255
@@ -172,9 +163,6 @@ void convert_float_to_uchar(unsigned char *d_output, const float * d_input,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void windowed_mean_row(float * d_output, const float * d_input,
                        const unsigned int winsize, const bool squared,
@@ -191,9 +179,6 @@ void windowed_mean_row(float * d_output, const float * d_input,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void windowed_mean_column(float * d_output, const float * d_input,
                           const unsigned int winsize, const bool squared,
@@ -208,7 +193,6 @@ void windowed_mean_column(float * d_output, const float * d_input,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
  *
  *  \details <b>DOES NOT WORK, OUTPUTS WRONG VALUES</b>
  */
@@ -225,9 +209,6 @@ void convert_uchar_to_float(float * d_output, const unsigned char * d_input,
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void element_scale(float * d_output, const float scale, const int width, const int height, dim3 blocks, dim3 threads);
 
@@ -240,9 +221,6 @@ void element_scale(float * d_output, const float scale, const int width, const i
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void element_add(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads);
 
@@ -255,9 +233,6 @@ void element_add(float * d_output, const float value, const int width, const int
  *  \param height      height of given arrays
  *  \param blocks      kernel grid dimensions
  *  \param threads     single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void set_QNAN_value(float * d_output, const float value, const int width, const int height, dim3 blocks, dim3 threads);
 
@@ -274,9 +249,6 @@ void set_QNAN_value(float * d_output, const float value, const int width, const 
 *  \param height  height of given arrays
 *  \param blocks  kernel grid dimensions
 *  \param threads single block dimensions
-*  \return No return value
-*
-*  \details
 */
 void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], const double trel[3],
 const double invK[3][3], const int width, const int height, dim3 blocks, dim3 threads);
@@ -291,9 +263,6 @@ const double invK[3][3], const int width, const int height, dim3 blocks, dim3 th
 *  \param height   height of given arrays
 *  \param blocks   kernel grid dimensions
 *  \param threads  single block dimensions
-*  \return No return value
-*
-*  \details
 */
 void subtract(float * d_out, const float * d_in1, const float * d_in2, const int width, const int height, dim3 blocks, dim3 threads);
 /** @} */ // group general
@@ -322,7 +291,6 @@ that fall between [0,0] and (height, width)
 *  \param height  height of given arrays
 *  \param blocks  kernel grid dimensions
 *  \param threads single block dimensions
-*  \return No return value
 *
 *  \details Transformation is applied to 1 based index coordinates
 */
@@ -343,7 +311,6 @@ void transform_indexes(float * d_x, float * d_y,
 *  \param height          height of given arrays
 *  \param blocks          kernel grid dimensions
 *  \param threads         single block dimensions
-*  \return No return value
 *
 *  \details If current NCC value is greater than best value, best value is changed to current
 and depthmap value is changed to current depth
@@ -365,7 +332,6 @@ void update_arrays(float * d_depthmap, float * d_bestncc,
 *  \param height          height of given arrays
 *  \param blocks          kernel grid dimensions
 *  \param threads         single block dimensions
-*  \return No return value
 *
 *  \details Keeping count is required for averaging in later step
 */
@@ -407,7 +373,6 @@ void sum_depthmap_NCC(float * d_depthmap_out, float * d_count,
  *  \param height   height of given arrays
  *  \param blocks   kernel grid dimensions
  *  \param threads  single block dimensions
- *  \return No return value
  *
  *  \details Same as in \a denoise_TVL1 in \a OpenCV
  */
@@ -436,9 +401,6 @@ void denoising_TVL1_update(float * d_output, float * d_R,
  *  \param height   height of given arrays
  *  \param blocks   kernel grid dimensions
  *  \param threads  single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
                                           const float * d_Px, const float * d_Py, const float * d_origin,
@@ -457,7 +419,6 @@ void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
 *  \param height      height of given arrays
 *  \param blocks      kernel grid dimensions
 *  \param threads     single block dimensions
-*  \return No return value
 *
 *  \details Same as \a denoise_TVL1 in \a OpenCV
 */
@@ -482,9 +443,6 @@ void denoising_TVL1_calculateP(float * d_Px, float * d_Py,
 *  \param height      height of given arrays
 *  \param blocks      kernel grid dimensions
 *  \param threads     single block dimensions
-*  \return No return value
-*
-*  \details
 */
 void denoising_TVL1_calculateP_tensor_weighed(float * d_Px, float * d_Py,
                                               const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
@@ -525,9 +483,6 @@ void denoising_TVL1_calculateP_tensor_weighed(float * d_Px, float * d_Py,
  *  \param height  height of given arrays
  *  \param blocks  kernel grid dimensions
  *  \param threads single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_updateP(float * d_Px, float * d_Py, const float * d_u, const float * d_u1x, const float * d_u1y,
                   const float alpha1, const float sigma, const int width, const int height, dim3 blocks, dim3 threads);
@@ -547,9 +502,6 @@ void TGV2_updateP(float * d_Px, float * d_Py, const float * d_u, const float * d
  *  \param height  height of given arrays
  *  \param blocks  kernel grid dimensions
  *  \param threads single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_updateQ(float * d_Qx, float * d_Qy, float * d_Qz, float * d_Qw, const float * d_u1x, const float * d_u1y,
                   const float alpha0, const float sigma, const int width, const int height, dim3 blocks, dim3 threads);
@@ -569,9 +521,6 @@ void TGV2_updateQ(float * d_Qx, float * d_Qy, float * d_Qz, float * d_Qw, const 
  *  \param height   		height of given arrays
  *  \param blocks  		kernel grid dimensions
  *  \param threads  		single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_updateR(float * d_r, float * d_prodsum, const float * d_u, const float * d_u0, const float * d_It, const float * d_Iu,
                   const float sigma, const float lambda, const int width, const int height, dim3 blocks, dim3 threads);
@@ -600,9 +549,6 @@ void TGV2_updateR(float * d_r, float * d_prodsum, const float * d_u, const float
  *  \param height       height of given arrays
  *  \param blocks       kernel grid dimensions
  *  \param threads      single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, float * d_u1xbar, float * d_u1ybar,
                   const float * d_Px, const float * d_Py, const float * d_Qx, const float * d_Qy,
@@ -627,9 +573,6 @@ void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, flo
  *  \param height       height of given arrays
  *  \param blocks       kernel grid dimensions
  *  \param threads      single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_transform_coordinates(float * d_x, float * d_y, float * d_X, float * d_Y, float * d_Z, const float * d_u,
                                 const double K[3][3], const double Rrel[3][3], const double trel[3], const double invK[3][3],
@@ -647,9 +590,6 @@ const int width, const int height, dim3 blocks, dim3 threads);
  *  \param height       height of given arrays
  *  \param blocks       kernel grid dimensions
  *  \param threads      single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const double invK[3][3], const double Rrel[3][3],
 const int width, const int height, dim3 blocks, dim3 threads);
@@ -671,9 +611,6 @@ const int width, const int height, dim3 blocks, dim3 threads);
  *  \param height   height of given arrays
  *  \param blocks   kernel grid dimensions
  *  \param threads  single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_calculate_derivativeF(float * d_dfx, float * d_dfy, const float * d_X, const float * d_dX, const float * d_Y, const float * d_dY,
                                 const float * d_Z, const float * d_dZ, const float fx, const float fy,
@@ -690,9 +627,6 @@ void TGV2_calculate_derivativeF(float * d_dfx, float * d_dfy, const float * d_X,
  *  \param height   height of given arrays
  *  \param blocks   kernel grid dimensions
  *  \param threads  single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_calculate_Iu(float * d_Iu, const float * d_I, const float * d_dfx, const float * d_dfy,
                        const int width, const int height, dim3 blocks, dim3 threads);
@@ -711,7 +645,6 @@ void TGV2_calculate_Iu(float * d_Iu, const float * d_I, const float * d_dfx, con
  *  \param height   height of given arrays
  *  \param blocks   kernel grid dimensions
  *  \param threads  single block dimensions
- *  \return No return value
  *
  *  \details Tensor is calculated by \f$T = exp(-\beta |\nabla{I}|^{\gamma}) nn^T + n_{\perp}n^T_{\perp}\f$,
  * where \f$n = \left(\frac{\nabla{I}}{|\nabla{I}|} \right)\f$ and \f$n_{\perp} \perp n\f$
@@ -748,9 +681,6 @@ void Anisotropic_diffusion_tensor(float * d_T11, float * d_T12, float * d_T21, f
  *  \param height       height of given arrays
  *  \param blocks       kernel grid dimensions
  *  \param threads      single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_updateU_tensor_weighed(float * d_u, float * d_u1x, float * d_u1y, const float * d_T11, const float * d_T12,
                                  const float * d_T21, const float * d_T22, float * d_ubar, float * d_u1xbar, float * d_u1ybar,
@@ -777,9 +707,6 @@ void TGV2_updateU_tensor_weighed(float * d_u, float * d_u1x, float * d_u1y, cons
  *  \param height   height of given arrays
  *  \param blocks   kernel grid dimensions
  *  \param threads  single block dimensions
- *  \return No return value
- *
- *  \details
  */
 void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11, const float * d_T12, const float * d_T21, const float * d_T22,
                                  const float * d_u, const float * d_u1x, const float * d_u1y, const float alpha1,
@@ -787,4 +714,25 @@ void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11
 
 /** @} */ // group TGV2
 
+void TGV2_updateU_sparseDepth(float * d_u, float * d_u1x, float * d_u1y,
+                              float * d_ubar, float * d_u1xbar, float * d_u1ybar,
+                              const float * d_Px, const float * d_Py,
+                              const float * d_Qx, const float * d_Qy,
+                              const float * d_Qz, const float * d_Qw,
+                              const float * d_w, const float * d_Ds, const float alpha0,
+                              const float alpha1, const float tau, const float theta,
+                              const int width, const int height, dim3 blocks, dim3 threads);
+
+void TGV2_updateU_sparseDepthTensor(float * d_u, float * d_u1x, float * d_u1y,
+                                    float * d_ubar, float * d_u1xbar, float * d_u1ybar,
+                                    const float * d_T11, const float * d_T12,
+                                    const float * d_T21, const float * d_T22,
+                                    const float * d_Px, const float * d_Py,
+                                    const float * d_Qx, const float * d_Qy,
+                                    const float * d_Qz, const float * d_Qw,
+                                    const float * d_w, const float * d_Ds, const float alpha0,
+                                    const float alpha1, const float tau, const float theta,
+                                    const int width, const int height, dim3 blocks, dim3 threads);
+
+void calculateWeights_sparseDepth(float * d_w, const float * d_Ds, const int width, const int height, dim3 blocks, dim3 threads);
 #endif // KERNELS_CU_H

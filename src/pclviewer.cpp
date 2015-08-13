@@ -15,6 +15,7 @@
 #include <QMessageBox>
 #include <cmath>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 #include <chrono>
 
 PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
@@ -62,6 +63,7 @@ void PCLViewer::setupPlanesweep()
 
     connect(ui->pSlider, SIGNAL(valueChanged(int)), this, SLOT(pSliderValueChanged(int)));
 
+    // Add point clouds to widgets
     viewer->addPointCloud (cloud, "cloud");
     pSliderValueChanged (2);
     viewer->resetCamera ();
@@ -74,6 +76,7 @@ void PCLViewer::setupPlanesweep()
 
     ui->depthview->setScene(depthscene);
 
+    // Setup widget values
     ui->imNumber->setValue(ps.getNumberofImages());
     ui->winSize->setValue((ps.getWindowSize()));
     ui->nccThresh->setValue(ps.getNCCthreshold());
@@ -94,12 +97,15 @@ void PCLViewer::setupPlanesweep()
 
     QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3), theta(0x03B8);
 
+    // Setup correct greek letters in labels
     ui->tvl1_lambda_label->setText( trUtf8( "\xce\xbb" ) );
     ui->tvl1_sigma_label->setText(sigma);
     ui->tvl1_tau_label->setText(tau);
     ui->tvl1_theta_label->setText(theta);
     ui->tvl1_beta_label->setText(beta);
     ui->tvl1_gamma_label->setText(gamma);
+
+    // Setup widget values
     ui->lambda->setValue(DEFAULT_TVL1_LAMBDA);
     ui->nIters->setValue(DEFAULT_TVL1_ITERATIONS);
     ui->tvl1_sigma->setValue(DEFAULT_TVL1_SIGMA);
@@ -121,6 +127,7 @@ void PCLViewer::setupTGV()
     viewertgv->setupInteractor (ui->qvtktgv->GetInteractor (), ui->qvtktgv->GetRenderWindow ());
     ui->qvtktgv->update ();
 
+    // Add point cloud to widget
     viewertgv->addPointCloud (cloudtgv, "cloud");
     ui->tgv_psize->setValue(2);
     viewertgv->resetCamera ();
@@ -129,6 +136,7 @@ void PCLViewer::setupTGV()
     QChar alpha = QChar(0xb1, 0x03);
     QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3);
 
+    // Setup labels with greek letters
     QString a0 = alpha, a1 = alpha;
     a0 += "<sub>";
     a0 += QString::number(0);
@@ -144,6 +152,7 @@ void PCLViewer::setupTGV()
     ui->tgv_beta_label->setText(beta);
     ui->tgv_gamma_label->setText(gamma);
 
+    // Setup values
     ui->tgv_alpha0->setValue(DEFAULT_TGV_ALPHA0);
     ui->tgv_alpha1->setValue(DEFAULT_TGV_ALPHA1);
     ui->tgv_lambda->setValue(DEFAULT_TGV_LAMBDA);
@@ -166,6 +175,7 @@ void PCLViewer::setupFusion()
     viewerfusion->setupInteractor (ui->qvtkfusion->GetInteractor (), ui->qvtkfusion->GetRenderWindow ());
     ui->qvtkfusion->update ();
 
+    // Add cloud
     viewerfusion->addPointCloud (cloudtgv, "cloud");
     on_fusion_psize_valueChanged(2);
     viewerfusion->resetCamera ();
@@ -173,10 +183,12 @@ void PCLViewer::setupFusion()
 
     QChar sigma(0x03C3), tau(0x03C4);
 
+    // Setup labels with greek letters
     ui->fusion_lambda_label->setText(trUtf8( "\xce\xbb" ));
     ui->fusion_sigma_label->setText(sigma);
     ui->fusion_tau_label->setText(tau);
 
+    // Connect volume coordinate widgets to correct slots
     connect(ui->fusion_volx1, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_x_changed()));
     connect(ui->fusion_voly1, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_y_changed()));
     connect(ui->fusion_volz1, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_corner_z_changed()));
@@ -188,6 +200,7 @@ void PCLViewer::setupFusion()
     connect(ui->fusion_cy, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_center_y_changed()));
     connect(ui->fusion_cz, SIGNAL(valueChanged(double)), this, SLOT(fusion_volume_center_z_changed()));
 
+    // Setup values
     ui->fusion_d->setValue(fd.depth());
     ui->fusion_h->setValue(fd.height());
     ui->fusion_w->setValue(fd.width());
@@ -271,6 +284,7 @@ PCLViewer::pSliderValueChanged (int value)
 
 void PCLViewer::LoadImages()
 {
+    // Load 0th image from source directory
     QString loc = "/PlaneSweep/im";
     QString ref = SOURCE_DIR;
     ref += loc;
@@ -279,11 +293,13 @@ void PCLViewer::LoadImages()
     refim.load(ref);
     int w = refim.width(), h = refim.height();
 
+    // show the reference image
     image = QPixmap::fromImage(refim);
     scene->addPixmap(image);
     scene->setSceneRect(image.rect());
     ui->refView->setScene(scene);
 
+    // All required camera matrices (found in 'calibration.txt')
     double K[3][3] = {
         {0.709874*640, (1-0.977786)*640, 0.493648*640},
         {0, 0.945744*480, 0.514782*480},
@@ -343,10 +359,12 @@ void PCLViewer::LoadImages()
             0.095507, -0.833589, -0.544067, -0.250995,
             -0.0881887, 0.53733, -0.838748, 0.796756;
 
+    // setup reference image
     ps.HostRef.setSize(w, h);
     rgb2gray<float>(ps.HostRef.data, refim);
     ps.CmatrixToRT(Cr, ps.HostRef.R, ps.HostRef.t);
 
+    // setup source images
     QString src;
     QImage sources;
     ps.HostSrc.resize(9);
@@ -366,6 +384,7 @@ void PCLViewer::LoadImages()
 
 PCLViewer::~PCLViewer ()
 {
+    // free resources
     delete[] argv;
     delete ui;
 }
@@ -373,9 +392,12 @@ PCLViewer::~PCLViewer ()
 void PCLViewer::on_pushButton_pressed()
 {
     if (ps.RunAlgorithm(argc, argv)){
+        // get depthmaps
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         depth = ps.getDepthmap();
         depth8u = ps.getDepthmap8u();
+
+        // resize cloud if reference image has changed
         if (refchanged) {
             if ((cloud->height != depth8u->height) || (cloud->width != depth8u->width))
             {
@@ -392,7 +414,7 @@ void PCLViewer::on_pushButton_pressed()
         ps.getInverseK(k);
         double z;
 
-        // Fill the cloud with some points
+        // Fill the cloud with points
         for (size_t x = 0; x < depth8u->width; ++x)
             for (size_t y = 0; y < depth8u->height; ++y)
             {
@@ -404,6 +426,7 @@ void PCLViewer::on_pushButton_pressed()
                 cloud->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
                 cloud->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
 
+                // Only update colors if reference image has changed
                 if (refchanged)
                 {
                     c = refim.pixel(x, y);
@@ -414,6 +437,7 @@ void PCLViewer::on_pushButton_pressed()
                 //depth8u->data[i] = (uchar)d;
             }
 
+        // Show grayscale depthmap
         QImage img((const uchar *)depth8u->data, depth8u->width, depth8u->height, QImage::Format_Indexed8);
 
         depthim = QPixmap::fromImage(img);
@@ -421,6 +445,7 @@ void PCLViewer::on_pushButton_pressed()
         depthscene->setSceneRect(depthim.rect());
         ui->depthview->setScene(depthscene);
 
+        // show point cloud
         viewer->updatePointCloud(cloud, "cloud");
         if (refchanged) viewer->resetCamera();
         ui->qvtkWidget->update();
@@ -477,11 +502,13 @@ void PCLViewer::on_denoiseBtn_clicked()
 {
     if (ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value(), ui->tvl1_tau->value(),
                        ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value())){
+
+        // get depthmaps
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         dendepth = ps.getDepthmapDenoised();
-
         dendepth8u = ps.getDepthmap8uDenoised();
 
+        // resize cloud if reference image has changed
         if (refchangedtvl1)
         {
             if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
@@ -512,6 +539,7 @@ void PCLViewer::on_denoiseBtn_clicked()
                 clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
                 clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
 
+                // only update colors if reference image has changed
                 if (refchangedtvl1)
                 {
                     c = refim.pixel(x, y);
@@ -521,6 +549,7 @@ void PCLViewer::on_denoiseBtn_clicked()
                 }
             }
 
+        // show grayscale depthmap
         QImage img((const uchar *)dendepth8u->data, dendepth8u->width, dendepth8u->height, QImage::Format_Indexed8);
 
         dendepthim = QPixmap::fromImage(img);
@@ -528,6 +557,7 @@ void PCLViewer::on_denoiseBtn_clicked()
         dendepthsc->setSceneRect(dendepthim.rect());
         ui->denview->setScene(dendepthsc);
 
+        // show point cloud
         viewerdenoised->updatePointCloud(clouddenoised, "cloud");
         if (refchangedtvl1) viewerdenoised->resetCamera();
         ui->qvtkDenoised->update();
@@ -552,9 +582,15 @@ void PCLViewer::on_tgv_button_pressed()
     if (ps.TGV(argc, argv, ui->tgv_niters->value(), ui->tgv_warps->value(), ui->tgv_lambda->value(),
                ui->tgv_alpha0->value(), ui->tgv_alpha1->value(), ui->tgv_tau->value(), ui->tgv_sigma->value(),
                ui->tgv_beta->value(), ui->tgv_gamma->value())){
+//    if (ps.TGVdenoiseFromSparse(argc, argv, sparsedepth, ui->tgv_niters->value(), ui->tgv_alpha0->value(),
+//                                ui->tgv_alpha1->value(), ui->tgv_tau->value(), ui->tgv_sigma->value(), ui->tgv_lambda->value(),
+//                                ui->tgv_beta->value(), ui->tgv_gamma->value())){
+        // get depthmaps
         ui->maxthreads->setValue(ps.getMaxThreadsPerBlock());
         tgvdepth = ps.getDepthmapTGV();
         tgvdepth8u = ps.getDepthmap8uTGV();
+
+        // resize cloud if reference image has changed
         if (refchangedtgv)
         {
             // The number of points in the cloud
@@ -570,22 +606,19 @@ void PCLViewer::on_tgv_button_pressed()
         int  i;
         double k[3][3];
         ps.getInverseK(k);
-        double z, zn, zf;
-        zn = ps.getZnear();
-        zf = ps.getZfar();
 
-        // Fill the cloud with some points
+        // Fill the cloud with points
         for (size_t x = 0; x < tgvdepth8u->width; ++x)
             for (size_t y = 0; y < tgvdepth8u->height; ++y)
             {
-
                 i = x + y * tgvdepth8u->width;
 
-                z = ((float)tgvdepth8u->data[i] / 255.f * (zf - zn));
+                z = tgvdepth->data[i];
                 cloudtgv->points[i].z = -z;
                 cloudtgv->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
                 cloudtgv->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
 
+                // only update colors if reference image has changed
                 if (refchangedtgv)
                 {
                     c = refim.pixel(x, y);
@@ -595,6 +628,7 @@ void PCLViewer::on_tgv_button_pressed()
                 }
             }
 
+        // show grayscale depthmap
         QImage img((const uchar *)tgvdepth8u->data, tgvdepth8u->width, tgvdepth8u->height, QImage::Format_Indexed8);
 
         tgvdepthim = QPixmap::fromImage(img);
@@ -602,6 +636,7 @@ void PCLViewer::on_tgv_button_pressed()
         tgvscene->setSceneRect(tgvdepthim.rect());
         ui->tgvview->setScene(tgvscene);
 
+        // show cloud
         viewertgv->updatePointCloud(cloudtgv, "cloud");
         if (refchangedtgv) viewertgv->resetCamera();
         ui->qvtktgv->update();
@@ -634,8 +669,10 @@ void PCLViewer::on_imageNameButton_clicked()
                                                 loc,
                                                 tr("Images (*.png *.xpm *.jpg *.jpeg *.bmp *.dds *.mng *.tga *.tiff)"));
 
+    // if nothing was selected, return
     if (name.isEmpty()) return;
-    // Find the last forward slash, meaning end directory path
+
+    // Find the last forward slash, meaning end of directory path
     int i = name.lastIndexOf('/');
 
     // Split full file name into name and path
@@ -653,7 +690,7 @@ void PCLViewer::on_imageNameButton_clicked()
         n.truncate(i);
     }
 
-    // Going from the end count the number of digits and selected image number
+    // Going from the end, count the number of digits and selected image number
     int digits = 0, ref = 0;
     QChar s = n.at(n.size() - 1);
     while (s.isDigit()){
@@ -690,16 +727,20 @@ void PCLViewer::on_loadfromdir_clicked()
     refchanged = true;
     refchangedtvl1 = true;
     refchangedtgv = true;
+
+    // get image name strings
     QString impos;
     QString imname = ImageName(ui->refNumber->value(), impos);
 
+    // initialize variables for camera parameters
     ublas::matrix<double> cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, K, R, t;
     double cam_angle;
 
+    // get camera parameters
     if (!getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)) return;
     getcamK(K, cam_dir, cam_up, cam_right);
 
-//    std::cout << "cam_dir = " << cam_dir << std::endl;
+    // set reference view parameters
     ps.setK(K);
     computeRT(R, t, cam_dir, cam_pos, cam_up);
 
@@ -707,6 +748,7 @@ void PCLViewer::on_loadfromdir_clicked()
     int w = refim.width(), h = refim.height();
     ps.HostRef.setSize(w, h);
 
+    // show reference image
     image = QPixmap::fromImage(refim);
     scene->addPixmap(image);
     scene->setSceneRect(image.rect());
@@ -718,6 +760,7 @@ void PCLViewer::on_loadfromdir_clicked()
 
     int nsrc = ui->imNumber->value() - 1;
 
+    // load and setup source views
     ps.HostSrc.resize(0);
     QImage src;
     int half = (nsrc + 1) / 2;
@@ -738,6 +781,12 @@ void PCLViewer::on_loadfromdir_clicked()
         }
     }
 
+    // load sparse groundtruth depthmap the same size as reference image
+    QString depth = impos;
+    int dot = depth.lastIndexOf('.');
+    if (dot != -1) depth.truncate(dot);
+    depth += ".depth";
+    loadSparseDepthmap(depth);
 }
 
 QString PCLViewer::ImageName(int number, QString &imagePos)
@@ -814,6 +863,7 @@ bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_p
                                  ublas::matrix<double> & cam_sky, ublas::matrix<double> & cam_right,
                                  ublas::matrix<double> & cam_fpoint, double & cam_angle)
 {
+    // set correct sizes for all matrices
     cam_pos.resize(3,1);
     cam_dir.resize(3,1);
     cam_up.resize(3,1);
@@ -822,6 +872,7 @@ bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_p
     cam_right.resize(3,1);
     cam_fpoint.resize(3,1);
 
+    // try opening file
     QFile file(filename);
     if(!file.open(QIODevice::ReadOnly)) {
         QMessageBox::information(0, "Error reading file", file.errorString());
@@ -831,6 +882,7 @@ bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_p
     QTextStream in(&file);
     int first, last;
 
+    // read all lines
     while(!in.atEnd()) {
         QString line = in.readLine();
         QString numbers = line;
@@ -839,10 +891,12 @@ bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_p
         first = line.lastIndexOf('[');
         last = line.lastIndexOf(']');
 
+        // get string between '[' and ']' and split
         if (last != -1) numbers.truncate(last);
         if (first != -1) numbers.remove(0, first + 1);
         if ((first != -1) && (last != -1)) n = numbers.split(',', QString::SkipEmptyParts);
 
+        // find correct lines and assing camera parameter values
         if (line.startsWith(CAM_POS)){
             cam_pos <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
         }
@@ -872,6 +926,7 @@ bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_p
         }
 
         if (line.startsWith(CAM_ANGLE)){
+            // no '[]' characters
             first = line.lastIndexOf('=');
             last = line.lastIndexOf(';');
             if (last != -1) numbers.truncate(last);
@@ -940,6 +995,7 @@ void PCLViewer::on_save_clicked()
 {
     QFile file;
 
+    // only save images if they contain data
     if (!refim.isNull())
     {
         file.setFileName("reference.png");
@@ -972,11 +1028,12 @@ void PCLViewer::on_save_clicked()
         file.close();
     }
 
+    // only save cloud if they contain points
     try {
-        if (cloud->points.size() > 0) pcl::io::savePCDFileASCII("planesweep.pcd", *cloud);
-        if (clouddenoised->points.size() > 0) pcl::io::savePCDFileASCII("planesweep_tvl1.pcd", *clouddenoised);
-        if (cloudtgv->points.size() > 0) pcl::io::savePCDFileASCII("tgv.pcd", *cloudtgv);
-        if (cloudfusion->points.size() > 0) pcl::io::savePCDFileASCII("reconstructed.pcd", *cloudfusion);
+        if (cloud->points.size() > 0) pcl::io::savePLYFileASCII("planesweep.ply", *cloud);
+        if (clouddenoised->points.size() > 0) pcl::io::savePLYFileASCII("planesweep_tvl1.ply", *clouddenoised);
+        if (cloudtgv->points.size() > 0) pcl::io::savePLYFileASCII("tgv.ply", *cloudtgv);
+        if (cloudfusion->points.size() > 0) pcl::io::savePLYFileASCII("reconstructed.ply", *cloudfusion);
     }
     catch (pcl::IOException & excep){
         std::cerr << "Error occured while saving PCD:\n" << excep.detailedMessage() << std::endl;
@@ -1045,10 +1102,10 @@ void PCLViewer::on_reconstruct_button_clicked()
 
     // Create boost matrices
     ublas::matrix<double> rrel(3,3), trel(3,1), I(3,3), tm(3,1);
-    I <<=   1.f, 0.f, 0.f,
+    I <<=   1.f, 0.f, 0.f,  // identity matrix, rotation of world coordinate system
             0.f, 1.f, 0.f,
             0.f, 0.f, 1.f;
-    tm <<=  0.f, 0.f, 0.f;
+    tm <<=  0.f, 0.f, 0.f;  // 0 translation vector
 
     // Calculate 3D threads per blocks and blocks per grid
     dim3 threads(ui->fusion_threadsw->value(),
@@ -1063,6 +1120,8 @@ void PCLViewer::on_reconstruct_button_clicked()
 
     // Run iterations
     int iterations = ui->fusion_iters->value();
+//    size_t pitch;
+//    checkCudaErrors(cudaMallocPitch(&ptr, &pitch, 640 * sizeof(float), 480));
 
     for (int i = 0; i < iterations; i++){
         printf("Reconstruction iteration: %d/%d\n", i+1, iterations);
@@ -1073,6 +1132,7 @@ void PCLViewer::on_reconstruct_button_clicked()
         on_loadfromdir_clicked();
         ps.getK(k);
         K = k;
+//        MemoryManagement<float>::Host2DeviceCopy(ptr, pitch, sparsedepth.data, sparsedepth.pitch, 640, 480);
 
         // Calculate and set R and T
         ps.RelativeMatrices(rrel, trel, I, tm, ps.HostRef.R, ps.HostRef.t); // from world to ref
@@ -1087,6 +1147,9 @@ void PCLViewer::on_reconstruct_button_clicked()
         // Get TVL1 denoised planesweep depthmap
         ps.CudaDenoise(argc, argv, ui->nIters->value(), ui->lambda->value(), ui->tvl1_tau->value(),
                        ui->tvl1_sigma->value(), ui->tvl1_theta->value(), ui->tvl1_beta->value(), ui->tvl1_gamma->value());
+//        ps.TGVdenoiseFromSparse(argc, argv, sparsedepth, ui->tgv_niters->value(), ui->tgv_alpha0->value(),
+//                                ui->tgv_alpha1->value(), ui->tgv_tau->value(), ui->tgv_sigma->value(), ui->tgv_lambda->value(),
+//                                ui->tgv_beta->value(), ui->tgv_gamma->value());
         ptr = ps.getDepthmapDenoisedPtr();
 
         // Fuse the depthmap
@@ -1097,7 +1160,7 @@ void PCLViewer::on_reconstruct_button_clicked()
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
     }
 
-    // Resize point cloud to fit all voxels
+    // Resize point cloud to fit all voxels in the worst case scenario
     cloudfusion->points.resize(fd.elements());
     size_t voxels = 0;
     float3 c;
@@ -1107,7 +1170,7 @@ void PCLViewer::on_reconstruct_button_clicked()
     // Copy data to host
     checkCudaErrors(fd.copyTo(f.voxelPtr(), f.pitch()));
 
-    // Only show voxels which are occluded
+    // Only show voxels which are occluded but not too far from the surface
     for (int z = 0; z < fd.depth(); z++)
         for (int y = 0; y < fd.height(); y++)
             for (int x = 0; x < fd.width(); x++)
@@ -1125,7 +1188,7 @@ void PCLViewer::on_reconstruct_button_clicked()
                     voxels++;
                 }
             }
-
+//    cudaFree(ptr);
     // update point cloud and qvtkwidget
     cloudfusion->points.resize(voxels);
     cloudfusion->width = 1;
@@ -1206,6 +1269,7 @@ void PCLViewer::on_fusion_resize_clicked()
         std::cerr << "New size of fusion data is " << fd.sizeMBytes() << "MB\n\n";
     }
 }
+
 void PCLViewer::on_fusion_threadsw_valueChanged(int arg1)
 {
     ui->fusion_threadsw->setValue(min(arg1, ui->maxthreads->value() / ui->fusion_threadsh->value() / ui->fusion_threadsd->value()));
@@ -1219,4 +1283,41 @@ void PCLViewer::on_fusion_threadsh_valueChanged(int arg1)
 void PCLViewer::on_fusion_threadsd_valueChanged(int arg1)
 {
     ui->fusion_threadsd->setValue(min(arg1, ui->maxthreads->value() / ui->fusion_threadsh->value() / ui->fusion_threadsw->value()));
+}
+
+bool PCLViewer::loadSparseDepthmap(const QString & fileName)
+{
+    QFile file;
+
+    // try opening file
+    file.setFileName(fileName);
+    if(!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::information(0, "Error reading depth file", file.errorString());
+        return false;
+    }
+
+    QTextStream in(&file);
+
+    // all values are in single line, read it and split it into separate strings with a single depth value
+    QString line = in.readLine();
+    QStringList n;
+    n = line.split(' ', QString::SkipEmptyParts);
+
+    int w = refim.width(), h = refim.height();
+    sparsedepth.setSize(w, h);
+    float depth;
+    float u, v;
+
+    for (int y = 0; y < h; y = y + 1){
+        for (int x = 0; x < w; x = x + 1){
+            // correct for radial depth
+            u = (x - 320.5) / 481.2043;
+            v = (y - 240.5) / 479.9998;
+            depth = n.at(x + w * y).trimmed().toFloat();
+            sparsedepth.data[x + w * y] = depth / sqrt(pow(u, 2) + pow(v, 2) + 1);
+        }
+    }
+
+    file.close();
+    return true;
 }
