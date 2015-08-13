@@ -606,6 +606,7 @@ void PCLViewer::on_tgv_button_pressed()
         int  i;
         double k[3][3];
         ps.getInverseK(k);
+        float z;
 
         // Fill the cloud with points
         for (size_t x = 0; x < tgvdepth8u->width; ++x)
