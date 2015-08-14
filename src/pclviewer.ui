@@ -379,7 +379,7 @@
            <item row="2" column="1" colspan="2">
             <widget class="QGroupBox" name="groupBox_2">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -1187,16 +1187,16 @@
            </sizepolicy>
           </property>
           <property name="frameShape">
-           <enum>QFrame::StyledPanel</enum>
+           <enum>QFrame::Box</enum>
           </property>
           <property name="frameShadow">
-           <enum>QFrame::Sunken</enum>
+           <enum>QFrame::Raised</enum>
           </property>
           <property name="lineWidth">
-           <number>3</number>
+           <number>1</number>
           </property>
           <property name="midLineWidth">
-           <number>2</number>
+           <number>0</number>
           </property>
           <layout class="QGridLayout" name="gridLayout_2">
            <item row="8" column="12">
@@ -1971,6 +1971,9 @@
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
           </property>
           <property name="readOnly">
            <bool>true</bool>

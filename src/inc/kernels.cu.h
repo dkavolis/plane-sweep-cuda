@@ -714,6 +714,7 @@ void TGV2_updateP_tensor_weighed(float * d_Px, float * d_Py, const float * d_T11
 
 /** @} */ // group TGV2
 
+// WIP:
 void TGV2_updateU_sparseDepth(float * d_u, float * d_u1x, float * d_u1y,
                               float * d_ubar, float * d_u1xbar, float * d_u1ybar,
                               const float * d_Px, const float * d_Py,

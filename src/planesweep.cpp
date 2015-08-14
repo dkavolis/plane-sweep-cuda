@@ -31,6 +31,7 @@
 #include <cuda_runtime.h>
 #include <helper_string.h>
 #include <kernels.cu.h>
+#include <helper_cuda.h>
 
 void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output);
 
@@ -765,7 +766,8 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         for (int l = 0; l < warps; l++){
 
             // Set last solution as initialization for new level of iterations
-            u0 = ubar;
+            u0 = u;
+            ubar = u;
 
             // Reset variables
             set_value(Px.data(), 0.f, w, h, blocks, threads);
@@ -834,7 +836,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         }
 
         // Copy result to host memory
-        ubar.copyTo(depthmapTGV.data, depthmapTGV.pitch);
+        u.copyTo(depthmapTGV.data, depthmapTGV.pitch);
 
         // Convert to uchar so it can be easily displayed as gray image
         ConvertDepthtoUChar(depthmapTGV, depthmap8uTGV);
@@ -991,7 +993,7 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const camImage<floa
         int h = HostRef.height, w = HostRef.width;
         depthmapTGV.setSize(w, h);
 
-        npp::ImageNPP_32f_C1 px(w,h), py(w,h), qx(w,h), qy(w,h), qz(w,h), qw(w,h), u(w,h), /*ubar(w,h),*/
+        npp::ImageNPP_32f_C1 px(w,h), py(w,h), qx(w,h), qy(w,h), qz(w,h), qw(w,h), /*u(w,h),*/ ubar(w,h),
                 vx(w,h), vy(w,h), vxbar(w,h), vybar(w,h), weights(w,h), Ds(w,h), ref(w,h), T1(w,h), T2(w,h), T3(w,h), T4(w,h);
 
         cudaError_t err = cudaFree(d_depthmap);
@@ -1006,10 +1008,10 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const camImage<floa
         Ds.copyFrom(depth.data, depth.pitch);
         calculateWeights_sparseDepth(weights.data(), Ds.data(), w, h, blocks, threads);
         element_scale(Ds.data(), 1.f / zfar, w, h, blocks, threads);
-        u.copyFrom(depthmap.data, depthmap.pitch);
-        element_scale(u.data(), 1.f / zfar, w, h, blocks, threads);
+        ubar.copyFrom(depthmap.data, depthmap.pitch);
+        element_scale(ubar.data(), 1.f / zfar, w, h, blocks, threads);
 //        ubar = u;
-        NPP_CHECK_CUDA(cudaMemcpy2D(d_depthmap, pitch, u.data(), u.pitch(), w * sizeof(float), h, cudaMemcpyDeviceToDevice));
+        NPP_CHECK_CUDA(cudaMemcpy2D(d_depthmap, pitch, ubar.data(), ubar.pitch(), w * sizeof(float), h, cudaMemcpyDeviceToDevice));
 
         ref.copyFrom(HostRef.data, HostRef.pitch);
         element_scale(ref.data(), 1.f / 255.f, w, h, blocks, threads);
@@ -1022,7 +1024,7 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const camImage<floa
             TGV2_updateP_tensor_weighed(px.data(), py.data(), T1.data(), T2.data(), T3.data(), T4.data(),
                                         d_depthmap, vxbar.data(), vybar.data(), alpha1, sigma, w, h, blocks, threads);
             TGV2_updateQ(qx.data(), qy.data(), qz.data(), qw.data(), vxbar.data(), vybar.data(), alpha0, sigma, w, h, blocks, threads);
-            TGV2_updateU_sparseDepthTensor(u.data(), vxbar.data(), vybar.data(), d_depthmap, vxbar.data(), vybar.data(),
+            TGV2_updateU_sparseDepthTensor(d_depthmap, vxbar.data(), vybar.data(), ubar.data(), vxbar.data(), vybar.data(),
                                            T1.data(), T2.data(), T3.data(), T4.data(), px.data(), py.data(),
                                            qx.data(), qy.data(), qz.data(), qw.data(), weights.data(), Ds.data(), alpha0, alpha1, tau, theta, w, h,
                                            blocks, threads);
@@ -1039,8 +1041,8 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const camImage<floa
         nppiFree(qy.data());
         nppiFree(qz.data());
         nppiFree(qw.data());
-        nppiFree(u.data());
-        //nppiFree(ubar.data());
+        //(u.data());
+        nppiFree(ubar.data());
         nppiFree(vx.data());
         nppiFree(vy.data());
         nppiFree(vxbar.data());
