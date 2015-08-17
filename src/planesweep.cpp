@@ -645,9 +645,9 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
             double currsigma = i == 0 ? 1 + sigma : sigma;
             denoising_TVL1_calculateP_tensor_weighed(Px.data(), Py.data(), T11.data(), T12.data(), T21.data(), T22.data(),
                                                      d_depthmap, currsigma, w, h, blocks, threads);
-            denoising_TVL1_update_tensor_weighed(d_depthmap, R.data(), Px.data(), Py.data(), rawInput.data(),
-                                                 T11.data(), T12.data(), T21.data(), T22.data(),tau, theta, lambda, sigma,
-                                                 w, h, blocks, threads);
+            denoising_TVL1_update(d_depthmap, R.data(), Px.data(), Py.data(), rawInput.data(),
+                                  tau, theta, lambda, sigma,
+                                  w, h, blocks, threads);
         }
 
         element_scale(d_depthmap, (zfar - znear), w, h, blocks, threads);
