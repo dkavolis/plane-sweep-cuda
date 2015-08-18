@@ -17,6 +17,8 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <chrono>
+#include <QVector>
+#include <QRgb>
 
 PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     QMainWindow (parent),
@@ -39,6 +41,21 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     setupFusion();
 
     LoadImages();
+    uchar3 c;
+    QColor col;
+
+    ctable.resize(256);
+    for (int i = 0; i < 256; i++){
+        c = RGBdepthmapColor(i);
+        col.setRed(c.x);
+        col.setGreen(c.y);
+        col.setBlue(c.z);
+        ctable[i] = col.rgb();
+    }
+
+    ui->cbardenoised->setColorTable(ctable);
+    ui->cbar->setColorTable(ctable);
+    ui->cbarTGV->setColorTable(ctable);
 }
 
 void PCLViewer::setupPlanesweep()
@@ -439,6 +456,7 @@ void PCLViewer::on_pushButton_pressed()
 
         // Show grayscale depthmap
         QImage img((const uchar *)depth8u->data, depth8u->width, depth8u->height, QImage::Format_Indexed8);
+        img.setColorTable(ctable);
 
         depthim = QPixmap::fromImage(img);
         depthscene->addPixmap(depthim);
@@ -551,6 +569,7 @@ void PCLViewer::on_denoiseBtn_clicked()
 
         // show grayscale depthmap
         QImage img((const uchar *)dendepth8u->data, dendepth8u->width, dendepth8u->height, QImage::Format_Indexed8);
+        img.setColorTable(ctable);
 
         dendepthim = QPixmap::fromImage(img);
         dendepthsc->addPixmap(dendepthim);
@@ -631,6 +650,7 @@ void PCLViewer::on_tgv_button_pressed()
 
         // show grayscale depthmap
         QImage img((const uchar *)tgvdepth8u->data, tgvdepth8u->width, tgvdepth8u->height, QImage::Format_Indexed8);
+        img.setColorTable(ctable);
 
         tgvdepthim = QPixmap::fromImage(img);
         tgvscene->addPixmap(tgvdepthim);
@@ -1201,55 +1221,33 @@ void PCLViewer::on_reconstruct_button_clicked()
 
 uchar3 PCLViewer::RGBdepthmapColor(uchar depth)
 {
-    uchar3 color;
-    if(depth < 43){
-        color.x = depth * 6;
-        color.y = 0;
-        color.z = depth * 6;
+    uchar3 color = make_uchar3(0,0,0);
+
+    if (depth < 32){ // blue
+        color.z = 128 + depth * 4;
         return color;
     }
-
-    if(depth > 42 && depth < 85){
-        color.x = 255 - (depth - 43) * 6;
-        color.y = 0;
+    if (depth < 96){ // light blue
+        color.y = (depth - 32) * 4;
         color.z = 255;
         return color;
     }
-
-    if(depth > 84 && depth < 128){
-        color.x = 0;
-        color.y = (depth - 85) * 6;
-        color.z = 255;
-        return color;
-    }
-
-    if(depth > 127 && depth < 169){
-        color.x = 0;
+    if (depth < 160){ // yellow
+        color.x = (depth - 96) * 4;
         color.y = 255;
-        color.z = 255 - (depth - 128) * 6;
+        color.z = 255 - color.x;
         return color;
     }
-
-    if(depth > 168 && depth < 212){
-        color.x = (depth - 169) * 6;
-        color.y = 255;
-        color.z = 0;
-        return color;
-    }
-
-    if(depth > 211 && depth < 254){
+    if (depth < 224){ // red
         color.x = 255;
-        color.y = 255 - (depth - 212) * 6;
-        color.z = 0;
+        color.y = 255 - (depth - 160) * 4;
         return color;
     }
 
-    if(depth > 253){
-        color.x = 255;
-        color.y = 0;
-        color.z = 0;
-        return color;
-    }
+    // dark red
+    color.x = 255 - (depth - 224) * 4;
+
+//    if (depth == 255) color = make_uchar3(0,0,0);
     return color;
 }
 

@@ -236,6 +236,7 @@ private:
     refchangedtvl1 = true,
     refchangedtgv = true;
 
+    QVector<QRgb> ctable;
     /**
     *  \brief Load images from source directory
     *
