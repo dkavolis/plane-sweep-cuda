@@ -53,8 +53,11 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
         ctable[i] = col.rgb();
     }
 
+    ui->cbardenoised->setNumberOfTicks(10);
     ui->cbardenoised->setColorTable(ctable);
+    ui->cbar->setNumberOfTicks(10);
     ui->cbar->setColorTable(ctable);
+    ui->cbarTGV->setNumberOfTicks(10);
     ui->cbarTGV->setColorTable(ctable);
 }
 
