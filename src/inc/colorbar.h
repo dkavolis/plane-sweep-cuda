@@ -35,22 +35,29 @@ public:
 class ColorBar: public QWidget, protected PainterText
 {
     struct range {
+    private:
         double rmin, rmax;
 
+    public:
         inline range(double min = 0, double max = 0) :
             rmin(min), rmax(max)
         {}
 
         inline range(const range & r) :
-            rmin(r.rmin), rmax(r.rmax)
+            rmin(r.min()), rmax(r.max())
         {}
 
         inline double Range() const { return rmax - rmin; }
 
+        inline double & min() { return rmin; }
+        inline const double & min() const { return rmin; }
+        inline double & max() { return rmax; }
+        inline const double & max() const { return rmax; }
+
         inline range & operator=(const range & r){
             if (this == &r) return *this;
-            rmin = r.rmin;
-            rmax = r.rmax;
+            rmin = r.min();
+            rmax = r.max();
             return *this;
         }
     };
@@ -90,8 +97,8 @@ public:
     void setTickLabelPosition(const QSlider::TickPosition pos);
     QSlider::TickPosition TickLabelPosition() const { return labelp; }
 
-    double RangeMin() const { return r.rmin; }
-    double RangeMax() const { return r.rmax; }
+    double RangeMin() const { return r.min(); }
+    double RangeMax() const { return r.max(); }
     range Range() const { return r; }
 
     // see QString::number(double, char, int)
@@ -100,6 +107,7 @@ public:
 
 signals:
     void selected(const QColor &);
+    void selected(const double);
     void RangeChanged(const range &);
     void RangeMinChanged(const double);
     void RangeMaxChanged(const double);

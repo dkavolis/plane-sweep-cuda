@@ -77,13 +77,13 @@ void ColorBar::setTickLabelPosition(const QSlider::TickPosition pos)
 
 void ColorBar::setRangeMin(double rmin)
 {
-    r.rmin = rmin;
+    r.min() = rmin;
     update();
 }
 
 void ColorBar::setRangeMax(double rmax)
 {
-    r.rmax = rmax;
+    r.max() = rmax;
     update();
 }
 
@@ -126,6 +126,10 @@ void ColorBar::mousePressEvent(QMouseEvent *e)
 #endif
 
         emit selected(QColor(rgb));
+        if (d_orientation == Qt::Horizontal)
+            emit selected(r.min() + r.Range() * (e->x() - ColorBarRect().left() + 0.0) / (double)ColorBarRect().width());
+        else
+            emit selected(r.min() + r.Range() * (ColorBarRect().bottom() - e->y() + 0.0) / (double)ColorBarRect().height());
         e->accept();
     }
 }
@@ -249,7 +253,7 @@ void ColorBar::drawColorBarTickLabels(QPainter *painter, const QRect &rect) cons
 
     // draw ticks
     for (int i = 0; i < nticks; i++){
-        text = QString::number(r.rmin + r.Range() * i / (nticks - 1), dformat, precs);
+        text = QString::number(r.min() + r.Range() * i / (nticks - 1), dformat, precs);
         if (above) { // above / left
             ColorBarTickLine(i, true, x1, y1, x2, y2, rect);
             if (d_orientation == Qt::Vertical) x1 -= 5;

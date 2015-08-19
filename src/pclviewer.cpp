@@ -56,6 +56,15 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->cbardenoised->setColorTable(ctable);
     ui->cbar->setColorTable(ctable);
     ui->cbarTGV->setColorTable(ctable);
+
+    connect(ui->cbar, SIGNAL(selected(double)), this, SLOT(colorbar_selected(double)));
+    connect(ui->cbardenoised, SIGNAL(selected(double)), this, SLOT(colorbar_selected(double)));
+    connect(ui->cbarTGV, SIGNAL(selected(double)), this, SLOT(colorbar_selected(double)));
+}
+
+void PCLViewer::colorbar_selected(double value)
+{
+    printf("Value of colorbar clicked: %f\n\n", value);
 }
 
 void PCLViewer::setupPlanesweep()

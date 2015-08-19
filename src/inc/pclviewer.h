@@ -193,6 +193,8 @@ private slots: // GUI widgets slots
     void on_fusion_threadsd_valueChanged(int arg1);
     //////////////////////////////////////////////////////////////////////
 
+    void colorbar_selected(double value);
+
 private:
     // pointer to UI
     Ui::PCLViewer *ui;
