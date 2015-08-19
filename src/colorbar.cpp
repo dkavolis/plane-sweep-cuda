@@ -99,6 +99,18 @@ void ColorBar::setRange(range r)
     update();
 }
 
+void ColorBar::setTickLabelFormat(char format)
+{
+    dformat = format;
+    update();
+}
+
+void ColorBar::setTickLabelPrecision(int precision)
+{
+    precs = precision;
+    update();
+}
+
 void ColorBar::mousePressEvent(QMouseEvent *e)
 {
     if( e->button() ==  Qt::LeftButton )
@@ -237,7 +249,7 @@ void ColorBar::drawColorBarTickLabels(QPainter *painter, const QRect &rect) cons
 
     // draw ticks
     for (int i = 0; i < nticks; i++){
-        text = QString::number(r.rmin + r.Range() * i / (nticks - 1), 'g', 2);
+        text = QString::number(r.rmin + r.Range() * i / (nticks - 1), dformat, precs);
         if (above) { // above / left
             ColorBarTickLine(i, true, x1, y1, x2, y2, rect);
             if (d_orientation == Qt::Vertical) x1 -= 5;

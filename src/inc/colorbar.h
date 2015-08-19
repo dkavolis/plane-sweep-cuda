@@ -58,6 +58,8 @@ class ColorBar: public QWidget, protected PainterText
     Q_OBJECT
     Q_PROPERTY(QSlider::TickPosition TickPosition READ TickPosition WRITE setTickPosition)
     Q_PROPERTY(QSlider::TickPosition TickLabelPosition READ TickLabelPosition WRITE setTickLabelPosition)
+    Q_PROPERTY(char TickLabelFormat READ TickLabelFormat WRITE setTickLabelFormat)
+    Q_PROPERTY(int TickLabelPrecision READ TickLabelPrecision WRITE setTickLabelPrecision)
     Q_PROPERTY(int NumberOfTicks READ NumberOfTicks WRITE setNumberOfTicks)
     Q_PROPERTY(int ColorBarSize READ ColorBarSize WRITE setColorBarSize)
     Q_PROPERTY(Qt::Orientation orientation READ orientation WRITE setOrientation)
@@ -92,6 +94,10 @@ public:
     double RangeMax() const { return r.rmax; }
     range Range() const { return r; }
 
+    // see QString::number(double, char, int)
+    char TickLabelFormat() const { return dformat; }
+    int TickLabelPrecision() const { return precs; }
+
 signals:
     void selected(const QColor &);
     void RangeChanged(const range &);
@@ -103,6 +109,9 @@ public slots:
     void setRangeMax(double rmax);
     void setRange(double rmin, double rmax);
     void setRange(range r);
+
+    void setTickLabelFormat(char format);
+    void setTickLabelPrecision(int precision);
 
 protected:
     virtual void mousePressEvent(QMouseEvent *);
@@ -123,6 +132,8 @@ private:
     QSlider::TickPosition tickp, labelp;
     int sz = 25;
     range r;
+    char dformat = 'g';
+    int precs = 3;
 
     void setup();
     void positions(bool & above, bool & below, QSlider::TickPosition pos) const;

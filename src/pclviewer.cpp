@@ -56,13 +56,6 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     ui->cbardenoised->setColorTable(ctable);
     ui->cbar->setColorTable(ctable);
     ui->cbarTGV->setColorTable(ctable);
-
-    connect(ui->zNear, SIGNAL(valueChanged(double)), ui->cbar, SLOT(setRangeMin(double)));
-    connect(ui->zNear, SIGNAL(valueChanged(double)), ui->cbardenoised, SLOT(setRangeMin(double)));
-    connect(ui->zNear, SIGNAL(valueChanged(double)), ui->cbarTGV, SLOT(setRangeMin(double)));
-    connect(ui->zFar, SIGNAL(valueChanged(double)), ui->cbar, SLOT(setRangeMax(double)));
-    connect(ui->zFar, SIGNAL(valueChanged(double)), ui->cbardenoised, SLOT(setRangeMax(double)));
-    connect(ui->zFar, SIGNAL(valueChanged(double)), ui->cbarTGV, SLOT(setRangeMax(double)));
 }
 
 void PCLViewer::setupPlanesweep()
@@ -446,6 +439,10 @@ void PCLViewer::on_pushButton_pressed()
         ps.getInverseK(k);
         double z;
 
+        // update colorbar range
+        ui->cbar->setRangeMin(ui->zNear->value());
+        ui->cbar->setRangeMax(ui->zFar->value());
+
         // Fill the cloud with points
         for (size_t x = 0; x < depth8u->width; ++x)
             for (size_t y = 0; y < depth8u->height; ++y)
@@ -560,6 +557,10 @@ void PCLViewer::on_denoiseBtn_clicked()
         ps.getInverseK(k);
         double z;
 
+        // update colorbar range
+        ui->cbardenoised->setRangeMin(ui->zNear->value());
+        ui->cbardenoised->setRangeMax(ui->zFar->value());
+
         // Fill the cloud
         for (size_t x = 0; x < dendepth8u->width; ++x)
             for (size_t y = 0; y < dendepth8u->height; ++y)
@@ -641,6 +642,10 @@ void PCLViewer::on_tgv_button_pressed()
         double k[3][3];
         ps.getInverseK(k);
         float z;
+
+        // update colorbar range
+        ui->cbarTGV->setRangeMin(ui->zNear->value());
+        ui->cbarTGV->setRangeMax(ui->zFar->value());
 
         // Fill the cloud with points
         for (size_t x = 0; x < tgvdepth8u->width; ++x)
