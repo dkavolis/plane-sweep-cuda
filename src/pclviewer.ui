@@ -277,7 +277,7 @@
     <item row="0" column="0" colspan="3">
      <widget class="QTabWidget" name="tabWidget">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -286,7 +286,7 @@
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>6</number>
       </property>
       <property name="elideMode">
        <enum>Qt::ElideLeft</enum>
@@ -1715,14 +1715,14 @@
         <item row="0" column="1">
          <widget class="ColorBar" name="cbar" native="true">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
           <property name="minimumSize">
            <size>
-            <width>25</width>
+            <width>60</width>
             <height>0</height>
            </size>
           </property>
@@ -1741,14 +1741,14 @@
         <item row="0" column="1">
          <widget class="ColorBar" name="cbardenoised" native="true">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
           <property name="minimumSize">
            <size>
-            <width>25</width>
+            <width>60</width>
             <height>0</height>
            </size>
           </property>
@@ -1890,16 +1890,24 @@
         <item>
          <widget class="ColorBar" name="cbarTGV" native="true">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
           <property name="minimumSize">
            <size>
-            <width>25</width>
+            <width>60</width>
             <height>0</height>
            </size>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>8</pointsize>
+            <weight>50</weight>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
           </property>
          </widget>
         </item>
@@ -2352,12 +2360,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>69</x>
-     <y>54</y>
+     <x>112</x>
+     <y>570</y>
     </hint>
     <hint type="destinationlabel">
-     <x>102</x>
-     <y>54</y>
+     <x>1210</x>
+     <y>567</y>
     </hint>
    </hints>
   </connection>
@@ -2368,12 +2376,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>69</x>
-     <y>54</y>
+     <x>112</x>
+     <y>570</y>
     </hint>
     <hint type="destinationlabel">
-     <x>102</x>
-     <y>54</y>
+     <x>1210</x>
+     <y>567</y>
     </hint>
    </hints>
   </connection>
@@ -2384,12 +2392,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1151</x>
-     <y>656</y>
+     <x>1164</x>
+     <y>570</y>
     </hint>
     <hint type="destinationlabel">
-     <x>1183</x>
-     <y>656</y>
+     <x>1211</x>
+     <y>567</y>
     </hint>
    </hints>
   </connection>

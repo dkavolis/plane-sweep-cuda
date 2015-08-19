@@ -53,12 +53,16 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
         ctable[i] = col.rgb();
     }
 
-    ui->cbardenoised->setNumberOfTicks(10);
     ui->cbardenoised->setColorTable(ctable);
-    ui->cbar->setNumberOfTicks(10);
     ui->cbar->setColorTable(ctable);
-    ui->cbarTGV->setNumberOfTicks(10);
     ui->cbarTGV->setColorTable(ctable);
+
+    connect(ui->zNear, SIGNAL(valueChanged(double)), ui->cbar, SLOT(setRangeMin(double)));
+    connect(ui->zNear, SIGNAL(valueChanged(double)), ui->cbardenoised, SLOT(setRangeMin(double)));
+    connect(ui->zNear, SIGNAL(valueChanged(double)), ui->cbarTGV, SLOT(setRangeMin(double)));
+    connect(ui->zFar, SIGNAL(valueChanged(double)), ui->cbar, SLOT(setRangeMax(double)));
+    connect(ui->zFar, SIGNAL(valueChanged(double)), ui->cbardenoised, SLOT(setRangeMax(double)));
+    connect(ui->zFar, SIGNAL(valueChanged(double)), ui->cbarTGV, SLOT(setRangeMax(double)));
 }
 
 void PCLViewer::setupPlanesweep()
@@ -113,6 +117,9 @@ void PCLViewer::setupPlanesweep()
     ui->threadsx->setValue(t.x);
     ui->threadsy->setValue(t.y);
 
+    ui->cbar->setNumberOfTicks(11);
+    ui->cbar->setRange(ui->zNear->value(), ui->zFar->value());
+
     ui->altmethod->setChecked(ps.getAlternativeRelativeMatrixMethod());
 
     QChar sigma(0x03C3), tau(0x03C4), beta(0x03B2), gamma(0x03B3), theta(0x03B8);
@@ -134,6 +141,8 @@ void PCLViewer::setupPlanesweep()
     ui->tvl1_beta->setValue(DEFAULT_TVL1_BETA);
     ui->tvl1_gamma->setValue(DEFAULT_TVL1_GAMMA);
 
+    ui->cbardenoised->setNumberOfTicks(11);
+    ui->cbardenoised->setRange(ui->zNear->value(), ui->zFar->value());
 }
 
 void PCLViewer::setupTGV()
@@ -182,6 +191,9 @@ void PCLViewer::setupTGV()
     ui->tgv_tau->setValue(DEFAULT_TGV_TAU);
     ui->tgv_beta->setValue(DEFAULT_TGV_BETA);
     ui->tgv_gamma->setValue(DEFAULT_TGV_GAMMA);
+
+    ui->cbarTGV->setNumberOfTicks(11);
+    ui->cbarTGV->setRange(ui->zNear->value(), ui->zFar->value());
 }
 
 void PCLViewer::setupFusion()
