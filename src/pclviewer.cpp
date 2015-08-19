@@ -65,6 +65,7 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
 void PCLViewer::colorbar_selected(double value)
 {
     printf("Value of colorbar clicked: %f\n\n", value);
+    fflush(stdout);
 }
 
 void PCLViewer::setupPlanesweep()

@@ -227,6 +227,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cout << "Time taken for the algorithm to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+        std::cout.flush();
 
         return true;
 
@@ -670,6 +671,7 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cout << "Time taken for the TVL1 denoising to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+        std::cout.flush();
 
         return true;
 
@@ -882,6 +884,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cout << "Time taken for the TGV to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+        std::cout.flush();
 
         return true;
 
@@ -1058,6 +1061,7 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const camImage<floa
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cout << "Time taken for the TGV to complete is " <<
                      std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
+        std::cout.flush();
 
         return true;
 
