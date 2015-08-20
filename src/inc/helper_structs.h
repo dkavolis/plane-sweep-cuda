@@ -300,11 +300,32 @@ Matrix3D operator+(float a, Matrix3D B)
     return Matrix3D(B.r[0] + a, B.r[1] + a, B.r[2] + a);
 }
 
+/** \brief Matrix - matrix summation */
+__host__ __device__ inline
+Matrix3D operator+(Matrix3D a, Matrix3D b)
+{
+    return Matrix3D(a.r[0] + b.r[0], a.r[1] + b.r[1], a.r[2] + b.r[2]);
+}
+
 /** \brief Add constant \f$b\f$ to all matrix elements */
 __host__ __device__ inline
 void operator+=(Matrix3D & A, float b)
 {
     A = A + b;
+}
+
+/** \brief Matrix - matrix summation */
+__host__ __device__ inline
+void operator+=(Matrix3D & A, Matrix3D b)
+{
+    A = A + b;
+}
+
+/** \brief Negate matrix */
+__host__ __device__ inline
+Matrix3D operator-(Matrix3D & A)
+{
+    A = Matrix3D(-A.r[0], -A.r[1], -A.r[2]);
 }
 
 /** \brief Subtract constant \f$b\f$ from all matrix elements */
@@ -321,9 +342,23 @@ Matrix3D operator-(float a, Matrix3D B)
     return Matrix3D(B.r[0] - a, B.r[1] - a, B.r[2] - a);
 }
 
+/** \brief Matrix - matrix subtraction */
+__host__ __device__ inline
+Matrix3D operator-(Matrix3D a, Matrix3D b)
+{
+    return Matrix3D(a.r[0] - b.r[0], a.r[1] - b.r[1], a.r[2] - b.r[2]);
+}
+
 /** \brief Subtract constant \f$b\f$ from all matrix elements */
 __host__ __device__ inline
 void operator-=(Matrix3D & A, float b)
+{
+    A = A - b;
+}
+
+/** \brief Matrix - matrix subtraction */
+__host__ __device__ inline
+Matrix3D operator-=(Matrix3D & A, Matrix3D b)
 {
     A = A - b;
 }
