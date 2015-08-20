@@ -947,7 +947,7 @@ bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_p
         if (first != -1) numbers.remove(0, first + 1);
         if ((first != -1) && (last != -1)) n = numbers.split(',', QString::SkipEmptyParts);
 
-        // find correct lines and assing camera parameter values
+        // find correct lines and assign camera parameter values
         if (line.startsWith(CAM_POS)){
             cam_pos <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
         }
