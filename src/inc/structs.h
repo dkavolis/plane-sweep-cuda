@@ -14,6 +14,20 @@
 #include <helper_math.h>
 #include "memory.h"
 
+// Forward declarations of structs contained in this file:
+template<unsigned char _nBins>  struct histogram;
+template<unsigned char _nBins>  struct Mhistogram;
+template<unsigned char _nBins>  struct fusionvoxel;
+template<unsigned char _nBins>  struct Mfusionvoxel;
+template<unsigned char _nBins>  struct sortedHist;
+template<unsigned char _nBins>  struct MsortedHist;
+                                struct Rectangle3D;
+                                struct MRectangle3D;
+                                struct Matrix3D;
+                                struct MMatrix3D;
+                                struct Vector3D;
+                                struct MVector3D;
+
 /** \brief Convenience typedef for <em>unsigned int</em>*/
 typedef unsigned int uint;
 
@@ -27,7 +41,7 @@ typedef unsigned int uint;
 * Bin signed distance can be calculated as \f$2 \frac{index}{nBins - 3} - 1\f$.
 */
 template<unsigned char _nBins>
-struct histogram : public Manage
+struct histogram
 {
     /** \brief Array of bins */
     unsigned char bin[_nBins];
@@ -90,6 +104,15 @@ struct histogram : public Manage
     unsigned char& operator()(unsigned char i){ return bin[i]; }
 };
 
+/** \brief histogram struct with overloaded \a new and \a delete operators from class \p Manage */
+template<unsigned char _nBins>
+struct Mhistogram : public histogram<_nBins>, public Manage
+{
+    __host__ __device__ inline
+    Mhistogram(const histogram<_nBins> & h) : histogram<_nBins>(h)
+    {}
+};
+
 // Simple structure to hold all data of a single voxel
 //required for depthmap fusion
 /**
@@ -97,7 +120,7 @@ struct histogram : public Manage
 *  \tparam _nBins   number of histogram bins
 */
 template<unsigned char _nBins>
-struct fusionvoxel : public Manage
+struct fusionvoxel
 {
     /** \brief Primal variable \f$u\f$ */
     float u;
@@ -156,12 +179,21 @@ struct fusionvoxel : public Manage
     }
 };
 
+/** \brief fusionvoxel struct with overloaded \a new and \a delete operators from class \p Manage */
+template<unsigned char _nBins>
+struct Mfusionvoxel : public fusionvoxel<_nBins>, public Manage
+{
+    __host__ __device__ inline
+    Mfusionvoxel(const fusionvoxel<_nBins> & f) : fusionvoxel<_nBins>(f)
+    {}
+};
+
 /**
 *  \brief Helper structure for calculating \f$\operatorname{prox}_{hist}(u)\f$.
 *  \tparam _nBins   number of histogram bins
 */
 template<unsigned char _nBins>
-struct sortedHist : public Manage
+struct sortedHist
 {
     /** \brief Array of elements */
     float element[2 * _nBins + 1];
@@ -234,13 +266,22 @@ struct sortedHist : public Manage
     int size(){ return 2 * _nBins + 1; }
 };
 
+/** \brief sortedHist struct with overloaded \a new and \a delete operators from class \p Manage */
+template<unsigned char _nBins>
+struct MsortedHist : public sortedHist<_nBins>, public Manage
+{
+    __host__ __device__ inline
+    MsortedHist(const sortedHist<_nBins> & sh) : sortedHist<_nBins>(sh)
+    {}
+};
+
 /** \addtogroup rectangle Rectangle3D
 * \brief Rectangle3D structure and its operator overloads
 * @{
 */
 
 /** \brief Simple struct to hold coordinates of volume rectangle */
-struct Rectangle3D : public Manage
+struct Rectangle3D
 {
     /** \brief Corner of rectangle */
     float3 a;
@@ -313,6 +354,14 @@ struct Rectangle3D : public Manage
     }
 };
 
+/** \brief Rectangle3D struct with overloaded \a new and \a delete operators from class \p Manage */
+struct MRectangle3D : public Rectangle3D, public Manage
+{
+    __host__ __device__ inline
+    MRectangle3D(const Rectangle3D & r) : Rectangle3D(r)
+    {}
+};
+
 /** @} */ // group rectangle
 
 /** \addtogroup matrix Matrix3D
@@ -325,7 +374,7 @@ struct Rectangle3D : public Manage
 *
 *  \details Useful for storing and performing operations with \f$R\f$ and \f$K\f$ matrices.
 */
-struct Matrix3D : public Manage
+struct Matrix3D
 {
     /** \brief Row vectors */
     float3 r[3]; // row vectors
@@ -418,6 +467,19 @@ struct Matrix3D : public Manage
         r[0] = (make_float3(m[0], m[1], m[2]));
         r[1] = (make_float3(m[3], m[4], m[5]));
         r[2] = (make_float3(m[6], m[7], m[8]));
+    }
+
+    /**
+    *  \brief Constructor overload
+    *
+    *  \details Constructs Matrix3D from given element values
+    */
+    __host__ __device__ inline
+    Matrix3D(float r11, float r12, float r13, float r21, float r22, float r23, float r31, float r32, float r33)
+    {
+        r[0] = make_float3(r11, r12, r13);
+        r[1] = make_float3(r21, r22, r23);
+        r[2] = make_float3(r31, r32, r33);
     }
 
     /** \brief Copy constructor */
@@ -521,7 +583,7 @@ struct Matrix3D : public Manage
 
     /** \brief Copy operator. */
     __host__ __device__ inline
-    Matrix3D & operator=(Matrix3D & R)
+    Matrix3D & operator=(const Matrix3D & R)
     {
         if (this == &R) return *this;
         r[0] = R.r[0];
@@ -659,6 +721,14 @@ struct Matrix3D : public Manage
     }
 };
 
+/** \brief Matrix3D structure with overloaded \n new and \a delete operators from class \p Manage */
+struct MMatrix3D : public Matrix3D, public Manage
+{
+    __host__ __device__ inline
+    MMatrix3D(const Matrix3D & m) : Matrix3D(m)
+    {}
+};
+
 /** @} */ // group matrix3D
 
 /** \addtogroup vector Vector3D
@@ -668,7 +738,7 @@ struct Matrix3D : public Manage
 */
 
 /** \brief 3D vector structure */
-struct Vector3D : public Manage
+struct Vector3D
 {
     float x, y, z;
 
@@ -709,7 +779,7 @@ struct Vector3D : public Manage
 
     /** \brief Copy operator */
     __host__ __device__ inline
-    Vector3D& operator=(Vector3D & f)
+    Vector3D& operator=(const Vector3D & f)
     {
         if (this == &f) return *this;
         x = f.x;
@@ -740,6 +810,14 @@ struct Vector3D : public Manage
     {
         return make_float3(x, y, z);
     }
+};
+
+/** \brief Vector3D struct with overloaded \a new and \a delete operators from class \p Manage */
+struct MVector3D : public Vector3D, public Manage
+{
+    __host__ __device__ inline
+    MVector3D(const Vector3D & v) : Vector3D(v)
+    {}
 };
 
 /** @} */ // group vector
