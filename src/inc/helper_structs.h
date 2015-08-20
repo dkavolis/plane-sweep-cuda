@@ -29,6 +29,52 @@ float bilinterp(float2 y0, float2 y1, float2 frac)
     return lerp(x.x, x.y, frac.x);
 }
 
+/**
+ *  \name Quaternion to rotation
+ *  \brief Quaternion Q to rotation matrix transformation
+ *  \return 3x3 Rotation matrix
+ *  @{
+ *  \param qx   Q x component
+ *  \param qy   Q y component
+ *  \param qz   Q z component
+ *  \param qw   Q w component
+ */
+__host__ __device__ inline
+Matrix3D quat2rot(float qx, float qy, float qz, float qw)
+{
+    float n = qw * qw + qx * qx + qy * qy + qz * qz;
+    float s;
+    if (n == 0.f)
+        s = 0.f;
+    else
+        s = 2.f / n;
+
+    float wx = s * qw * qx;
+    float wy = s * qw * qy;
+    float wz = s * qw * qz;
+    float xx = s * qx * qx;
+    float xy = s * qx * qy;
+    float xz = s * qx * qz;
+    float yy = s * qy * qy;
+    float yz = s * qy * qz;
+    float zz = s * qz * qz;
+
+    return Matrix3D(1 - (yy + zz), xy - wz, xz + wy,
+                    xy + wz, 1 - (xx + zz), yz - wx,
+                    xz - wy, yz + wx, 1 - (xx + yy));
+}
+
+/**
+ *  \brief Overload of quat2rot(float qx, float qy, float qz, float qw)
+ */
+__host__ __device__ inline
+Matrix3D quat2rot(float4 q)
+{
+    return quat2rot(q.x, q.y, q.z, q.w);
+}
+
+/** @} */ // \name Quaternion to rotation
+
 /** @} */ // group general
 
 //////////////////////////////////////////////////////////////
