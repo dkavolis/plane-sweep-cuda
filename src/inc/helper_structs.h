@@ -399,6 +399,18 @@ inline __host__ __device__ float5 make_float5(uint4 a, uint b)
 {
     return make_float5(float(a.x), float(a.y), float(a.z), float(a.w), float(b));
 }
+inline __host__ __device__ float5 operator*(float5 a, float5 b)
+{
+    return make_float5(a.x * b.x, a.y * b.y, a.z * b.z,  a.w * b.w, a.v + b.v);
+}
+inline __host__ __device__ void operator*=(float5 &a, float5 b)
+{
+    a.x *= b.x;
+    a.y *= b.y;
+    a.z *= b.z;
+    a.w *= b.w;
+    a.v *= b.v;
+}
 inline __host__ __device__ float5 operator*(float5 a, float b)
 {
     return make_float5(a.x * b, a.y * b, a.z * b,  a.w * b, a.v * b);
