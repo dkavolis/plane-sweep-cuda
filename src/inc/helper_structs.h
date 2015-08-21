@@ -323,7 +323,7 @@ void operator+=(Matrix3D & A, Matrix3D b)
 
 /** \brief Negate matrix */
 __host__ __device__ inline
-Matrix3D operator-(Matrix3D & A)
+void operator-(Matrix3D & A)
 {
     A = Matrix3D(-A.r[0], -A.r[1], -A.r[2]);
 }
@@ -358,11 +358,200 @@ void operator-=(Matrix3D & A, float b)
 
 /** \brief Matrix - matrix subtraction */
 __host__ __device__ inline
-Matrix3D operator-=(Matrix3D & A, Matrix3D b)
+void operator-=(Matrix3D & A, Matrix3D b)
 {
     A = A - b;
 }
 
 /** @} */ // group matrix
+
+/** @brief Matrix - vector multiplication */
+__host__ __device__ inline
+float3 operator*(Transformation3D t, float4 x)
+{
+    return t.R * make_float3(x.x, x.y, x.z) + t.T * x.w;
+}
+
+/** @brief Matrix - homogeneous vector multiplication */
+__host__ __device__ inline
+float3 operator*(Transformation3D t, float3 x)
+{
+    return t * make_float4(x.x, x.y, x.z, 1);
+}
+
+inline __host__ __device__ float5 make_float5(float s)
+{
+    return make_float5(s, s, s, s, s);
+}
+inline __host__ __device__ float5 make_float5(float4 a)
+{
+    return make_float5(a.x, a.y, a.z, a.w, 0.0f);
+}
+inline __host__ __device__ float5 make_float5(float4 a, float v)
+{
+    return make_float5(a.x, a.y, a.z, a.w, v);
+}
+inline __host__ __device__ float5 make_float5(int4 a, int b)
+{
+    return make_float5(float(a.x), float(a.y), float(a.z), float(a.w), float(b));
+}
+inline __host__ __device__ float5 make_float5(uint4 a, uint b)
+{
+    return make_float5(float(a.x), float(a.y), float(a.z), float(a.w), float(b));
+}
+inline __host__ __device__ float5 operator*(float5 a, float b)
+{
+    return make_float5(a.x * b, a.y * b, a.z * b,  a.w * b, a.v * b);
+}
+inline __host__ __device__ float5 operator*(float b, float5 a)
+{
+    return make_float5(b * a.x, b * a.y, b * a.z, b * a.w, b * a.v);
+}
+inline __host__ __device__ void operator*=(float5 &a, float b)
+{
+    a.x *= b;
+    a.y *= b;
+    a.z *= b;
+    a.w *= b;
+    a.v *= b;
+}
+inline __host__ __device__ float5 operator+(float5 a, float5 b)
+{
+    return make_float5(a.x + b.x, a.y + b.y, a.z + b.z,  a.w + b.w, a.v + b.v);
+}
+inline __host__ __device__ void operator+=(float5 &a, float5 b)
+{
+    a.x += b.x;
+    a.y += b.y;
+    a.z += b.z;
+    a.w += b.w;
+    a.v += b.v;
+}
+inline __host__ __device__ float5 operator+(float5 a, float b)
+{
+    return make_float5(a.x + b, a.y + b, a.z + b, a.w + b, a.v + b);
+}
+inline __host__ __device__ float5 operator+(float b, float5 a)
+{
+    return make_float5(a.x + b, a.y + b, a.z + b, a.w + b, a.v + b);
+}
+inline __host__ __device__ void operator+=(float5 &a, float b)
+{
+    a.x += b;
+    a.y += b;
+    a.z += b;
+    a.w += b;
+    a.v += b;
+}
+inline __host__ __device__ float5 operator-(float5 &a)
+{
+    return make_float5(-a.x, -a.y, -a.z, -a.w, -a.v);
+}
+inline __host__ __device__ float5 operator-(float5 a, float5 b)
+{
+    return make_float5(a.x - b.x, a.y - b.y, a.z - b.z,  a.w - b.w, a.v - b.v);
+}
+inline __host__ __device__ void operator-=(float5 &a, float5 b)
+{
+    a.x -= b.x;
+    a.y -= b.y;
+    a.z -= b.z;
+    a.w -= b.w;
+    a.v -= b.v;
+}
+inline __host__ __device__ float5 operator-(float5 a, float b)
+{
+    return make_float5(a.x - b, a.y - b, a.z - b,  a.w - b, a.v - b);
+}
+inline __host__ __device__ void operator-=(float5 &a, float b)
+{
+    a.x -= b;
+    a.y -= b;
+    a.z -= b;
+    a.w -= b;
+    a.v -= b;
+}
+inline __host__ __device__ float5 operator/(float5 a, float5 b)
+{
+    return make_float5(a.x / b.x, a.y / b.y, a.z / b.z,  a.w / b.w, a.v / b.v);
+}
+inline __host__ __device__ void operator/=(float5 &a, float5 b)
+{
+    a.x /= b.x;
+    a.y /= b.y;
+    a.z /= b.z;
+    a.w /= b.w;
+    a.v /= b.v;
+}
+inline __host__ __device__ float5 operator/(float5 a, float b)
+{
+    return make_float5(a.x / b, a.y / b, a.z / b,  a.w / b, a.v / b);
+}
+inline __host__ __device__ void operator/=(float5 &a, float b)
+{
+    a.x /= b;
+    a.y /= b;
+    a.z /= b;
+    a.w /= b;
+    a.v /= b;
+}
+inline __host__ __device__ float5 operator/(float b, float5 a)
+{
+    return make_float5(b / a.x, b / a.y, b / a.z, b / a.w, b / a.v);
+}
+inline __device__ __host__ float5 clamp(float5 v, float a, float b)
+{
+    return make_float5(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b), clamp(v.v, a, b));
+}
+inline __device__ __host__ float5 clamp(float5 v, float5 a, float5 b)
+{
+    return make_float5(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w), clamp(v.v, a.v, b.v));
+}
+inline __host__ __device__ float dot(float5 a, float5 b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w + a.v * b.v;
+}
+inline __host__ __device__ float5 fabs(float5 v)
+{
+    return make_float5(fabs(v.x), fabs(v.y), fabs(v.z), fabs(v.w), fabs(v.v));
+}
+inline __host__ __device__ float5 floorf(float5 v)
+{
+    return make_float5(floorf(v.x), floorf(v.y), floorf(v.z), floorf(v.w), floorf(v.v));
+}
+inline __host__ __device__ float5 fmaxf(float5 a, float5 b)
+{
+    return make_float5(fmaxf(a.x,b.x), fmaxf(a.y,b.y), fmaxf(a.z,b.z), fmaxf(a.w,b.w), fmaxf(a.v, b.v));
+}
+inline  __host__ __device__ float5 fminf(float5 a, float5 b)
+{
+    return make_float5(fminf(a.x,b.x), fminf(a.y,b.y), fminf(a.z,b.z), fminf(a.w,b.w), fminf(a.v, b.v));
+}
+inline __host__ __device__ float5 fmodf(float5 a, float5 b)
+{
+    return make_float5(fmodf(a.x, b.x), fmodf(a.y, b.y), fmodf(a.z, b.z), fmodf(a.w, b.w), fmodf(a.v, b.v));
+}
+inline __host__ __device__ float5 fracf(float5 v)
+{
+    return make_float5(fracf(v.x), fracf(v.y), fracf(v.z), fracf(v.w), fracf(v.v));
+}
+inline __host__ __device__ float length(float5 v)
+{
+    return sqrtf(dot(v, v));
+}
+inline __device__ __host__ float5 lerp(float5 a, float5 b, float t)
+{
+    return a + t*(b-a);
+}
+inline __host__ __device__ float5 normalize(float5 v)
+{
+    float invLen = rsqrtf(dot(v, v));
+    return v * invLen;
+}
+inline __device__ __host__ float5 smoothstep(float5 a, float5 b, float5 x)
+{
+    float5 y = clamp((x - a) / (b - a), 0.0f, 1.0f);
+    return (y*y*(make_float5(3.0f) - (make_float5(2.0f)*y)));
+}
 
 #endif // HELPER_STRUCTS_H

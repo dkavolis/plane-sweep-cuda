@@ -27,6 +27,8 @@ template<unsigned char _nBins>  struct MsortedHist;
                                 struct MMatrix3D;
                                 struct Vector3D;
                                 struct MVector3D;
+                                struct Transformation3D;
+                                struct float5;
 
 /** \brief Convenience typedef for <em>unsigned int</em>*/
 typedef unsigned int uint;
@@ -109,6 +111,14 @@ template<unsigned char _nBins>
 struct Mhistogram : public histogram<_nBins>, public Manage
 {
     __host__ __device__ inline
+    Mhistogram() : histogram<_nBins>()
+    {}
+
+    __host__ __device__ inline
+    Mhistogram(const Mhistogram<_nBins> &h) : histogram<_nBins>(h)
+    {}
+
+    __host__ __device__ inline
     Mhistogram(const histogram<_nBins> & h) : histogram<_nBins>(h)
     {}
 };
@@ -183,6 +193,14 @@ struct fusionvoxel
 template<unsigned char _nBins>
 struct Mfusionvoxel : public fusionvoxel<_nBins>, public Manage
 {
+    __host__ __device__ inline
+    Mfusionvoxel() : fusionvoxel<_nBins>()
+    {}
+
+    __host__ __device__ inline
+    Mfusionvoxel(const Mfusionvoxel<_nBins> &f) : fusionvoxel<_nBins>(f)
+    {}
+
     __host__ __device__ inline
     Mfusionvoxel(const fusionvoxel<_nBins> & f) : fusionvoxel<_nBins>(f)
     {}
@@ -271,6 +289,14 @@ template<unsigned char _nBins>
 struct MsortedHist : public sortedHist<_nBins>, public Manage
 {
     __host__ __device__ inline
+    MsortedHist() : sortedHist<_nBins>()
+    {}
+
+    __host__ __device__ inline
+    MsortedHist(const MsortedHist<_nBins> &sh) : sortedHist<_nBins>(sh)
+    {}
+
+    __host__ __device__ inline
     MsortedHist(const sortedHist<_nBins> & sh) : sortedHist<_nBins>(sh)
     {}
 };
@@ -357,6 +383,14 @@ struct Rectangle3D
 /** \brief Rectangle3D struct with overloaded \a new and \a delete operators from class \p Manage */
 struct MRectangle3D : public Rectangle3D, public Manage
 {
+    __host__ __device__ inline
+    MRectangle3D() : Rectangle3D()
+    {}
+
+    __host__ __device__ inline
+    MRectangle3D(const MRectangle3D &r) : Rectangle3D(r)
+    {}
+
     __host__ __device__ inline
     MRectangle3D(const Rectangle3D & r) : Rectangle3D(r)
     {}
@@ -725,6 +759,14 @@ struct Matrix3D
 struct MMatrix3D : public Matrix3D, public Manage
 {
     __host__ __device__ inline
+    MMatrix3D() : Matrix3D()
+    {}
+
+    __host__ __device__ inline
+    MMatrix3D(const MMatrix3D &m) : Matrix3D(m)
+    {}
+
+    __host__ __device__ inline
     MMatrix3D(const Matrix3D & m) : Matrix3D(m)
     {}
 };
@@ -816,10 +858,49 @@ struct Vector3D
 struct MVector3D : public Vector3D, public Manage
 {
     __host__ __device__ inline
+    MVector3D() : Vector3D()
+    {}
+
+    __host__ __device__ inline
+    MVector3D(const MVector3D &v) : Vector3D(v)
+    {}
+
+    __host__ __device__ inline
     MVector3D(const Vector3D & v) : Vector3D(v)
     {}
 };
 
 /** @} */ // group vector
+
+/** @brief 3D transformation [R|T] struct (3x4 matrix) */
+struct Transformation3D
+{
+    Matrix3D R;
+    Vector3D T;
+
+    __host__ __device__ inline
+    Transformation3D() : R(), T()
+    {}
+
+    __host__ __device__ inline
+    Transformation3D(const Matrix3D & r, const Vector3D & t) : R(r), T(t)
+    {}
+
+    __host__ __device__ inline
+    Transformation3D(const Transformation3D & t) : R(t.R), T(t.T)
+    {}
+};
+
+struct float5
+{
+    float x, y, z, w, v;
+};
+
+inline __host__ __device__ float5 make_float5(float x, float y, float z, float w, float v)
+{
+    float5 f;
+    f.x = x; f.y = y; f.z = z; f.w = w; f.v = v;
+    return f;
+}
 
 #endif // STRUCTS_H
