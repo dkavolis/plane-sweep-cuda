@@ -27,16 +27,17 @@ bool KITTIReader::ReadCalibrationCam2Cam(QVector<CamProperties> & cprops, double
         QString numbers = line, name = line;
         QStringList n;
 
-        first = line.lastIndexOf(':');
+        first = line.indexOf(':');
 
         // get string between ':' and end and split
         if (first != -1) {
             name.truncate(first);
             numbers.remove(0, first + 1);
+            curr = string2index(name.trimmed());
         }
-        if (first != -1) n = numbers.split(':', QString::SkipEmptyParts);
-        curr = string2index(name);
-        if (curr >= cprops.size()) cprops.resize(curr);
+        if (first != -1) n = numbers.split(QRegExp("\\s"), QString::SkipEmptyParts);
+
+        if (curr >= cprops.size()) cprops.resize(curr + 1);
         if (curr > max) max = curr;
 
         // find correct lines and assign matrix values
@@ -131,25 +132,19 @@ bool KITTIReader::ReadCalibration(QVector<CamProperties> & cprops, double & corn
 
 bool KITTIReader::ReadImages(QVector<TimedImage> & img, const QVector<int> & indexes, const int cam) const
 {
-    // get sorted list of images
-    QVector<int> i = indexes;
     img.resize(indexes.size());
-    qSort(i);
-    int index;
     QString image;
     bool success = true, tss = true;
     QStringList list;
 
     if (!ReadTimestampFile(list, KITTI_CAM_TIMESTAMPS(bdir, cam))) tss = false;
 
-    for (int j = 0; j < i.size(); j++)
+    for (int j = 0; j < indexes.size(); j++)
     {
-        index = indexes.indexOf(i[j]);
-
-        image = KITTI_IMAGE_NAME(bdir, cam, i[j], fnw);
-        img[index].cam = cam;
-        if (!img[index].img.load(image)) success = false;
-        if (tss) img[index].tstamp = string2seconds(list.at(i[j]));
+        image = KITTI_IMAGE_NAME(bdir, cam, indexes[j], fnw);
+        img[j].cam = cam;
+        if (!img[j].img.load(image)) success = false;
+        if (tss) img[j].tstamp = string2seconds(list.at(indexes[j]));
     }
 
     return success & tss;
@@ -157,19 +152,14 @@ bool KITTIReader::ReadImages(QVector<TimedImage> & img, const QVector<int> & ind
 
 bool KITTIReader::ReadImages(QVector<QImage> & img, const QVector<int> & indexes, const int cam) const
 {
-    // get sorted list of images
-    QVector<int> i = indexes;
     img.resize(indexes.size());
-    qSort(i);
-    int index;
     QString image;
     bool success = true;
 
-    for (int j = 0; j < i.size(); j++)
+    for (int j = 0; j < indexes.size(); j++)
     {
-        index = indexes.indexOf(i[j]);
-        image = KITTI_IMAGE_NAME(bdir, cam, i[j], fnw);
-        if (!img[index].load(image)) success = false;
+        image = KITTI_IMAGE_NAME(bdir, cam, indexes[j], fnw);
+        if (!img[j].load(image)) success = false;
     }
 
     return success;
@@ -177,11 +167,7 @@ bool KITTIReader::ReadImages(QVector<QImage> & img, const QVector<int> & indexes
 
 bool KITTIReader::ReadOxTSData(QVector<TimedOxTS> & oxts, const QVector<int> & indexes) const
 {
-    // get sorted list of images
-    QVector<int> i = indexes;
     oxts.resize(indexes.size());
-    qSort(i);
-    int index;
     bool success = true, tss = true;
 
     QStringList list;
@@ -189,12 +175,11 @@ bool KITTIReader::ReadOxTSData(QVector<TimedOxTS> & oxts, const QVector<int> & i
 
     if (!ReadTimestampFile(list, KITTI_OXTS_TIMESTAMPS(bdir))) tss = false;
 
-    for (int j = 0; j < i.size(); j++)
+    for (int j = 0; j < indexes.size(); j++)
     {
-        index = indexes.indexOf(i[j]);
-        fname = KITTI_OXTS_NAME(bdir, i[j], fnw);
-        if (!ReadOxTSFile(oxts[index].data, fname)) success = false;
-        if (tss) oxts[index].tstamp = string2seconds(list.at(i[j]));
+        fname = KITTI_OXTS_NAME(bdir, indexes[j], fnw);
+        if (!ReadOxTSFile(oxts[j].data, fname)) success = false;
+        if (tss) oxts[j].tstamp = string2seconds(list.at(indexes[j]));
     }
 
     return success & tss;
@@ -202,20 +187,15 @@ bool KITTIReader::ReadOxTSData(QVector<TimedOxTS> & oxts, const QVector<int> & i
 
 bool KITTIReader::ReadOxTSData(QVector<OxTS> & oxts, const QVector<int> & indexes) const
 {
-    // get sorted list of images
-    QVector<int> i = indexes;
     oxts.resize(indexes.size());
-    qSort(i);
-    int index;
     bool success = true;
 
     QString fname;
 
-    for (int j = 0; j < i.size(); j++)
+    for (int j = 0; j < indexes.size(); j++)
     {
-        index = indexes.indexOf(i[j]);
-        fname = KITTI_OXTS_NAME(bdir, i[j], fnw);
-        if (!ReadOxTSFile(oxts[index], fname)) success = false;
+        fname = KITTI_OXTS_NAME(bdir, indexes[j], fnw);
+        if (!ReadOxTSFile(oxts[j], fname)) success = false;
     }
 
     return success;
@@ -223,11 +203,7 @@ bool KITTIReader::ReadOxTSData(QVector<OxTS> & oxts, const QVector<int> & indexe
 
 bool KITTIReader::ReadVelodyneData(QVector<TimedVelo> & velo, const QVector<int> & indexes) const
 {
-    // get sorted list of images
-    QVector<int> i = indexes;
     velo.resize(indexes.size());
-    qSort(i);
-    int index;
     bool success = true, tss1 = true, tss2 = true, tss3 = true;
 
     QStringList list, liststart, listend;
@@ -237,14 +213,13 @@ bool KITTIReader::ReadVelodyneData(QVector<TimedVelo> & velo, const QVector<int>
     if (!ReadTimestampFile(liststart, KITTI_VELO_TIMESTAMPS_START(bdir))) tss2 = false;
     if (!ReadTimestampFile(listend, KITTI_VELO_TIMESTAMPS_END(bdir))) tss3 = false;
 
-    for (int j = 0; j < i.size(); j++)
+    for (int j = 0; j < indexes.size(); j++)
     {
-        index = indexes.indexOf(i[j]);
-        fname = KITTI_VELO_NAME(bdir, i[j], fnw);
-        if (!ReadVeloFile(velo[index].points, fname)) success = false;
-        if (tss1) velo[index].tstamp = string2seconds(list.at(i[j]));
-        if (tss2) velo[index].tstamp_start = string2seconds(liststart.at(i[j]));
-        if (tss3) velo[index].tstamp_end = string2seconds(listend.at(i[j]));
+        fname = KITTI_VELO_NAME(bdir, indexes[j], fnw);
+        if (!ReadVeloFile(velo[j].points, fname)) success = false;
+        if (tss1) velo[j].tstamp = string2seconds(list.at(indexes[j]));
+        if (tss2) velo[j].tstamp_start = string2seconds(liststart.at(indexes[j]));
+        if (tss3) velo[j].tstamp_end = string2seconds(listend.at(indexes[j]));
     }
 
     return success & tss1 & tss2 & tss3;
@@ -252,20 +227,15 @@ bool KITTIReader::ReadVelodyneData(QVector<TimedVelo> & velo, const QVector<int>
 
 bool KITTIReader::ReadVelodyneData(QVector<QVector<VeloPoint>> & velo, const QVector<int> & indexes) const
 {
-    // get sorted list of images
-    QVector<int> i = indexes;
     velo.resize(indexes.size());
-    qSort(i);
-    int index;
     bool success = true;
 
     QString fname;
 
-    for (int j = 0; j < i.size(); j++)
+    for (int j = 0; j < indexes.size(); j++)
     {
-        index = indexes.indexOf(i[j]);
-        fname = KITTI_VELO_NAME(bdir, i[j], fnw);
-        if (!ReadVeloFile(velo[index], fname)) success = false;
+        fname = KITTI_VELO_NAME(bdir, indexes[j], fnw);
+        if (!ReadVeloFile(velo[j], fname)) success = false;
     }
 
     return success;
@@ -289,7 +259,7 @@ bool KITTIReader::ReadRT(Transformation3D & T, const QString & fname)
         QString numbers = line;
         QStringList n;
 
-        first = line.lastIndexOf(':');
+        first = line.indexOf(':');
 
         // get string between ':' and end and split
         if (first != -1) numbers.remove(0, first + 1);
@@ -475,8 +445,8 @@ float5 KITTIReader::List2Float5(const QStringList & n)
 
 int2 KITTIReader::List2Int2(const QStringList & n)
 {
-    return make_int2(n.at(0).trimmed().toInt(),
-                     n.at(1).trimmed().toInt());
+    return make_int2((int)n.at(0).trimmed().toFloat(),
+                     (int)n.at(1).trimmed().toFloat());
 }
 
 Transformation3D KITTIReader::List2Transform(const QStringList & n)
