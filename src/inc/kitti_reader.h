@@ -23,6 +23,12 @@ namespace KITTI
         bool ReadCalibrationVelo2Cam(Transformation3D & T) const;
         bool ReadCalibration(QVector<CamProperties> & cprops, double & cornerdist, Transformation3D & imu2velo, Transformation3D & velo2cam) const;
 
+        static bool ReadCalibrationCam2Cam(QVector<CamProperties> & cprops, double & cornerdist, const QString & fname);
+        static bool ReadCalibrationIMU2Velo(Transformation3D & T, const QString & fname);
+        static bool ReadCalibrationVelo2Cam(Transformation3D & T, const QString & fname);
+        static bool ReadCalibration(QVector<CamProperties> & cprops, double & cornerdist, Transformation3D & imu2velo,
+                                    Transformation3D & velo2cam, const QString & fname);
+
         bool ReadImages(QVector<TimedImage> & img, const QVector<int> & indexes, const int cam) const;
         bool ReadImages(QVector<QImage> & img, const QVector<int> & indexes, const int cam) const;
 
@@ -32,11 +38,11 @@ namespace KITTI
         bool ReadVelodyneData(QVector<TimedVelo> & velo, const QVector<int> & indexes) const;
         bool ReadVelodyneData(QVector<QVector<VeloPoint> > &velo, const QVector<int> & indexes) const;
 
-        bool ReadTimestampFile(QStringList & ts, const QString & fname) const;
+        static bool ReadTimestampFile(QStringList & ts, const QString & fname);
         bool ReadTimestampFile(QVector<double> & tstamps, Timestamp file, unsigned char cam = 0) const;
 
-        bool ReadOxTSFile(OxTS & data, const QString & fname) const;
-        bool ReadVeloFile(QVector<VeloPoint> & points, const QString & fname) const;
+        static bool ReadOxTSFile(OxTS & data, const QString & fname);
+        static bool ReadVeloFile(QVector<VeloPoint> & points, const QString & fname);
 
         void setFileNameLength(int length = KITTI_FILENAME_LENGTH) { fnw = length; }
         int FileNameLength() const { return fnw; }
@@ -62,12 +68,12 @@ namespace KITTI
                 velo2cam;
         int fnw = KITTI_FILENAME_LENGTH;
 
-        bool ReadRT(Transformation3D & T, const QString & fname) const;
-        Matrix3D List2Matrix(const QStringList & n) const;
-        Vector3D List2Vector3(const QStringList & n) const;
-        float5 List2Float5(const QStringList & n) const;
-        int2 List2Int2(const QStringList & n) const;
-        Transformation3D List2Transform(const QStringList & n) const;
+        static bool ReadRT(Transformation3D & T, const QString & fname);
+        static Matrix3D List2Matrix(const QStringList & n);
+        static Vector3D List2Vector3(const QStringList & n);
+        static float5 List2Float5(const QStringList & n);
+        static int2 List2Int2(const QStringList & n);
+        static Transformation3D List2Transform(const QStringList & n);
     };
 }
 #endif // KITTI_KITTIReader_H

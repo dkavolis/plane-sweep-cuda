@@ -7,10 +7,9 @@
 
 namespace KITTI
 {
-bool KITTIReader::ReadCalibrationCam2Cam(QVector<CamProperties> & cprops, double & cornerdist) const
+bool KITTIReader::ReadCalibrationCam2Cam(QVector<CamProperties> & cprops, double & cornerdist, const QString & fname)
 {
     // try opening file
-    QString fname = KITTI_CAM2CAM(cdir);
     QFile file(fname);
     if(!file.open(QIODevice::ReadOnly)) {
         QMessageBox::information(0, "Error reading KITTI calibration file", QString("%1: %2").arg(fname).arg(file.errorString()));
@@ -84,6 +83,31 @@ bool KITTIReader::ReadCalibrationCam2Cam(QVector<CamProperties> & cprops, double
 
     file.close();
     return true;
+}
+
+bool KITTIReader::ReadCalibrationIMU2Velo(Transformation3D & T, const QString & fname)
+{
+    return ReadRT(T, fname);
+}
+
+bool KITTIReader::ReadCalibrationVelo2Cam(Transformation3D & T, const QString & fname)
+{
+    return ReadRT(T, fname);
+}
+
+bool KITTIReader::ReadCalibration(QVector<CamProperties> & cprops, double & cornerdist, Transformation3D & imu2velo, Transformation3D & velo2cam,
+                                  const QString & fname)
+{
+    bool s = true;
+    if (!ReadCalibrationCam2Cam(cprops, cornerdist, fname)) s = false;
+    if (!ReadCalibrationIMU2Velo(imu2velo, fname)) s = false;
+    if (!ReadCalibrationVelo2Cam(velo2cam, fname)) s = false;
+    return s;
+}
+
+bool KITTIReader::ReadCalibrationCam2Cam(QVector<CamProperties> & cprops, double & cornerdist) const
+{
+    return ReadCalibrationCam2Cam(cprops, cornerdist, KITTI_CAM2CAM(cdir));
 }
 
 bool KITTIReader::ReadCalibrationIMU2Velo(Transformation3D & T) const
@@ -247,7 +271,7 @@ bool KITTIReader::ReadVelodyneData(QVector<QVector<VeloPoint>> & velo, const QVe
     return success;
 }
 
-bool KITTIReader::ReadRT(Transformation3D & T, const QString & fname) const
+bool KITTIReader::ReadRT(Transformation3D & T, const QString & fname)
 {
     // try opening file
     QFile file(fname);
@@ -285,7 +309,7 @@ bool KITTIReader::ReadRT(Transformation3D & T, const QString & fname) const
     return true;
 }
 
-bool KITTIReader::ReadTimestampFile(QStringList &ts, const QString &fname) const
+bool KITTIReader::ReadTimestampFile(QStringList &ts, const QString &fname)
 {
     QFile file(fname);
     if(!file.open(QIODevice::ReadOnly)) {
@@ -333,7 +357,7 @@ bool KITTIReader::ReadTimestampFile(QVector<double> & tstamps, Timestamp file, u
     return true;
 }
 
-bool KITTIReader::ReadOxTSFile(OxTS &data, const QString &fname) const
+bool KITTIReader::ReadOxTSFile(OxTS &data, const QString &fname)
 {
     QFile file(fname);
     if(!file.open(QIODevice::ReadOnly)) {
@@ -379,7 +403,7 @@ bool KITTIReader::ReadOxTSFile(OxTS &data, const QString &fname) const
     return true;
 }
 
-bool KITTIReader::ReadVeloFile(QVector<VeloPoint> &points, const QString &fname) const
+bool KITTIReader::ReadVeloFile(QVector<VeloPoint> &points, const QString &fname)
 {
     QFile file(fname);
     if(!file.open(QIODevice::ReadOnly)) {
@@ -420,7 +444,7 @@ bool KITTIReader::setBaseDir(const QString & base_dir)
     return true;
 }
 
-Matrix3D KITTIReader::List2Matrix(const QStringList & n) const
+Matrix3D KITTIReader::List2Matrix(const QStringList & n)
 {
     return Matrix3D(n.at(0).trimmed().toFloat(),
                     n.at(1).trimmed().toFloat(),
@@ -433,14 +457,14 @@ Matrix3D KITTIReader::List2Matrix(const QStringList & n) const
                     n.at(8).trimmed().toFloat());
 }
 
-Vector3D KITTIReader::List2Vector3(const QStringList & n) const
+Vector3D KITTIReader::List2Vector3(const QStringList & n)
 {
     return Vector3D(n.at(0).trimmed().toFloat(),
                     n.at(1).trimmed().toFloat(),
                     n.at(2).trimmed().toFloat());
 }
 
-float5 KITTIReader::List2Float5(const QStringList & n) const
+float5 KITTIReader::List2Float5(const QStringList & n)
 {
     return make_float5(n.at(0).trimmed().toFloat(),
                        n.at(1).trimmed().toFloat(),
@@ -449,13 +473,13 @@ float5 KITTIReader::List2Float5(const QStringList & n) const
                        n.at(4).trimmed().toFloat());
 }
 
-int2 KITTIReader::List2Int2(const QStringList & n) const
+int2 KITTIReader::List2Int2(const QStringList & n)
 {
     return make_int2(n.at(0).trimmed().toInt(),
                      n.at(1).trimmed().toInt());
 }
 
-Transformation3D KITTIReader::List2Transform(const QStringList & n) const
+Transformation3D KITTIReader::List2Transform(const QStringList & n)
 {
     Transformation3D t;
     t.R = Matrix3D(n.at(0).trimmed().toFloat(),
