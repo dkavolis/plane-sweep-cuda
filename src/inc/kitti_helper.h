@@ -43,7 +43,7 @@
 #define KITTI_VELO_TIMESTAMPS_END(base_dir)             KITTI_TIMESTAMPS_NAME(base_dir, KITTI_VELO_DIR, KITTI_TIMESTAMPS_END)
 
 // data file names
-#define KITTI_FILE_NAME(n,w,f)                          QString("%1.%2").arg(n,w,10,QLatin1Char('0')).arg(f)
+#define KITTI_FILE_NAME(n,w,f)                          QString("/%1.%2").arg(n,w,10,QLatin1Char('0')).arg(f)
 #define KITTI_FULL_FILE_NAME(base_dir, dir, n, w, f)    QString("%1%2%3%4").arg(base_dir).arg(dir).arg(KITTI_DATA_DIR).arg(KITTI_FILE_NAME(n,w,f))
 #define KITTI_IMAGE_NAME(base_dir, cam, n, w)           KITTI_FULL_FILE_NAME(base_dir, KITTI_CAM_DIR(cam), n, w, KITTI_IMAGE_FORMAT)
 #define KITTI_OXTS_NAME(base_dir, n, w)                 KITTI_FULL_FILE_NAME(base_dir, KITTI_OXTS_DIR, n, w, KITTI_OXTS_FORMAT)
