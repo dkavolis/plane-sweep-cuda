@@ -566,4 +566,143 @@ inline __device__ __host__ float5 smoothstep(float5 a, float5 b, float5 x)
     return (y*y*(make_float5(3.0f) - (make_float5(2.0f)*y)));
 }
 
+/** \brief Matrix - column vector multiplication */
+__host__ __device__ inline
+float4 operator*(Matrix4D R, float4 vec) // matrix - vector multiplication
+{
+    return make_float4(dot(R(0), vec), dot(R(1), vec), dot(R(2), vec), dot(R(3), vec));
+}
+
+/** \brief Matrix - matrix multiplication */
+__host__ __device__ inline
+Matrix4D operator*(Matrix4D A, Matrix4D B) // matrix - matrix multiplication
+{
+    B = B.trans();
+    Matrix4D r;
+    r.r1 = make_float4(dot(A(0), B(0)), dot(A(0), B(1)), dot(A(0), B(2)), dot(A(0), B(3)));
+    r.r2 = make_float4(dot(A(1), B(0)), dot(A(1), B(1)), dot(A(1), B(2)), dot(A(1), B(3)));
+    r.r3 = make_float4(dot(A(2), B(0)), dot(A(2), B(1)), dot(A(2), B(2)), dot(A(2), B(3)));
+    r.r4 = make_float4(dot(A(3), B(0)), dot(A(3), B(1)), dot(A(3), B(2)), dot(A(3), B(3)));
+    return r;
+}
+
+/** \brief Matrix - matrix multiplication */
+__host__ __device__ inline
+void operator*=(Matrix4D & A, Matrix4D B) // matrix - matrix multiplication
+{
+    A = A * B;
+}
+
+/** \brief Scale all matrix elements by \f$b\f$ */
+__host__ __device__ inline
+Matrix4D operator*(Matrix4D A, float b)
+{
+    return Matrix4D(A.r1 * b, A.r2 * b, A.r3 * b, A.r4 * b);
+}
+
+/** \brief Scale all matrix elements by \f$a\f$ */
+__host__ __device__ inline
+Matrix4D operator*(float a, Matrix4D B)
+{
+    return Matrix4D(B.r1 * a, B.r2 * a, B.r3 * a, B.r4 * a);
+}
+
+/** \brief Scale all matrix elements by \f$b\f$ */
+__host__ __device__ inline
+void operator*=(Matrix4D & A, float b)
+{
+    A = A * b;
+}
+
+/** \brief Scale all matrix elements by \f$b^{-1}\f$ */
+__host__ __device__ inline
+Matrix4D operator/(Matrix4D A, float b)
+{
+    return Matrix4D(A.r1 / b, A.r2 / b, A.r3 / b, A.r4 / b);
+}
+
+/** \brief Scale all matrix elements by \f$b^{-1}\f$ */
+__host__ __device__ inline
+void operator/=(Matrix4D & A, float b)
+{
+    A = A / b;
+}
+
+/** \brief Add constant \f$b\f$ to all matrix elements */
+__host__ __device__ inline
+Matrix4D operator+(Matrix4D A, float b)
+{
+    return Matrix4D(A.r1 + b, A.r2 + b, A.r3 + b, A.r4 + b);
+}
+
+/** \brief Add constant \f$a\f$ to all matrix elements */
+__host__ __device__ inline
+Matrix4D operator+(float a, Matrix4D B)
+{
+    return Matrix4D(B.r1 + a, B.r2 + a, B.r3 + a, B.r4 + a);
+}
+
+/** \brief Matrix - matrix summation */
+__host__ __device__ inline
+Matrix4D operator+(Matrix4D a, Matrix4D b)
+{
+    return Matrix4D(a.r1 + b.r1, a.r2 + b.r2, a.r3 + b.r3, a.r4 + b.r4);
+}
+
+/** \brief Add constant \f$b\f$ to all matrix elements */
+__host__ __device__ inline
+void operator+=(Matrix4D & A, float b)
+{
+    A = A + b;
+}
+
+/** \brief Matrix - matrix summation */
+__host__ __device__ inline
+void operator+=(Matrix4D & A, Matrix4D b)
+{
+    A = A + b;
+}
+
+/** \brief Negate matrix */
+__host__ __device__ inline
+void operator-(Matrix4D & A)
+{
+    A = Matrix4D(-A.r1, -A.r2, -A.r3, -A.r4);
+}
+
+/** \brief Subtract constant \f$b\f$ from all matrix elements */
+__host__ __device__ inline
+Matrix4D operator-(Matrix4D A, float b)
+{
+    return Matrix4D(A.r1 - b, A.r2 - b, A.r3 - b, A.r4 - b);
+}
+
+/** \brief Subtract constant \f$a\f$ from all matrix elements */
+__host__ __device__ inline
+Matrix4D operator-(float a, Matrix4D B)
+{
+    return Matrix4D(B.r1 - a, B.r2 - a, B.r3 - a, B.r4 - a);
+}
+
+/** \brief Matrix - matrix subtraction */
+__host__ __device__ inline
+Matrix4D operator-(Matrix4D a, Matrix4D b)
+{
+    return Matrix4D(a.r1 - b.r1, a.r2 - b.r2, a.r3 - b.r3, a.r4 - b.r4);
+}
+
+/** \brief Subtract constant \f$b\f$ from all matrix elements */
+__host__ __device__ inline
+void operator-=(Matrix4D & A, float b)
+{
+    A = A - b;
+}
+
+/** \brief Matrix - matrix subtraction */
+__host__ __device__ inline
+void operator-=(Matrix4D & A, Matrix4D b)
+{
+    A = A - b;
+}
+
 #endif // HELPER_STRUCTS_H
