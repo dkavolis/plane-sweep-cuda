@@ -310,6 +310,28 @@ namespace KITTI
         return alpha;
     }
 
+    inline void calculateTransforms(Matrix3D & K, QVector<Matrix4D> & velo2rectcam,
+                                    const Transformation3D & velo2cam, const QVector<CamProperties> & cprops)
+    {
+        Matrix4D tr(velo2cam, make_float4(0,0,0,1));
+
+        if (cprops.size() > 0){
+            Matrix4D Rrect00(cprops[0].R_rect);
+            Rrect00(3,3) = 1.f;
+
+            velo2rectcam.resize(cprops.size());
+            for (int i = 0; i < cprops.size(); i++){
+                Matrix4D T;
+                T.makeIdentity();
+                T(0,3) = cprops[i].P_rect(0,3) / cprops[i].P_rect(0,0);
+
+                velo2rectcam[i] = T * Rrect00 * tr;
+            }
+
+            K = cprops[0].P_rect.R;
+        }
+    }
+
 } // namespace KITTI
 
 #endif // KITTI_HELPER_H
