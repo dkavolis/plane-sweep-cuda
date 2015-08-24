@@ -853,6 +853,38 @@ struct Vector3D
     {
         return make_float3(x, y, z);
     }
+
+    __host__ __device__ inline
+    float & operator()(unsigned char elm)
+    {
+        if (elm == 2) return z;
+        if (elm == 1) return y;
+        return x;
+    }
+
+    __host__ __device__ inline
+    const float & operator()(unsigned char elm) const
+    {
+        if (elm == 2) return z;
+        if (elm == 1) return y;
+        return x;
+    }
+
+    __host__ __device__ inline
+    float & at(unsigned char elm)
+    {
+        if (elm == 2) return z;
+        if (elm == 1) return y;
+        return x;
+    }
+
+    __host__ __device__ inline
+    const float & at(unsigned char elm) const
+    {
+        if (elm == 2) return z;
+        if (elm == 1) return y;
+        return x;
+    }
 };
 
 /** \brief Vector3D struct with overloaded \a new and \a delete operators from class \p Manage */
@@ -890,6 +922,34 @@ struct Transformation3D
     __host__ __device__ inline
     Transformation3D(const Transformation3D & t) : R(t.R), T(t.T)
     {}
+
+    __host__ __device__ inline
+    float & operator()(unsigned char row, unsigned char col)
+    {
+        if (col == 3) return T(row);
+        else return R(row, col);
+    }
+
+    __host__ __device__ inline
+    const float & operator()(unsigned char row, unsigned char col) const
+    {
+        if (col == 3) return T(row);
+        else return R(row, col);
+    }
+
+    __host__ __device__ inline
+    float & at(unsigned char row, unsigned char col)
+    {
+        if (col == 3) return T(row);
+        else return R(row, col);
+    }
+
+    __host__ __device__ inline
+    const float & at(unsigned char row, unsigned char col) const
+    {
+        if (col == 3) return T(row);
+        else return R(row, col);
+    }
 };
 
 struct float5
@@ -972,14 +1032,14 @@ struct Matrix4D
 
     /**
      * @brief Constructs Matrix4D from a given [R|T] matrix
-     * @details Last row is initialized to (0,0,0,1)
+     * @details Last row is initialized to (0,0,0,0)
      */
     __host__ __device__ inline
     Matrix4D(const Transformation3D & t) :
         r1(make_float4(t.R.r[0], t.T.x)),
         r2(make_float4(t.R.r[1], t.T.y)),
         r3(make_float4(t.R.r[2], t.T.z)),
-        r4(make_float4(0,0,0,1))
+        r4(make_float4(0,0,0,0))
     {}
 
     /** @brief Constructs Matrix4D from a given [R|T] matrix and row vector \p r */
@@ -1001,14 +1061,14 @@ struct Matrix4D
     {}
 
     /** @brief Constructs Matrix4D from a given Matrix3D
-     *  @details Matrix is padded with zeros and last element on the diagonal is set to 1
+     *  @details Matrix is padded with zeros
      */
     __host__ __device__ inline
     Matrix4D(const Matrix3D & m) :
         r1(make_float4(m.r[0], 0)),
         r2(make_float4(m.r[0], 0)),
         r3(make_float4(m.r[0], 0)),
-        r4(make_float4(0,0,0,1))
+        r4(make_float4(0,0,0,0))
     {}
 
     /** \brief Copy constructor */
