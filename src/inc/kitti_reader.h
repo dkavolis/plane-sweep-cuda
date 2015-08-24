@@ -51,14 +51,14 @@ namespace KITTI
 
         QString & CalibrationDir() { return cdir; }
         QString & BaseDir() { return bdir; }
-        QString & CalibrationCam2CamFile() { return cam2cam; }
-        QString & CalibrationIMU2VeloFile() { return imu2velo; }
-        QString & CalibrationVelo2CamFile() { return velo2cam; }
+        QString & CalibrationCam2CamFileName() { return cam2cam; }
+        QString & CalibrationIMU2VeloFileName() { return imu2velo; }
+        QString & CalibrationVelo2CamFileName() { return velo2cam; }
         const QString & CalibrationDir() const { return cdir; }
         const QString & BaseDir() const { return bdir; }
-        const QString & CalibrationCam2CamFile() const { return cam2cam; }
-        const QString & CalibrationIMU2VeloFile() const { return imu2velo; }
-        const QString & CalibrationVelo2CamFile() const { return velo2cam; }
+        const QString & CalibrationCam2CamFileName() const { return cam2cam; }
+        const QString & CalibrationIMU2VeloFileName() const { return imu2velo; }
+        const QString & CalibrationVelo2CamFileName() const { return velo2cam; }
 
     private:
         QString cdir,
