@@ -4,6 +4,8 @@
 #include <QStringList>
 #include <QMessageBox>
 #include <QDir>
+#include <QByteArray>
+#include <QList>
 
 namespace KITTI
 {
@@ -133,7 +135,6 @@ bool KITTIReader::ReadCalibration(QVector<CamProperties> & cprops, double & corn
 bool KITTIReader::ReadImages(QVector<TimedImage> & img, const QVector<int> & indexes, const int cam) const
 {
     img.resize(indexes.size());
-    QString image;
     bool success = true, tss = true;
     QStringList list;
 
@@ -141,9 +142,8 @@ bool KITTIReader::ReadImages(QVector<TimedImage> & img, const QVector<int> & ind
 
     for (int j = 0; j < indexes.size(); j++)
     {
-        image = KITTI_IMAGE_NAME(bdir, cam, indexes[j], fnw);
         img[j].cam = cam;
-        if (!img[j].img.load(image)) success = false;
+        if (!img[j].img.load(KITTI_IMAGE_NAME(bdir, cam, indexes[j], fnw))) success = false;
         if (tss) img[j].tstamp = string2seconds(list.at(indexes[j]));
     }
 
@@ -153,13 +153,11 @@ bool KITTIReader::ReadImages(QVector<TimedImage> & img, const QVector<int> & ind
 bool KITTIReader::ReadImages(QVector<QImage> & img, const QVector<int> & indexes, const int cam) const
 {
     img.resize(indexes.size());
-    QString image;
     bool success = true;
 
     for (int j = 0; j < indexes.size(); j++)
     {
-        image = KITTI_IMAGE_NAME(bdir, cam, indexes[j], fnw);
-        if (!img[j].load(image)) success = false;
+        if (!img[j].load(KITTI_IMAGE_NAME(bdir, cam, indexes[j], fnw))) success = false;
     }
 
     return success;
@@ -171,14 +169,12 @@ bool KITTIReader::ReadOxTSData(QVector<TimedOxTS> & oxts, const QVector<int> & i
     bool success = true, tss = true;
 
     QStringList list;
-    QString fname;
 
     if (!ReadTimestampFile(list, KITTI_OXTS_TIMESTAMPS(bdir))) tss = false;
 
     for (int j = 0; j < indexes.size(); j++)
     {
-        fname = KITTI_OXTS_NAME(bdir, indexes[j], fnw);
-        if (!ReadOxTSFile(oxts[j].data, fname)) success = false;
+        if (!ReadOxTSFile(oxts[j].data, KITTI_OXTS_NAME(bdir, indexes[j], fnw))) success = false;
         if (tss) oxts[j].tstamp = string2seconds(list.at(indexes[j]));
     }
 
@@ -190,12 +186,9 @@ bool KITTIReader::ReadOxTSData(QVector<OxTS> & oxts, const QVector<int> & indexe
     oxts.resize(indexes.size());
     bool success = true;
 
-    QString fname;
-
     for (int j = 0; j < indexes.size(); j++)
     {
-        fname = KITTI_OXTS_NAME(bdir, indexes[j], fnw);
-        if (!ReadOxTSFile(oxts[j], fname)) success = false;
+        if (!ReadOxTSFile(oxts[j], KITTI_OXTS_NAME(bdir, indexes[j], fnw))) success = false;
     }
 
     return success;
@@ -207,7 +200,6 @@ bool KITTIReader::ReadVelodyneData(QVector<TimedVelo> & velo, const QVector<int>
     bool success = true, tss1 = true, tss2 = true, tss3 = true;
 
     QStringList list, liststart, listend;
-    QString fname;
 
     if (!ReadTimestampFile(list, KITTI_VELO_TIMESTAMPS(bdir))) tss1 = false;
     if (!ReadTimestampFile(liststart, KITTI_VELO_TIMESTAMPS_START(bdir))) tss2 = false;
@@ -215,8 +207,7 @@ bool KITTIReader::ReadVelodyneData(QVector<TimedVelo> & velo, const QVector<int>
 
     for (int j = 0; j < indexes.size(); j++)
     {
-        fname = KITTI_VELO_NAME(bdir, indexes[j], fnw);
-        if (!ReadVeloFile(velo[j].points, fname)) success = false;
+        if (!ReadVeloFile(velo[j].points, KITTI_VELO_NAME(bdir, indexes[j], fnw))) success = false;
         if (tss1) velo[j].tstamp = string2seconds(list.at(indexes[j]));
         if (tss2) velo[j].tstamp_start = string2seconds(liststart.at(indexes[j]));
         if (tss3) velo[j].tstamp_end = string2seconds(listend.at(indexes[j]));
@@ -230,12 +221,9 @@ bool KITTIReader::ReadVelodyneData(QVector<QVector<VeloPoint>> & velo, const QVe
     velo.resize(indexes.size());
     bool success = true;
 
-    QString fname;
-
     for (int j = 0; j < indexes.size(); j++)
     {
-        fname = KITTI_VELO_NAME(bdir, indexes[j], fnw);
-        if (!ReadVeloFile(velo[j], fname)) success = false;
+        if (!ReadVeloFile(velo[j], KITTI_VELO_NAME(bdir, indexes[j], fnw))) success = false;
     }
 
     return success;
@@ -293,38 +281,25 @@ bool KITTIReader::ReadTimestampFile(QStringList &ts, const QString &fname)
     return true;
 }
 
+bool KITTIReader::ReadTimestampFile(QVector<double> &ts, const QString &fname)
+{
+    QStringList list;
+    bool success = ReadTimestampFile(list, fname);
+
+    ts.resize(list.size());
+    for (int i = 0; i < ts.size(); i++) ts[i] = string2seconds(list.at(i).trimmed());
+
+    return success;
+}
+
 bool KITTIReader::ReadTimestampFile(QVector<double> & tstamps, Timestamp file, unsigned char cam) const
 {
-    QStringList stamps;
-    QString fname;
+    return ReadTimestampFile(tstamps, timestampFileName(file, cam));
+}
 
-    switch (file){
-    case TSVelodyne :
-        fname = KITTI_VELO_TIMESTAMPS(bdir);
-        break;
-
-    case TSVelodyneEnd:
-        fname = KITTI_VELO_TIMESTAMPS_END(bdir);
-        break;
-
-    case TSVelodyneStart:
-        fname = KITTI_VELO_TIMESTAMPS_START(bdir);
-        break;
-
-    case TSOxTS:
-        fname = KITTI_OXTS_TIMESTAMPS(bdir);
-        break;
-
-    case TSImages:
-        fname = KITTI_CAM_TIMESTAMPS(bdir, cam);
-        break;
-    }
-
-    if (!ReadTimestampFile(stamps, fname)) return false;
-    tstamps.resize(stamps.size());
-    for (int i = 0; i < tstamps.size(); i++) tstamps[i] = string2seconds(stamps.at(i).trimmed());
-
-    return true;
+bool KITTIReader::ReadTimestampFile(QStringList &ts, Timestamp file, unsigned char cam) const
+{
+    return ReadTimestampFile(ts, timestampFileName(file, cam));
 }
 
 bool KITTIReader::ReadOxTSFile(OxTS &data, const QString &fname)
@@ -381,17 +356,19 @@ bool KITTIReader::ReadVeloFile(QVector<VeloPoint> &points, const QString &fname)
         return false;
     }
 
-    QTextStream in(&file);
-    QString data = in.readAll();
-    QStringList p = data.split(QRegExp("\\s"), QString::SkipEmptyParts);
-    points.resize((p.size() + 3) / 4);
-    for (int i = 0; i < points.size(); i++){
-        points[i] = VeloPoint(p.at(4*i).trimmed().toFloat(),
-                              p.at(4*i+1).trimmed().toFloat(),
-                              p.at(4*i+2).trimmed().toFloat(),
-                              p.at(4*i+3).trimmed().toFloat());
+    QByteArray data = file.readAll();
+    float *px = (float *)data.data()+0;
+    float *py = (float *)data.data()+1;
+    float *pz = (float *)data.data()+2;
+    float *pr = (float *)data.data()+3;
+    points.resize(data.size() / 4 / 4);
+    for (int i = 0; i < points.size(); i++)
+    {
+        points[i] = VeloPoint(*px, *py, *pz, *pr);
+        px+=4; py+=4; pz+=4; pr+=4;
     }
 
+    file.close();
     return true;
 }
 
@@ -465,6 +442,28 @@ Transformation3D KITTIReader::List2Transform(const QStringList & n)
                    n.at(7).trimmed().toFloat(),
                    n.at(11).trimmed().toFloat());
     return t;
+}
+
+QString KITTIReader::timestampFileName(Timestamp file, unsigned char cam) const
+{
+    switch (file){
+    case TSVelodyne :
+        return KITTI_VELO_TIMESTAMPS(bdir);
+
+    case TSVelodyneEnd:
+        return KITTI_VELO_TIMESTAMPS_END(bdir);
+
+    case TSVelodyneStart:
+        return KITTI_VELO_TIMESTAMPS_START(bdir);
+
+    case TSOxTS:
+        return KITTI_OXTS_TIMESTAMPS(bdir);
+
+    case TSImages:
+        return KITTI_CAM_TIMESTAMPS(bdir, cam);
+    }
+
+    return "";
 }
 
 } // namespace KITTI
