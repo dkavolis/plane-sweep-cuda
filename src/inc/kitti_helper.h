@@ -52,6 +52,7 @@
 #include <cmath>
 #include <structs.h>
 #include <QImage>
+#include <helper_structs.h>
 
 namespace KITTI
 {
@@ -233,7 +234,7 @@ namespace KITTI
      * @return Time in seconds since 0:00:00 of the same day
      *
      * @details \p date must be of format <em>date hours:minutes:seconds.*</em>, where everything is optional. \a date is ignored if given.
-     * If nothing was given, returns 0;
+     * If nothing was given, returns 0
      */
     inline double string2seconds(const QString & date)
     {
@@ -248,6 +249,65 @@ namespace KITTI
         if (sz > 1) m = time.at(sz - 2).trimmed().toDouble();
         if (sz > 0) s = time.at(sz - 1).trimmed().toDouble();
         return 3600 * h + 60 * m + s;
+    }
+
+    inline void convertOxtsToPose(QVector<Matrix4D> & pose, const QVector<OxTS> & oxts)
+    {
+        if (oxts.size() > 0){
+            pose.resize(oxts.size());
+
+            // scale from first lat value
+            double scale = latToScale(oxts[0].lat);
+
+            Matrix4D pose0inv;
+            Vector3D t; Matrix3D R, Rx, Ry, Rz;
+            double rx, ry, rz;
+
+            // for all oxts:
+            for (int i = 0; i < oxts.size(); i++)
+            {
+                // translation vector:
+                latlonToMercator(rx, ry, oxts[i].lat, oxts[i].lon, scale);
+                t.x = rx;
+                t.y = ry;
+                t.z = oxts[i].alt;
+
+                // rotation matrix:
+                rx = oxts[i].roll;
+                ry = oxts[i].pitch;
+                rz = oxts[i].yaw;
+                Rx = Matrix3D(1.f,          0.f,        0.f,
+                              0.f,          cos(rx),    -sin(rx),
+                              0.f,          sin(rx),    cos(rx));
+                Ry = Matrix3D(cos(ry),      0.f,        sin(ry),
+                              0.f,          1.f,        0.f,
+                              -sin(ry),     0.f,        cos(ry));
+                Rz = Matrix3D(cos(rz),      -sin(rz),   0.f,
+                              sin(rz),      cos(rz),    0.f,
+                              0.f,          0.f,        1.f);
+                R = Rx * Ry * Rz;
+
+                // add pose
+                pose[i] = Matrix4D(Transformation3D(R, t), make_float4(0,0,0,1));
+
+                // normalize rotation and translation (starts at 0/0/0)
+                if (i == 0) pose0inv = pose[i].inv();
+                pose[i] = pose0inv * pose[i];
+            }
+        }
+    }
+
+    inline double wrapToPi(double alpha)
+    {
+        // get modulus
+        int mod = int(floorf(alpha / 2.f / M_PI));
+
+        // wrap to [0, 2*pi]
+        alpha = alpha - 2.f * M_PI * mod;
+
+        // wrap to [-pi, pi]
+        if (alpha > M_PI) alpha -= M_PI;
+        return alpha;
     }
 
 } // namespace KITTI
