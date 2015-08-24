@@ -136,6 +136,11 @@ namespace KITTI
         unsigned char cam;
     };
 
+    /**
+     * @brief The Velodyne point struct
+     * x, y, z - 3D point coordinates
+     * r - reflectance value
+     */
     struct VeloPoint
     {
         float x, y, z, r;
@@ -251,6 +256,11 @@ namespace KITTI
         return 3600 * h + 60 * m + s;
     }
 
+    /**
+     * @brief Calculate OxTS unit poses w.r.t. to the first one
+     * @param pose  output poses, same size as \p oxts
+     * @param oxts  input OxTS data, first element is used as reference
+     */
     inline void convertOxtsToPose(QVector<Matrix4D> & pose, const QVector<OxTS> & oxts)
     {
         if (oxts.size() > 0){
@@ -297,6 +307,9 @@ namespace KITTI
         }
     }
 
+    /**
+     * @brief Wrap angle \p alpha in radians to range [-pi, pi]
+     */
     inline double wrapToPi(double alpha)
     {
         // get modulus
@@ -310,6 +323,13 @@ namespace KITTI
         return alpha;
     }
 
+    /**
+     * @brief Calculate velodyne unit to rectified camera coordinates transformations
+     * @param K             extrinsic camera calibration matrix after rectification, equal for all cameras
+     * @param velo2rectcam  output transformations: velodyne -> rectified camera coordinates, same size as \p cprops
+     * @param velo2cam      input transformation: velodyne -> first camera coordinates
+     * @param cprops        input camera properties for all cameras
+     */
     inline void calculateTransforms(Matrix3D & K, QVector<Matrix4D> & velo2rectcam,
                                     const Transformation3D & velo2cam, const QVector<CamProperties> & cprops)
     {

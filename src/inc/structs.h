@@ -1419,6 +1419,9 @@ struct Matrix4D
         return this->row(row);
     }
 
+    /**
+     * @brief Cast to Transformation3D truncating the last row
+     */
     __host__ __device__ inline
     operator Transformation3D() const
     {
