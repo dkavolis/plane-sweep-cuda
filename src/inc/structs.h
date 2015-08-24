@@ -1358,6 +1358,12 @@ struct Matrix4D
     {
         return this->row(row);
     }
+
+    __host__ __device__ inline
+    operator Transformation3D() const
+    {
+        return Transformation3D(subMatrix(3,3), Vector3D(at(0,3), at(1,3), at(2,3)));
+    }
 };
 
 #endif // STRUCTS_H
