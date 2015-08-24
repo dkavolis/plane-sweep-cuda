@@ -269,7 +269,7 @@ bool KITTIReader::ReadRT(Transformation3D & T, const QString & fname) const
 
         // get string between ':' and end and split
         if (first != -1) numbers.remove(0, first + 1);
-        if (first != -1) n = numbers.split(' ', QString::SkipEmptyParts);
+        if (first != -1) n = numbers.split(QRegExp("\\s"), QString::SkipEmptyParts);
 
         // find correct lines and assign matrix values
         if (line.startsWith("R:")){
@@ -343,7 +343,7 @@ bool KITTIReader::ReadOxTSFile(OxTS &data, const QString &fname) const
 
     QTextStream in(&file);
     QString d = in.readAll();
-    QStringList n = d.split(' ', QString::SkipEmptyParts);
+    QStringList n = d.split(QRegExp("\\s"), QString::SkipEmptyParts);
 
     data.lat = n.at(0).trimmed().toDouble();
     data.lon = n.at(1).trimmed().toDouble();
@@ -389,7 +389,7 @@ bool KITTIReader::ReadVeloFile(QVector<VeloPoint> &points, const QString &fname)
 
     QTextStream in(&file);
     QString data = in.readAll();
-    QStringList p = data.split(' ', QString::SkipEmptyParts);
+    QStringList p = data.split(QRegExp("\\s"), QString::SkipEmptyParts);
     points.resize((p.size() + 3) / 4);
     for (int i = 0; i < points.size(); i++){
         points[i] = VeloPoint(p.at(4*i).trimmed().toFloat(),
