@@ -1,4 +1,5 @@
 #include <kernels.cu.h>
+#include <helper_structs.h>
 
 __global__ void bilinear_interpolation_kernel_GPU(float * __restrict__ d_result, const float * __restrict__ d_data,
                                                   const float * __restrict__ d_xout, const float * __restrict__ d_yout,
@@ -28,20 +29,17 @@ __global__ void bilinear_interpolation_kernel_GPU(float * __restrict__ d_result,
 }
 
 __global__ void transform_indexes_kernel(float * __restrict__ d_x, float * __restrict__ d_y,
-                                         const float h11, const float h12, const float h13,
-                                         const float h21, const float h22, const float h23,
-                                         const float h31, const float h32, const float h33,
+                                         const Matrix3D h,
                                          const int width, const int height)
 {
     const int l = threadIdx.x + blockDim.x * blockIdx.x;
     const int k = threadIdx.y + blockDim.y * blockIdx.y;
 
     if ((l < width) && (k < height)) {
-        d_x[width * k + l] = h11 * (l + 1) + h12 * (k + 1) + h13;
-        d_y[width * k + l] = h21 * (l + 1) + h22 * (k + 1) + h23;
-        float w = h31 * (l + 1) + h32 * (k + 1) + h33;
-        d_x[width * k + l] = d_x[width * k + l] / w - 1;
-        d_y[width * k + l] = d_y[width * k + l] / w - 1;
+        float3 x = h * make_float3(l+1, k+1, 1);
+        x = x / x.z - 1;
+        d_x[width * k + l] = x.x;
+        d_y[width * k + l] = x.y;
     }
 }
 
@@ -405,13 +403,9 @@ __global__ void denoising_TVL1_update_tensor_weighed_kernel(float * __restrict__
 }
 
 __global__ void compute3D_kernel(float * __restrict__ d_x, float * __restrict__ d_y, float * __restrict__ d_z,
-                                 const double Rrel11, const double Rrel12, const double Rrel13,
-                                 const double Rrel21, const double Rrel22, const double Rrel23,
-                                 const double Rrel31, const double Rrel32, const double Rrel33,
-                                 const double trel1, const double trel2, const double trel3,
-                                 const double invK11, const double invK12, const double invK13,
-                                 const double invK21, const double invK22, const double invK23,
-                                 const double invK31, const double invK32, const double invK33,
+                                 const Matrix3D Rrel,
+                                 const Vector3D trel,
+                                 const Matrix3D invK,
                                  const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
@@ -425,26 +419,21 @@ __global__ void compute3D_kernel(float * __restrict__ d_x, float * __restrict__ 
 
         if (z < 5.5)
         {
-            float   x1 = z * (invK11 * x + invK12 * y + invK13),
-                    y1 = z * (invK21 * x + invK22 * y + invK23);
-            d_x[i] = (Rrel11 * x1 + Rrel12 * y1 + Rrel13 * z) + trel1;
-            d_y[i] = (Rrel21 * x1 + Rrel22 * y1 + Rrel23 * z) + trel2;
-            d_z[i] = (Rrel31 * x1 + Rrel32 * y1 + Rrel33 * z) + trel3;
+            float3 x1 = Rrel * (z * invK * make_float3(x, y, 1)) + trel;
+            d_x[i] = x1.x;
+            d_y[i] = x1.y;
+            d_z[i] = x1.z;
         }
         else d_z[i] = -9.f;
     }
 }
 
 void transform_indexes(float * d_x, float *  d_y,
-                       const float h11, const float h12, const float h13,
-                       const float h21, const float h22, const float h23,
-                       const float h31, const float h32, const float h33,
+                       const Matrix3D h,
                        const int width, const int height, dim3 blocks, dim3 threads)
 {
     transform_indexes_kernel<<<blocks, threads>>>(d_x, d_y,
-                                                  h11, h12, h13,
-                                                  h21, h22, h23,
-                                                  h31, h32, h33,
+                                                  h,
                                                   width, height);
 }
 
@@ -607,12 +596,9 @@ void denoising_TVL1_update_tensor_weighed(float * d_output, float * d_R,
                                                                      tau, theta, lambda, sigma, width, height);
 }
 
-void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], const double trel[3],
-const double invK[3][3], const int width, const int height, dim3 blocks, dim3 threads)
+void compute3D(float * d_x, float * d_y, float * d_z, const Matrix3D Rrel, const Vector3D trel,
+               const Matrix3D invK, const int width, const int height, dim3 blocks, dim3 threads)
 {
     compute3D_kernel<<<blocks, threads>>>(d_x, d_y, d_z,
-                                          Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
-            trel[0], trel[1], trel[2],
-            invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
-            width, height);
+                                          Rrel, trel, invK, width, height);
 }

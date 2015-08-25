@@ -26,6 +26,7 @@
  */
 
 #include <kernels.cu.h>
+#include <helper_structs.h>
 
 __global__ void TGV2_updateP_kernel(float * __restrict__ d_Px, float * __restrict__ d_Py,
                                     const float * d_u, const float * __restrict__ d_u1x, const float * __restrict__ d_u1y,
@@ -140,16 +141,10 @@ __global__ void TGV2_updateU_kernel(float * __restrict__ d_u, float * __restrict
 __global__ void TGV2_transform_coordinates_kernel(float * __restrict__ d_x, float * __restrict__ d_y,
                                                   float * __restrict__ d_X, float * __restrict__ d_Y, float * __restrict__ d_Z,
                                                   const float * __restrict__ d_u,
-                                                  const double K11, const double K12, const double K13,
-                                                  const double K21, const double K22, const double K23,
-                                                  const double K31, const double K32, const double K33,
-                                                  const double Rrel11, const double Rrel12, const double Rrel13,
-                                                  const double Rrel21, const double Rrel22, const double Rrel23,
-                                                  const double Rrel31, const double Rrel32, const double Rrel33,
-                                                  const double trel1, const double trel2, const double trel3,
-                                                  const double invK11, const double invK12, const double invK13,
-                                                  const double invK21, const double invK22, const double invK23,
-                                                  const double invK31, const double invK32, const double invK33,
+                                                  const Matrix3D K,
+                                                  const Matrix3D Rrel,
+                                                  const Vector3D trel,
+                                                  const Matrix3D invK,
                                                   const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
@@ -161,30 +156,25 @@ __global__ void TGV2_transform_coordinates_kernel(float * __restrict__ d_x, floa
         // 1 based indexing:
         int x = ind_x + 1;
         int y = ind_y + 1;
+        float3 a = make_float3(x, y, 1);
 
-        // Calculate x1 = u * K^(-1) * x
-        double x1 = d_u[i] * (invK11 * x + invK12 * y + invK13);
-        double y1 = d_u[i] * (invK21 * x + invK22 * y + invK23);
-        double z1 = d_u[i] * (invK31 * x + invK32 * y + invK33);
+        // Calculate x1 = u * K^(-1) * a
+        float3 x1 = d_u[i] * (invK * a);
 
         // Calculate x2 = [R | t] * x1 = R * x1 + t
-        double x2 = (Rrel11 * x1 + Rrel12 * y1 + Rrel13 * z1) + trel1;
-        double y2 = (Rrel21 * x1 + Rrel22 * y1 + Rrel23 * z1) + trel2;
-        double z2 = (Rrel31 * x1 + Rrel32 * y1 + Rrel33 * z1) + trel3;
+        float3 x2 = Rrel * x1 + trel;
 
         // Store 3D coordinates in the coordinate frame of the 2nd view
-        d_X[i] = x2;
-        d_Y[i] = y2;
-        d_Z[i] = z2;
+        d_X[i] = x2.x;
+        d_Y[i] = x2.y;
+        d_Z[i] = x2.z;
 
         // Calculate x1 = K * x2
-        x1 = (K11 * x2 + K12 * y2 + K13 * z2);
-        y1 = (K21 * x2 + K22 * y2 + K23 * z2);
-        z1 = (K31 * x2 + K32 * y2 + K33 * z2);
+        x1 = K * x2;
 
         // Normalize z and revert to 0 based indexing
-        d_x[i] = x1 / z1 - 1;
-        d_y[i] = y1 / z1 - 1;
+        d_x[i] = x1.x / x1.z - 1;
+        d_y[i] = x1.y / x1.z - 1;
     }
 }
 
@@ -203,12 +193,8 @@ __global__ void subtract_kernel(float * __restrict__ d_out, const float * __rest
 
 __global__ void TGV2_calculate_coordinate_derivatives_kernel(float * __restrict__ d_dX, float * __restrict__ d_dY,
                                                              float * __restrict__ d_dZ,
-                                                             const double invK11, const double invK12, const double invK13,
-                                                             const double invK21, const double invK22, const double invK23,
-                                                             const double invK31, const double invK32, const double invK33,
-                                                             const double Rrel11, const double Rrel12, const double Rrel13,
-                                                             const double Rrel21, const double Rrel22, const double Rrel23,
-                                                             const double Rrel31, const double Rrel32, const double Rrel33,
+                                                             const Matrix3D invK,
+                                                             const Matrix3D Rrel,
                                                              const int width, const int height)
 {
     const int ind_x = threadIdx.x + blockDim.x * blockIdx.x;
@@ -222,15 +208,13 @@ __global__ void TGV2_calculate_coordinate_derivatives_kernel(float * __restrict_
         int y = ind_y + 1;
 
         // Derivatives are given by grad(X) = Rrel * K^(-1) * x
-        // Calculate x1 = K^(-1) * x
-        double x1 = (invK11 * x + invK12 * y + invK13);
-        double y1 = (invK21 * x + invK22 * y + invK23);
-        double z1 = (invK31 * x + invK32 * y + invK33);
+        // Calculate derivatives x1 = Rrel * K^(-1) * x
+        float3 x1 = Rrel * invK * make_float3(x, y, 1);
 
         // Calculate derivatives
-        d_dX[i] = (Rrel11 * x1 + Rrel12 * y1 + Rrel13 * z1);
-        d_dY[i] = (Rrel21 * x1 + Rrel22 * y1 + Rrel23 * z1);
-        d_dZ[i] = (Rrel31 * x1 + Rrel32 * y1 + Rrel33 * z1);
+        d_dX[i] = x1.x;
+        d_dY[i] = x1.y;
+        d_dZ[i] = x1.z;
     }
 }
 
@@ -489,15 +473,11 @@ void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, flo
 }
 
 void TGV2_transform_coordinates(float * d_x, float * d_y, float * d_X, float * d_Y, float * d_Z, const float * d_u,
-                                const double K[3][3], const double Rrel[3][3], const double trel[3], const double invK[3][3],
+                                const Matrix3D K, const Matrix3D Rrel, const Vector3D trel, const Matrix3D invK,
 const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_transform_coordinates_kernel<<<blocks, threads>>>(d_x, d_y, d_X, d_Y, d_Z, d_u,
-                                                           K[0][0], K[0][1], K[0][2], K[1][0], K[1][1], K[1][2], K[2][0], K[2][1], K[2][2],
-            Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
-            trel[0], trel[1], trel[2],
-            invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
-            width, height);
+                                                           K, Rrel, trel, invK, width, height);
 }
 
 void subtract(float * d_out, const float * d_in1, const float * d_in2, const int width, const int height, dim3 blocks, dim3 threads)
@@ -505,13 +485,11 @@ void subtract(float * d_out, const float * d_in1, const float * d_in2, const int
     subtract_kernel<<<blocks, threads>>>(d_out, d_in1, d_in2, width, height);
 }
 
-void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const double invK[3][3], const double Rrel[3][3],
+void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const Matrix3D invK, const Matrix3D Rrel,
 const int width, const int height, dim3 blocks, dim3 threads)
 {
     TGV2_calculate_coordinate_derivatives_kernel<<<blocks, threads>>>(d_dX, d_dY, d_dZ,
-                                                                      invK[0][0], invK[0][1], invK[0][2], invK[1][0], invK[1][1], invK[1][2], invK[2][0], invK[2][1], invK[2][2],
-            Rrel[0][0], Rrel[0][1], Rrel[0][2], Rrel[1][0], Rrel[1][1], Rrel[1][2], Rrel[2][0], Rrel[2][1], Rrel[2][2],
-            width, height);
+                                                                      invK, Rrel, width, height);
 }
 
 void TGV2_calculate_derivativeF(float * d_dfx, float * d_dfy, const float * d_X, const float * d_dX, const float * d_Y, const float * d_dY,

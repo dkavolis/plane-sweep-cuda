@@ -11,6 +11,7 @@
 #include <helper_cuda.h>    // includes for helper CUDA functions
 #include <cuda_runtime_api.h>
 #include <cuda.h>
+#include <structs.h>
 
 /** \addtogroup general  General
 * \brief General CUDA kernel functions, mostly for float type data
@@ -250,8 +251,8 @@ void set_QNAN_value(float * d_output, const float value, const int width, const 
 *  \param blocks  kernel grid dimensions
 *  \param threads single block dimensions
 */
-void compute3D(float * d_x, float * d_y, float * d_z, const double Rrel[3][3], const double trel[3],
-const double invK[3][3], const int width, const int height, dim3 blocks, dim3 threads);
+void compute3D(float * d_x, float * d_y, float * d_z, const Matrix3D Rrel, const Vector3D trel,
+               const Matrix3D invK, const int width, const int height, dim3 blocks, dim3 threads);
 
 /**
 *  \brief Subtract <em>in1 - in2</em>
@@ -278,15 +279,7 @@ that fall between [0,0] and (height, width)
 *
 *  \param d_x     pointer to output \a x indexes
 *  \param d_y     pointer to output \a y indexes
-*  \param h11     matrix element at \b (1,1)
-*  \param h12     matrix element at \b (1,2)
-*  \param h13     matrix element at \b (1,3)
-*  \param h21     matrix element at \b (2,1)
-*  \param h22     matrix element at \b (2,2)
-*  \param h23     matrix element at \b (2,3)
-*  \param h31     matrix element at \b (3,1)
-*  \param h32     matrix element at \b (3,2)
-*  \param h33     matrix element at \b (3,3)
+*  \param h       3x3 transformation matrix
 *  \param width   width of given arrays
 *  \param height  height of given arrays
 *  \param blocks  kernel grid dimensions
@@ -295,9 +288,7 @@ that fall between [0,0] and (height, width)
 *  \details Transformation is applied to 1 based index coordinates
 */
 void transform_indexes(float * d_x, float * d_y,
-                       const float h11, const float h12, const float h13,
-                       const float h21, const float h22, const float h23,
-                       const float h31, const float h32, const float h33,
+                       const Matrix3D h,
                        const int width, const int height, dim3 blocks, dim3 threads);
 
 /**
@@ -575,8 +566,8 @@ void TGV2_updateU(float * d_u, float * d_u1x, float * d_u1y, float * d_ubar, flo
  *  \param threads      single block dimensions
  */
 void TGV2_transform_coordinates(float * d_x, float * d_y, float * d_X, float * d_Y, float * d_Z, const float * d_u,
-                                const double K[3][3], const double Rrel[3][3], const double trel[3], const double invK[3][3],
-const int width, const int height, dim3 blocks, dim3 threads);
+                                const Matrix3D K, const Matrix3D Rrel, const Vector3D trel, const Matrix3D invK,
+                                const int width, const int height, dim3 blocks, dim3 threads);
 
 /**
  *  \brief Calculate derivatives of coordinates in camera reference frame
@@ -591,8 +582,8 @@ const int width, const int height, dim3 blocks, dim3 threads);
  *  \param blocks       kernel grid dimensions
  *  \param threads      single block dimensions
  */
-void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const double invK[3][3], const double Rrel[3][3],
-const int width, const int height, dim3 blocks, dim3 threads);
+void TGV2_calculate_coordinate_derivatives(float * d_dX, float * d_dY, float * d_dZ, const Matrix3D invK, const Matrix3D Rrel,
+                                           const int width, const int height, dim3 blocks, dim3 threads);
 
 /**
  *  \brief Calculate gradient of \f$f(x, u)\f$
