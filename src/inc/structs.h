@@ -279,10 +279,10 @@ struct sortedHist
     *  \return Value of median element
     */
     __host__ __device__ inline
-    float median(){ return element[_nBins]; }
+    float median() const { return element[_nBins]; }
 
     /** \brief Get size of the array */
-    int size(){ return 2 * _nBins + 1; }
+    int size() const { return 2 * _nBins + 1; }
 };
 
 /** \brief sortedHist struct with overloaded \a new and \a delete operators from class \p Manage */
@@ -358,14 +358,14 @@ struct Rectangle3D
     *  \details Returns <em>b - a</em>
     */
     __host__ __device__ inline
-    float3 size()
+    float3 size() const
     {
         return (b - a);
     }
 
     /** \brief Get coordinates of the center of rectangle */
     __host__ __device__ inline
-    float3 center()
+    float3 center() const
     {
         return (b + a) / 2.f;
     }
@@ -556,7 +556,7 @@ struct Matrix3D
     *  \return Transpose of this Matrix3D
     */
     __host__ __device__ inline
-    Matrix3D trans()
+    Matrix3D trans() const
     {
         float3 c[3];
         c[0] = make_float3(r[0].x, r[1].x, r[2].x);
@@ -571,7 +571,7 @@ struct Matrix3D
     *  \return Determinant of this Matrix3D
     */
     __host__ __device__ inline
-    float det()
+    float det() const
     {
         return 	r[0].x * (r[1].y * r[2].z - r[1].z * r[2].y) -
                 r[0].y * (r[1].x * r[2].z - r[1].z * r[2].x) +
@@ -584,7 +584,7 @@ struct Matrix3D
     *  \return Inverse of this Matrix3D
     */
     __host__ __device__ inline
-    Matrix3D inv()
+    Matrix3D inv() const
     {
         float d = det();
         float3 r1, r2, r3;
