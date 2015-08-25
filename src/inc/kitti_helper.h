@@ -1,6 +1,11 @@
 #ifndef KITTI_HELPER_H
 #define KITTI_HELPER_H
 
+#include <cmath>
+#include <structs.h>
+#include <QImage>
+#include <helper_structs.h>
+
 // maths
 #ifdef M_PI
 #   undef M_PI
@@ -48,11 +53,6 @@
 #define KITTI_IMAGE_NAME(base_dir, cam, n, w)           KITTI_FULL_FILE_NAME(base_dir, KITTI_CAM_DIR(cam), n, w, KITTI_IMAGE_FORMAT)
 #define KITTI_OXTS_NAME(base_dir, n, w)                 KITTI_FULL_FILE_NAME(base_dir, KITTI_OXTS_DIR, n, w, KITTI_OXTS_FORMAT)
 #define KITTI_VELO_NAME(base_dir, n, w)                 KITTI_FULL_FILE_NAME(base_dir, KITTI_VELO_DIR, n, w, KITTI_VELODYNE_FORMAT)
-
-#include <cmath>
-#include <structs.h>
-#include <QImage>
-#include <helper_structs.h>
 
 namespace KITTI
 {
@@ -257,54 +257,73 @@ namespace KITTI
     }
 
     /**
+     * @brief Calculate rotation and translation from \p oxts given \p scale
+     * @param oxts  OxTS data
+     * @param scale mercator scale
+     * @return Transformation3D struct containing rotation and translation
+     */
+    inline Transformation3D convertOxtsToTForm(OxTS oxts, double scale)
+    {
+        Vector3D t; Matrix3D R, Rx, Ry, Rz;
+        double rx, ry, rz;
+        // translation vector:
+        latlonToMercator(rx, ry, oxts.lat, oxts.lon, scale);
+        t.x = rx;
+        t.y = ry;
+        t.z = oxts.alt;
+
+        // rotation matrix:
+        rx = oxts.roll;
+        ry = oxts.pitch;
+        rz = oxts.yaw;
+        Rx = Matrix3D(1.f,          0.f,        0.f,
+                      0.f,          cos(rx),    -sin(rx),
+                      0.f,          sin(rx),    cos(rx));
+        Ry = Matrix3D(cos(ry),      0.f,        sin(ry),
+                      0.f,          1.f,        0.f,
+                      -sin(ry),     0.f,        cos(ry));
+        Rz = Matrix3D(cos(rz),      -sin(rz),   0.f,
+                      sin(rz),      cos(rz),    0.f,
+                      0.f,          0.f,        1.f);
+        R = Rx * Ry * Rz;
+        return Transformation3D(R, t);
+    }
+
+    /**
      * @brief Calculate OxTS unit poses w.r.t. to the first one
      * @param pose  output poses, same size as \p oxts
      * @param oxts  input OxTS data, first element is used as reference
+     * @param scale mercator scale
      */
-    inline void convertOxtsToPose(QVector<Matrix4D> & pose, const QVector<OxTS> & oxts)
+    inline void convertOxtsToPose(QVector<Matrix4D> & pose, const QVector<OxTS> & oxts, double scale)
     {
         if (oxts.size() > 0){
             pose.resize(oxts.size());
 
-            // scale from first lat value
-            double scale = latToScale(oxts[0].lat);
-
             Matrix4D pose0inv;
-            Vector3D t; Matrix3D R, Rx, Ry, Rz;
-            double rx, ry, rz;
 
             // for all oxts:
             for (int i = 0; i < oxts.size(); i++)
             {
-                // translation vector:
-                latlonToMercator(rx, ry, oxts[i].lat, oxts[i].lon, scale);
-                t.x = rx;
-                t.y = ry;
-                t.z = oxts[i].alt;
-
-                // rotation matrix:
-                rx = oxts[i].roll;
-                ry = oxts[i].pitch;
-                rz = oxts[i].yaw;
-                Rx = Matrix3D(1.f,          0.f,        0.f,
-                              0.f,          cos(rx),    -sin(rx),
-                              0.f,          sin(rx),    cos(rx));
-                Ry = Matrix3D(cos(ry),      0.f,        sin(ry),
-                              0.f,          1.f,        0.f,
-                              -sin(ry),     0.f,        cos(ry));
-                Rz = Matrix3D(cos(rz),      -sin(rz),   0.f,
-                              sin(rz),      cos(rz),    0.f,
-                              0.f,          0.f,        1.f);
-                R = Rx * Ry * Rz;
-
                 // add pose
-                pose[i] = Matrix4D(Transformation3D(R, t), make_float4(0,0,0,1));
+                pose[i] = Matrix4D(convertOxtsToTForm(oxts[i], scale), make_float4(0,0,0,1));
 
                 // normalize rotation and translation (starts at 0/0/0)
                 if (i == 0) pose0inv = pose[i].inv();
                 pose[i] = pose0inv * pose[i];
             }
         }
+    }
+
+    /**
+     * @overload convertOxtsToPose
+     * @details \p scale is computer from first \p oxts latituted value
+     */
+    inline void convertOxtsToPose(QVector<Matrix4D> &pose, const QVector<OxTS> &oxts)
+    {
+        // scale from first lat value
+        double scale = latToScale(oxts[0].lat);
+        convertOxtsToPose(pose, oxts, scale);
     }
 
     /**
