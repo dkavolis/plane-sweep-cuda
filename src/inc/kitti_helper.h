@@ -352,6 +352,24 @@ namespace KITTI
         }
     }
 
+    /**
+     * @brief Compute rotation and translation of rectified camera coordinates
+     * @param P_rect    3x4 projection matrix after rectification as in CamProperties
+     * @return Struct containing rotation and translation of the rectified camera coordinates.
+     * For transformations from camera 1 to camera 2 with the same timestamps:
+     *
+     * \f% R_{rel} = R_2 R_1^T \f%
+     * \f% t_{rel} = t_2 - R_{rel} t_1 \f%
+     *
+     * Pixel coordinates transformation from camera 1 to camera 2 will then be given by:
+     * \f% H = K \left ( R_{rel} + \frac{t_{rel} n^T}{d} \right ) K^{-1} \f%,
+     * where \f% n = [0, 0, 1]^T \f%, \f% K \f% is simply \p P_rect.R and \f% d \f% is true depth of the pixel.
+     */
+    inline Transformation3D extractRT(const Transformation3D & P_rect)
+    {
+        return P_rect.R.inv() * P_rect;
+    }
+
 } // namespace KITTI
 
 #endif // KITTI_HELPER_H
