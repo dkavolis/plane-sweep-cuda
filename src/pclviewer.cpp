@@ -4,8 +4,6 @@
 #include "pclviewer.h"
 #include "ui_pclviewer.h"
 #include <iostream>
-#include <boost/numeric/ublas/assignment.hpp>
-#include <boost/numeric/ublas/io.hpp>
 #include <QPixmap>
 #include <QColor>
 #include <QFileDialog>
@@ -31,7 +29,17 @@ PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     fd(DEFAULT_FUSION_VOXELS_X, DEFAULT_FUSION_VOXELS_Y, DEFAULT_FUSION_VOXELS_Z),
     f(DEFAULT_FUSION_VOXELS_X, DEFAULT_FUSION_VOXELS_Y, DEFAULT_FUSION_VOXELS_Z)
 {
-    std::cerr << "Size of fusion data = " << fd.sizeMBytes() << "MB\n";
+//    kitti.setBaseDir("D:/Software/2011_09_26_drive_0091_sync/2011_09_26/2011_09_26_drive_0091_sync");
+//    kitti.setCalibrationDir("D:/Software/2011_09_26_calib/2011_09_26");
+
+    std::cout << "\nSize of fusion data = " << fd.sizeMBytes() << "MB\n\n";
+
+//    printf("kitti dirs:\ncam_to_cam: %s\nvelo_to_cam: %s\nimu_to_velo: %s\nbase dir: %s\n",
+//           kitti.CalibrationCam2CamFileName().toStdString().c_str(),
+//           kitti.CalibrationVelo2CamFileName().toStdString().c_str(),
+//           kitti.CalibrationIMU2VeloFileName().toStdString().c_str(),
+//           kitti.BaseDir().toStdString().c_str());
+//    fflush(stdout);
 
     ui->setupUi (this);
     this->setWindowTitle ("3D Reconstruction Program");
@@ -335,69 +343,70 @@ void PCLViewer::LoadImages()
     ui->refView->setScene(scene);
 
     // All required camera matrices (found in 'calibration.txt')
-    double K[3][3] = {
-        {0.709874*640, (1-0.977786)*640, 0.493648*640},
-        {0, 0.945744*480, 0.514782*480},
-        {0, 0, 1}
-    };
+    Matrix3D K = Matrix3D(  0.709874*640, (1-0.977786)*640,   0.493648*640,
+                            0,            0.945744*480,       0.514782*480,
+                            0,            0,                  1);
 
     ps.setK(K);
-    ublas::matrix<double> Cr(3,4);
-    std::vector<ublas::matrix<double>> C(9);
+    QVector<Matrix3D> Rsrc(9);
+    QVector<Vector3D> tsrc(9);
+    Matrix3D Rref;
+    Vector3D tref;
 
-    Cr <<= 0.993701, 0.110304, -0.0197854, 0.280643,
-            0.0815973, -0.833193, -0.546929, -0.255355,
-            -0.0768135, 0.541869, -0.836945, 0.810979;
+    Rref = Matrix3D(    0.993701,       0.110304,   -0.0197854,
+                        0.0815973,     -0.833193,   -0.546929,
+                       -0.0768135,      0.541869,   -0.836945);
+    tref = Vector3D(    0.280643,      -0.255355,    0.810979);
 
-    C[0].resize(3,4);
-    C[0] <<= 0.993479, 0.112002, -0.0213286, 0.287891,
-            0.0822353, -0.83349, -0.54638, -0.255839,
-            -0.0789729, 0.541063, -0.837266, 0.808608;
+    Rsrc[0] = Matrix3D( 0.993479,       0.112002,   -0.0213286,
+                        0.0822353,     -0.83349,    -0.54638,
+                       -0.0789729,      0.541063,   -0.837266);
+    tsrc[0] = Vector3D( 0.287891,      -0.255839,    0.808608);
 
-    C[1].resize(3,4);
-    C[1] <<= 0.993199, 0.114383, -0.0217434, 0.295475,
-            0.0840021, -0.833274, -0.546442, -0.25538,
-            -0.0806218, 0.540899, -0.837215, 0.805906;
+    Rsrc[1] = Matrix3D( 0.993199,       0.114383,   -0.0217434,
+                        0.0840021,     -0.833274,   -0.546442,
+                       -0.0806218,      0.540899,   -0.837215);
+    tsrc[1] = Vector3D( 0.295475,      -0.25538,     0.805906);
 
-    C[2].resize(3,4);
-    C[2] <<= 0.992928, 0.116793, -0.0213061, 0.301659,
-            0.086304, -0.833328, -0.546001, -0.254563,
-            -0.081524, 0.5403, -0.837514, 0.804653;
+    Rsrc[2] = Matrix3D( 0.992928,       0.116793,   -0.0213061,
+                        0.086304,      -0.833328,   -0.546001,
+                       -0.081524,       0.5403,     -0.837514);
+    tsrc[2] = Vector3D( 0.301659,      -0.254563,    0.804653);
 
-    C[3].resize(3,4);
-    C[3] <<= 0.992643, 0.119107, -0.0217442, 0.309666,
-            0.0880017, -0.833101, -0.546075, -0.254134,
-            -0.0831565, 0.540144, -0.837454, 0.802222;
+    Rsrc[3] = Matrix3D( 0.992643,       0.119107,   -0.0217442,
+                        0.0880017,     -0.833101,   -0.546075,
+                       -0.0831565,      0.540144,   -0.837454);
+    tsrc[3] = Vector3D( 0.309666,      -0.254134,    0.802222);
 
-    C[4].resize(3,4);
-    C[4] <<= 0.992429, 0.121049, -0.0208028, 0.314892,
-            0.0901911, -0.833197, -0.545571, -0.253009,
-            -0.0833736, 0.539564, -0.837806, 0.801559;
+    Rsrc[4] = Matrix3D( 0.992429,       0.121049,   -0.0208028,
+                        0.0901911,     -0.833197,   -0.545571,
+                       -0.0833736,      0.539564,   -0.837806);
+    tsrc[4] = Vector3D( 0.314892,      -0.253009,    0.801559);
 
-    C[5].resize(3,4);
-    C[5] <<= 0.992226, 0.122575, -0.0215154, 0.32067,
-            0.0911582, -0.833552, -0.544869, -0.254142,
-            -0.0847215, 0.538672, -0.838245, 0.799812;
+    Rsrc[5] = Matrix3D( 0.992226,       0.122575,   -0.0215154,
+                        0.0911582,     -0.833552,   -0.544869,
+                       -0.0847215,      0.538672,   -0.838245);
+    tsrc[5] = Vector3D( 0.32067,       -0.254142,    0.799812);
 
-    C[6].resize(3,4);
-    C[6] <<= 0.992003, 0.124427, -0.0211509, 0.325942,
-            0.0930933, -0.834508, -0.543074, -0.254865,
-            -0.0852237, 0.536762, -0.839418, 0.799037;
+    Rsrc[6] = Matrix3D( 0.992003,       0.124427,   -0.0211509,
+                        0.0930933,     -0.834508,   -0.543074,
+                       -0.0852237,      0.536762,   -0.839418);
+    tsrc[6] = Vector3D( 0.325942,      -0.254865,    0.799037);
 
-    C[7].resize(3,4);
-    C[7] <<= 0.991867, 0.125492, -0.021234, 0.332029,
-            0.0938678, -0.833933, -0.543824, -0.252767,
-            -0.0859533, 0.537408, -0.838931, 0.797979;
+    Rsrc[7] = Matrix3D( 0.991867,       0.125492,   -0.021234,
+                        0.0938678,     -0.833933,   -0.543824,
+                       -0.0859533,      0.537408,   -0.838931);
+    tsrc[7] = Vector3D( 0.332029,      -0.252767,    0.797979);
 
-    C[8].resize(3,4);
-    C[8] <<= 0.991515, 0.128087, -0.0221943, 0.33934,
-            0.095507, -0.833589, -0.544067, -0.250995,
-            -0.0881887, 0.53733, -0.838748, 0.796756;
+    Rsrc[8] = Matrix3D( 0.991515,       0.128087,   -0.0221943,
+                        0.095507,      -0.833589,   -0.544067,
+                       -0.0881887,      0.53733,    -0.838748);
+    tsrc[8] = Vector3D( 0.33934,       -0.250995,    0.796756);
 
     // setup reference image
     ps.HostRef.setSize(w, h);
     rgb2gray<float>(ps.HostRef.data, refim);
-    ps.CmatrixToRT(Cr, ps.HostRef.R, ps.HostRef.t);
+    ps.HostRef.R = Rref; ps.HostRef.t = tref;
 
     // setup source images
     QString src;
@@ -411,7 +420,7 @@ void PCLViewer::LoadImages()
         sources.load(src);
         ps.HostSrc[i].setSize(w,h);
         rgb2gray<float>(ps.HostSrc[i].data, sources);
-        ps.CmatrixToRT(C[i], ps.HostSrc[i].R, ps.HostSrc[i].t);
+        ps.HostSrc[i].R = Rsrc[i]; ps.HostSrc[i].t = tsrc[i];
     }
 
     //ps.Convert8uTo32f(argc, argv);
@@ -445,8 +454,7 @@ void PCLViewer::on_pushButton_pressed()
 
         QColor c;
         int  i;
-        double k[3][3];
-        ps.getInverseK(k);
+        Matrix3D k = ps.getInverseK();
         double z;
 
         // update colorbar range
@@ -462,8 +470,8 @@ void PCLViewer::on_pushButton_pressed()
                 z = depth->data[i];
 
                 cloud->points[i].z = -z;
-                cloud->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
-                cloud->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                cloud->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
+                cloud->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
 
                 // Only update colors if reference image has changed
                 if (refchanged)
@@ -563,8 +571,7 @@ void PCLViewer::on_denoiseBtn_clicked()
         QColor c;
         int  i;
 
-        double k[3][3];
-        ps.getInverseK(k);
+        Matrix3D k = ps.getInverseK();
         double z;
 
         // update colorbar range
@@ -580,8 +587,8 @@ void PCLViewer::on_denoiseBtn_clicked()
 
                 z = dendepth->data[i];
                 clouddenoised->points[i].z = -z;
-                clouddenoised->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
-                clouddenoised->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                clouddenoised->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
+                clouddenoised->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
 
                 // only update colors if reference image has changed
                 if (refchangedtvl1)
@@ -649,8 +656,8 @@ void PCLViewer::on_tgv_button_pressed()
 
         QColor c;
         int  i;
-        double k[3][3];
-        ps.getInverseK(k);
+
+        Matrix3D k = ps.getInverseK();
         float z;
 
         // update colorbar range
@@ -665,8 +672,8 @@ void PCLViewer::on_tgv_button_pressed()
 
                 z = tgvdepth->data[i];
                 cloudtgv->points[i].z = -z;
-                cloudtgv->points[i].x = z * (k[0][0] * x + k[0][1] * y + k[0][2]);
-                cloudtgv->points[i].y = z * (k[1][0] * x + k[1][1] * y + k[1][2]);
+                cloudtgv->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
+                cloudtgv->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
 
                 // only update colors if reference image has changed
                 if (refchangedtgv)
@@ -784,16 +791,17 @@ void PCLViewer::on_loadfromdir_clicked()
     QString imname = ImageName(ui->refNumber->value(), impos);
 
     // initialize variables for camera parameters
-    ublas::matrix<double> cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, K, R, t;
+    Vector3D cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, t;
+    Matrix3D K, R;
     double cam_angle;
 
     // get camera parameters
-    if (!getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)) return;
-    getcamK(K, cam_dir, cam_up, cam_right);
+    if (!reader.getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)) return;
+    reader.getcamK(K, cam_dir, cam_up, cam_right);
 
     // set reference view parameters
     ps.setK(K);
-    computeRT(R, t, cam_dir, cam_pos, cam_up);
+    reader.computeRT(R, t, cam_dir, cam_pos, cam_up);
 
     refim.load(imname);
     int w = refim.width(), h = refim.height();
@@ -821,9 +829,9 @@ void PCLViewer::on_loadfromdir_clicked()
         if (i < half) offset = i + 1;
         else offset = half - i - 1;
         imname = ImageName(ui->refNumber->value() + offset, impos);
-        if (getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)){
+        if (reader.getcamParameters(impos, cam_pos, cam_dir, cam_up, cam_lookat,cam_sky, cam_right, cam_fpoint, cam_angle)){
             ps.HostSrc.resize(ps.HostSrc.size() + 1);
-            computeRT(R, t, cam_dir, cam_pos, cam_up);
+            reader.computeRT(R, t, cam_dir, cam_pos, cam_up);
             src.load(imname);
             ps.HostSrc.back().setSize(w,h);
             ps.HostSrc.back().R = R;
@@ -856,173 +864,6 @@ QString PCLViewer::ImageName(int number, QString &imagePos)
     name += ui->imageFormat->text();
     imagePos += "txt";
     return name;
-}
-
-void PCLViewer::getcamK(ublas::matrix<double> & K, const ublas::matrix<double> &cam_dir,
-                        const ublas::matrix<double> &cam_up, const ublas::matrix<double> &cam_right)
-{
-    double focal = sqrt(pow(cam_dir(0,0),2) + pow(cam_dir(1,0),2) + pow(cam_dir(2,0),2));
-    double aspect = sqrt(pow(cam_right(0,0),2) + pow(cam_right(1,0),2) + pow(cam_right(2,0),2));
-    double angle = 2 * atan(aspect / 2 / focal);
-    aspect = aspect / sqrt(pow(cam_up(0,0),2) + pow(cam_up(1,0),2) + pow(cam_up(2,0),2));
-
-    // height and width
-    int M = 480, N = 640;
-
-    int width = N, height = M;
-
-    // pixel size
-    double psx = 2*focal*tan(0.5*angle)/N ;
-    double psy = 2*focal*tan(0.5*angle)/aspect/M ;
-
-    psx   = psx / focal;
-    psy   = psy / focal;
-
-    double Ox = (width+1)*0.5;
-    double Oy = (height+1)*0.5;
-
-    K.resize(3,3);
-
-    K <<=   1.f/psx, 0.f, Ox,
-            0.f, -1.f/psy, Oy,
-            0.f, 0.f, 1.f;
-}
-
-void PCLViewer::computeRT(ublas::matrix<double> & R, ublas::matrix<double> & t, const ublas::matrix<double> &cam_dir,
-                          const ublas::matrix<double> &cam_pos, const ublas::matrix<double> &cam_up)
-{
-    ublas::matrix<double> x, y, z;
-
-    z = cam_dir / sqrt(pow(cam_dir(0,0),2) + pow(cam_dir(1,0),2) + pow(cam_dir(2,0),2));
-
-    x = cross(cam_up, z);
-    x = x / sqrt(pow(x(0,0),2) + pow(x(1,0),2) + pow(x(2,0),2));
-
-    y = cross(z, x);
-
-    R.resize(3,3);
-    R <<=   x(0,0), y(0,0), z(0,0),
-            x(1,0), y(1,0), z(1,0),
-            x(2,0), y(2,0), z(2,0);
-
-    t = cam_pos;
-
-}
-
-bool PCLViewer::getcamParameters(QString filename, ublas::matrix<double> & cam_pos, ublas::matrix<double> & cam_dir,
-                                 ublas::matrix<double> & cam_up, ublas::matrix<double> & cam_lookat,
-                                 ublas::matrix<double> & cam_sky, ublas::matrix<double> & cam_right,
-                                 ublas::matrix<double> & cam_fpoint, double & cam_angle)
-{
-    // set correct sizes for all matrices
-    cam_pos.resize(3,1);
-    cam_dir.resize(3,1);
-    cam_up.resize(3,1);
-    cam_lookat.resize(3,1);
-    cam_sky.resize(3,1);
-    cam_right.resize(3,1);
-    cam_fpoint.resize(3,1);
-
-    // try opening file
-    QFile file(filename);
-    if(!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::information(0, "Error reading file", file.errorString());
-        return false;
-    }
-
-    QTextStream in(&file);
-    int first, last;
-
-    // read all lines
-    while(!in.atEnd()) {
-        QString line = in.readLine();
-        QString numbers = line;
-        QStringList n;
-
-        first = line.lastIndexOf('[');
-        last = line.lastIndexOf(']');
-
-        // get string between '[' and ']' and split
-        if (last != -1) numbers.truncate(last);
-        if (first != -1) numbers.remove(0, first + 1);
-        if ((first != -1) && (last != -1)) n = numbers.split(',', QString::SkipEmptyParts);
-
-        // find correct lines and assign camera parameter values
-        if (line.startsWith(CAM_POS)){
-            cam_pos <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
-        }
-
-        if (line.startsWith(CAM_DIR)){
-            cam_dir <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
-        }
-
-        if (line.startsWith(CAM_UP)){
-            cam_up <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
-        }
-
-        if (line.startsWith(CAM_LOOKAT)){
-            cam_lookat <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
-        }
-
-        if (line.startsWith(CAM_SKY)){
-            cam_sky <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
-        }
-
-        if (line.startsWith(CAM_RIGHT)){
-            cam_right <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
-        }
-
-        if (line.startsWith(CAM_FPOINT)){
-            cam_fpoint <<= n.at(0).trimmed().toDouble(), n.at(1).trimmed().toDouble(), n.at(2).trimmed().toDouble();
-        }
-
-        if (line.startsWith(CAM_ANGLE)){
-            // no '[]' characters
-            first = line.lastIndexOf('=');
-            last = line.lastIndexOf(';');
-            if (last != -1) numbers.truncate(last);
-            if (first != -1) numbers.remove(0, first + 1);
-            if ((first != -1) && (last != -1)) n = numbers.split(',', QString::SkipEmptyParts);
-            cam_angle = n.at(0).trimmed().toDouble();
-        }
-
-    }
-
-    file.close();
-    return true;
-}
-
-ublas::matrix<double> PCLViewer::cross(const ublas::matrix<double> & A, const ublas::matrix<double> & B)
-{
-    ublas::matrix<double> x = A, y = B;
-    ublas::matrix<double> result(3,1);
-    int xdim = 3, ydim = 3;
-    if (x.size1() == 1) x = trans(x);
-    if (y.size1() == 1) y = trans(y);
-    if (x.size1() == 2) {
-        xdim = 2;
-        x.resize(3, 1);
-        x(2,0) = 0.f;
-    }
-    else if (x.size1() != 3) {
-        std::cerr << "Matrix dimensions must be 3 by 1 or 2 by 1 only" << std::endl;
-        return result;
-    }
-    if (y.size1() == 2) {
-        ydim = 2;
-        y.resize(3, 1);
-        y(2,0) = 0.f;
-    }
-    else if (y.size1() != 3) {
-        std::cerr << "Matrix dimensions must be 3 by 1 or 2 by 1 only" << std::endl;
-        return result;
-    }
-
-    result <<=  x(1,0) * y(2,0) - x(2,0) * y(1,0),
-            -(x(0,0) * y(2,0) - x(2,0) * y(0,0)),
-            x(0,0) * y(1,0) - x(1,0) * y(0,0);
-
-    return result;
 }
 
 template<typename T>
@@ -1144,19 +985,15 @@ void PCLViewer::on_reconstruct_button_clicked()
             tau = ui->fusion_tau->value(),
             lambda = ui->fusion_lambda->value(),
             sigma = ui->fusion_sigma->value();
-    double k[3][3], t[3];
 
     // Create matrices and translation vector
     Matrix3D K;
     Matrix3D R;
     Vector3D T;
 
-    // Create boost matrices
-    ublas::matrix<double> rrel(3,3), trel(3,1), I(3,3), tm(3,1);
-    I <<=   1.f, 0.f, 0.f,  // identity matrix, rotation of world coordinate system
-            0.f, 1.f, 0.f,
-            0.f, 0.f, 1.f;
-    tm <<=  0.f, 0.f, 0.f;  // 0 translation vector
+    // Create world coordinate matrices:
+    Matrix3D I; I.makeIdentity();
+    Vector3D tm(0,0,0);  // 0 translation vector
 
     // Calculate 3D threads per blocks and blocks per grid
     dim3 threads(ui->fusion_threadsw->value(),
@@ -1181,16 +1018,11 @@ void PCLViewer::on_reconstruct_button_clicked()
         // Load images and set K
         ui->refNumber->setValue(ui->fusion_simage->value() + i * ui->fusion_imstep->value());
         on_loadfromdir_clicked();
-        ps.getK(k);
-        K = k;
+        K = ps.getK();
 //        MemoryManagement<float>::Host2DeviceCopy(ptr, pitch, sparsedepth.data, sparsedepth.pitch, 640, 480);
 
         // Calculate and set R and T
-        ps.RelativeMatrices(rrel, trel, I, tm, ps.HostRef.R, ps.HostRef.t); // from world to ref
-        ps.matrixToArray(k, rrel);
-        ps.TmatrixToArray(t, trel);
-        R = k;
-        T = t;
+        ps.RelativeMatrices(R, T, I, tm, ps.HostRef.R, ps.HostRef.t); // from world to ref
 
         // Get planesweep depthmap
         ps.RunAlgorithm(argc, argv);

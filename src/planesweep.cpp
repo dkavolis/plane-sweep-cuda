@@ -10,14 +10,6 @@
 #   include <opencv2/core/mat.hpp>
 #endif
 
-// Boost:
-#include <boost/numeric/ublas/vector.hpp>
-#include <boost/numeric/ublas/vector_proxy.hpp>
-#include <boost/numeric/ublas/triangular.hpp>
-#include <boost/numeric/ublas/lu.hpp>
-#include <boost/numeric/ublas/io.hpp>
-#include <boost/numeric/ublas/assignment.hpp>
-
 // CUDA: (header files contain definitions)
 #if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)
 #  define WINDOWS_LEAN_AND_MEAN
@@ -32,8 +24,7 @@
 #include <helper_string.h>
 #include <kernels.cu.h>
 #include <helper_cuda.h>
-
-void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output);
+#include <helper_structs.h>
 
 template <typename T> // T models Any
 struct static_cast_func
@@ -94,28 +85,11 @@ PlaneSweep::PlaneSweep() :
     threads(dim3 (DEFAULT_BLOCK_XDIM)),
     d_depthmap(0)
 {
-    K.resize(3,3);
-    invK.resize(3,3);
-    n.resize(3,1);
-
-    // Set correct n elements
-    n(0,0) = 0;
-    n(1,0) = 0;
-    n(2,0) = 1;
 }
 
 PlaneSweep::PlaneSweep(int argc, char **argv) :
     d_depthmap(0)
 {
-    K.resize(3,3);
-    invK.resize(3,3);
-    n.resize(3,1);
-
-    // Set correct n elements
-    n(0,0) = 0;
-    n(1,0) = 0;
-    n(2,0) = 1;
-
     cudaDevInit(argc, (const char **)argv);
     threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
     cudaReset();
@@ -280,7 +254,8 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
         npp::ImageNPP_32f_C1 devSrc(imSize.width, imSize.height);
 
         // Create matrices to hold homography and relative rotation and transformation
-        ublas::matrix<double> H(3,3), Rrel(3,3), trel(3,1);
+        Matrix3D H, Rrel, tr;
+        Vector3D trel;
 
         // Create intermediate images to store current NCC, best NCC and current depthmap
         npp::ImageNPP_32f_C1 devNCC(imSize.width, imSize.height);
@@ -300,21 +275,17 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
 
         // Calculate relative rotation and translation:
         RelativeMatrices(Rrel, trel, HostRef.R, HostRef.t, HostSrc[index].R, HostSrc[index].t);
+        tr.row(2) = trel;
+        tr = tr.trans();
 
         // For each depth calculate NCC and update depthmap as required
         for (float d = znear; d <= zfar; d += dstep){
             // Calculate homography:
-            H = Rrel + prod(trel, trans(n)) / d;
-            H = prod(K, H);
-            H = prod(H, invK);
+            H = K * (Rrel + tr / d) * invK;
             H = H / H(2,2);
 
             // Calculate transformed pixel coordinates
-            transform_indexes(devx.data(), devy.data(),
-                              H(0,0), H(0,1), H(0,2),
-                              H(1,0), H(1,1), H(1,2),
-                              H(2,0), H(2,1), H(2,2),
-                              imSize.width, imSize.height, blocks, threads);
+            transform_indexes(devx.data(), devy.data(), H, imSize.width, imSize.height, blocks, threads);
 
             // interpolate pixel values:
             bilinear_interpolation(devWarped.data(), devSrc.data(),
@@ -400,91 +371,6 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
     }
 }
 
-void PlaneSweep::Convert8uTo32f(int argc, char **argv)
-{
-    auto t1 = std::chrono::high_resolution_clock::now();
-    printf("Starting conversion...\n\n");
-
-    try
-    {
-
-        if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
-        {
-            cudaReset();
-            return;
-        }
-
-        if (printfNPPinfo() == false)
-        {
-            cudaReset();
-            return;
-        }
-        // Algorithm here:-------------------------------------
-
-        int w = HostRef8u.width;
-        int h = HostRef8u.height;
-
-        // Create 32f and 8u device images
-        npp::ImageNPP_8u_C1 im8u(w, h);
-        npp::ImageNPP_32f_C1 im32f(w, h);
-
-        //        dim3 threads(32,32);
-        //        dim3 blocks(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
-
-        // convert reference image
-        HostRef.setSize(w,h);
-        im8u.copyFrom(HostRef8u.data, HostRef8u.pitch);
-        Conversion8u32f(im8u, im32f);
-        //convert_uchar_to_float(im32f.data(), im8u.data(), w, h, blocks, threads);
-        im32f.copyTo(HostRef.data, HostRef.pitch);
-        HostRef.R = HostRef8u.R;
-        HostRef.t = HostRef8u.t;
-
-        HostSrc.resize(HostSrc8u.size());
-
-        // convert source views
-        for (int i = 0; i < HostSrc8u.size(); i++){
-            HostSrc[i].setSize(w, h);
-            im8u.copyFrom(HostSrc8u[i].data, HostSrc8u[i].pitch);
-            Conversion8u32f(im8u, im32f);
-            //convert_uchar_to_float(im32f.data(), im8u.data(), w, h, blocks, threads);
-            im32f.copyTo(HostSrc[i].data, HostSrc[i].pitch);
-            HostSrc[i].R = HostSrc8u[i].R;
-            HostSrc[i].t = HostSrc8u[i].t;
-
-        }
-
-        auto t2 = std::chrono::high_resolution_clock::now();
-        std::cout << "Time taken for the conversion to complete is " <<
-                     std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << "ms\n\n";
-
-        // Free up resources
-        nppiFree(im8u.data());
-        nppiFree(im32f.data());
-
-        //-----------------------------------------------------
-
-        return;
-
-    }
-    catch (npp::Exception &rExcep)
-    {
-        std::cerr << "Program error! The following exception occurred: \n";
-        std::cerr << rExcep << std::endl;
-        std::cerr << "Aborting." << std::endl;
-
-        cudaReset();
-        return;
-    }
-    catch (...)
-    {
-        std::cerr << "Program error! An unknow type of exception occurred. \n";
-        std::cerr << "Aborting." << std::endl;
-
-        return;
-    }
-}
-
 bool PlaneSweep::Denoise(unsigned int niter, double lambda)
 {
 #ifdef OpenCV_FOUND
@@ -503,25 +389,6 @@ bool PlaneSweep::Denoise(unsigned int niter, double lambda)
     return false;
 }
 
-void PlaneSweep::invertK()
-{
-    double detK = 1.0;
-    for (int i = 0; i < 3; i++) detK *= K(i,i);
-
-    invK(0,0) = K(1,1) / detK;
-    invK(0,1) = - K(0,1) / detK;
-    invK(0,2) = (K(0,1)*K(1,2) - K(0,2)*K(1,1)) / detK;
-
-    invK(1,0) = 0.0;
-    invK(1,1) = K(0,0) / detK;
-    invK(1,2) = - K(1,2) / K(1,1);
-
-    invK(2,0) = 0.0;
-    invK(2,1) = 0.0;
-    invK(2,2) = 1.0;
-
-}
-
 void PlaneSweep::ConvertDepthtoUChar(const camImage<float>& input, camImage<uchar>& output)
 {
     output.setSize(input.width, input.height);
@@ -533,52 +400,6 @@ void PlaneSweep::ConvertDepthtoUChar(const camImage<float>& input, camImage<ucha
             if (input.data[i] == input.data[i]) output.data[i] = uchar(UCHAR_MAX * std::min(std::max((input.data[i] - znear) / (zfar - znear), 0.f), 1.f));
             else output.data[i] = UCHAR_MAX;
         }
-}
-
-/* Matrix inversion routine.
-    Uses lu_factorize and lu_substitute in uBLAS to invert a matrix */
-template<class T>
-bool PlaneSweep::InvertMatrix (const ublas::matrix<T>& input, ublas::matrix<T>& inverse)
-{
-    using namespace boost::numeric::ublas;
-    typedef permutation_matrix<std::size_t> pmatrix;
-    // create a working copy of the input
-    matrix<T> A(input);
-    // create a permutation matrix for the LU-factorization
-    pmatrix pm(A.size1());
-
-    // perform LU-factorization
-    int res = lu_factorize(A,pm);
-    if( res != 0 ) return false;
-
-    // create identity matrix of "inverse"
-    inverse.assign(ublas::identity_matrix<T>(A.size1()));
-
-    // backsubstitute to get the inverse
-    lu_substitute(A, pm, inverse);
-
-    return true;
-}
-
-void PlaneSweep::CtoRT(double C[][4], ublas::matrix<double> &R, ublas::matrix<double> &t)
-{
-    R.resize(3,3);
-    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) R(i,j) = C[i][j];
-    t.resize(3,1);
-    t(0,0) = C[0][3];
-    t(1,0) = C[1][3];
-    t(2,0) = C[2][3];
-}
-
-void PlaneSweep::CmatrixToRT(ublas::matrix<double> &C, ublas::matrix<double> &R, ublas::matrix<double> &t)
-{
-    R.resize(3,3);
-    t.resize(3,1);
-
-    t <<= C(0,3), C(1,3), C(2,3);
-    R <<= C(0,0), C(0,1), C(0,2),
-            C(1,0), C(1,1), C(1,2),
-            C(2,0), C(2,1), C(2,2);
 }
 
 PlaneSweep::~PlaneSweep()
@@ -744,11 +565,9 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         Anisotropic_diffusion_tensor(T1.data(), T2.data(), T3.data(), T4.data(), Ref.data(), beta, gamma, w, h, blocks, threads);
 
         // Matrix storages:
-        std::vector<ublas::matrix<double>> Rrel(nimages, ublas::matrix<double>(3,3)), Trel(nimages, ublas::matrix<double>(3,1));
-        double k[3][3], invk[3][3];
-        matrixToArray(k, K);
-        matrixToArray(invk, invK);
-        double trel[3], rrel[3][3];
+        std::vector<Matrix3D> Rrel(nimages);
+        std::vector<Vector3D> Trel(nimages);
+
         double fx = K(0,0), fy = K(1,1);
 
         for (int i = 0; i < nimages; i++){
@@ -784,14 +603,12 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
             set_value(u1ybar.data(), 0.f, w, h, blocks, threads);
 
             for (int i = 0; i < nimages; i++){
-                matrixToArray(rrel, Rrel[i]);
-                TmatrixToArray(trel, Trel[i]);
 
                 // Calculate transformed coordinates at u0
-                TGV2_transform_coordinates(x.data(), y.data(), X.data(), Y.data(), Z.data(), u0.data(), k, rrel, trel, invk, w, h, blocks, threads);
+                TGV2_transform_coordinates(x.data(), y.data(), X.data(), Y.data(), Z.data(), u0.data(), K, Rrel[i], Trel[i], invK, w, h, blocks, threads);
 
                 // Calculate coordinate derivatives
-                TGV2_calculate_coordinate_derivatives(dX.data(), dY.data(), dZ.data(), invk, rrel, w, h, blocks, threads);
+                TGV2_calculate_coordinate_derivatives(dX.data(), dY.data(), dZ.data(), invK, Rrel[i], w, h, blocks, threads);
 
                 // Calculate f(x,u) derivative wrt u at u0
                 TGV2_calculate_derivativeF(dfx.data(), dfy.data(), X.data(), dX.data(), Y.data(), dY.data(), Z.data(), dZ.data(),
@@ -910,34 +727,26 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
     return false;
 }
 
-void PlaneSweep::RelativeMatrices(ublas::matrix<double> & Rrel, ublas::matrix<double> & trel, const ublas::matrix<double> & Rref,
-                                  const ublas::matrix<double> & tref, const ublas::matrix<double> & Rsrc, const ublas::matrix<double> & tsrc)
+void PlaneSweep::RelativeMatrices(Matrix3D & Rrel, Vector3D & trel, const Matrix3D & Rref,
+                                  const Vector3D & tref, const Matrix3D & Rsrc, const Vector3D & tsrc) const
 {
-    ublas::matrix<double> invR(3,3);
     if (!alternativemethod){
-        InvertMatrix(Rref, invR);
-        Rrel = prod(Rsrc, invR);
-        trel = tsrc - prod(Rrel, tref);
+        Rrel = Rsrc * Rref.inv();
+        trel = tsrc - Rrel * tref;
     }
     else {
-        Rrel = prod(trans(Rsrc), Rref);
-        trel = prod(trans(Rsrc), tref - tsrc);
+        Rrel = Rsrc.trans() * Rref;
+        trel = Rsrc.trans() * (tref - tsrc);
     }
 }
 
 void PlaneSweep::get3Dcoordinates(camImage<float> *&x, camImage<float> *&y, camImage<float> *&z)
 {
     // calculate reference -> world transformation matrices
-    ublas::matrix<double> Rr, t, I(3,3), T(3,1);
-    I <<=   1.f, 0.f, 0.f,
-            0.f, 1.f, 0.f,
-            0.f, 0.f, 1.f;
-    T <<=   0.f, 0.f, 0.f;
+    Matrix3D Rr, I;
+    Vector3D t, T(0,0,0);
+    I.makeIdentity();
     RelativeMatrices(Rr, t, HostRef.R, HostRef.t, I, T);
-    double r[3][3], tr[3], invk[3][3];
-    matrixToArray(r, Rr);
-    TmatrixToArray(tr, t);
-    matrixToArray(invk, invK);
 
     int w = HostRef.width, h = HostRef.height;
     npp::ImageNPP_32f_C1 Px(w,h), Py(w,h), X(w,h);
@@ -946,7 +755,7 @@ void PlaneSweep::get3Dcoordinates(camImage<float> *&x, camImage<float> *&y, camI
     X.copyFrom(depthmapdenoised.data, depthmapdenoised.pitch);
 
     // calculate world coordinates
-    compute3D(Px.data(), Py.data(), X.data(), r, tr, invk, w, h, blocks, threads);
+    compute3D(Px.data(), Py.data(), X.data(), Rr, t, invK, w, h, blocks, threads);
 
     // copy coordinates to host images
     coord_x.setSize(w, h);
@@ -1084,10 +893,4 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const camImage<floa
     }
 
     return false;
-}
-
-void Conversion8u32f(npp::ImageNPP_8u_C1 & A, npp::ImageNPP_32f_C1 & output)
-{
-    NppiSize oSize = {(int)A.width(), (int)A.height()};
-    NPP_CHECK_NPP(nppiConvert_8u32f_C1R(A.data(), A.pitch(), output.data(), output.pitch(), oSize));
 }

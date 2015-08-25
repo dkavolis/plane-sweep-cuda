@@ -6,11 +6,11 @@
 #define PLANESWEEP_H
 
 #include "defines.h"
+#include "structs.h"
 #include <iostream>
-#include <boost/numeric/ublas/matrix.hpp>
 #include <cuda_runtime_api.h>
+#include <vector>
 
-namespace ublas = boost::numeric::ublas;
 typedef unsigned char uchar;
 
 /** \addtogroup planesweep
@@ -37,14 +37,12 @@ public:
         unsigned int width;
         unsigned int height;
         /** \brief Rotation matrix */
-        ublas::matrix<double> R;
+        Matrix3D R;
         /** \brief Translation vector */
-        ublas::matrix<double> t;
+        Vector3D t;
 
         /** \brief Default constructor */
         camImage() :
-            R(ublas::matrix<double>(3,3)),
-            t(ublas::matrix<double>(3,1)),
             data(nullptr),
             allocated(false)
         {}
@@ -269,8 +267,8 @@ public:
     *  \details Separate function is needed because some methods differ.
     * Control the method with \a setAlternativeRelativeMatrixMethod()
     */
-    void RelativeMatrices(ublas::matrix<double> & Rrel, ublas::matrix<double> & trel, const ublas::matrix<double> & Rref,
-                          const ublas::matrix<double> & tref, const ublas::matrix<double> & Rsrc, const ublas::matrix<double> & tsrc);
+    void RelativeMatrices(Matrix3D & Rrel, Vector3D & trel, const Matrix3D & Rref,
+                          const Vector3D & tref, const Matrix3D & Rsrc, const Vector3D & tsrc) const;
 
     // Setters:
     /**
@@ -287,22 +285,13 @@ public:
     void setAlternativeRelativeMatrixMethod(bool method) { alternativemethod = method; }
 
     /**
-    *  \brief Set camera calibration matrix
-    *
-    *  \param Km camera calibration matrix values
-    *
-    *  \details Must be set before using \a RunAlgorithm() or \a TGV
-    */
-    void setK(double Km[3][3]){ arrayToMatrix(Km, K); invertK(); }
-
-    /**
     *  \brief Set camera calibration matrix overload
     *
     *  \param Km camera calibration matrix values
     *
     *  \details Must be set before using \a RunAlgorithm() or \a TGV
     */
-    void setK(ublas::matrix<double> & Km){ K = Km; invertK(); }
+    void setK(const Matrix3D & Km){ K = Km; invK = Km.inv(); }
 
     /**
     *  \brief Set planesweep near and far plane depths
@@ -410,21 +399,19 @@ public:
     *
     *  \details Control method with \a setAlternativeRelativeMatrixMethod()
     */
-    bool getAlternativeRelativeMatrixMethod(){ return alternativemethod; }
+    bool getAlternativeRelativeMatrixMethod() const { return alternativemethod; }
 
     /**
     *  \brief Get camera calibration matrix \f$K\f$
-    *
-    *  \param k camera calibration matrix \f$K\f$, returned by reference
+    *  \return Camera calibration matrix
     */
-    void getK(double k[3][3]){ matrixToArray(k, K); }
+    Matrix3D getK() const { return K; }
 
     /**
     *  \brief Get camera calibration matrix \f$K^{-1}\f$
-    *
-    *  \param k inverse camera calibration matrix \f$K^{-1}\f$, returned by reference
+    *  \return Inverse camera calibration matrix
     */
-    void getInverseK(double k[3][3]){ matrixToArray(k, invK); }
+    Matrix3D getInverseK() const { return invK; }
 
     /**
     *  \brief Get pointer to raw planesweep depthmap
@@ -506,189 +493,68 @@ public:
     *
     *  \return Planesweep near plane depth
     */
-    float getZnear(){ return znear; }
+    float getZnear() const { return znear; }
 
     /**
     *  \brief Get currently set planesweep far plane depth
     *
     *  \return Planesweep far plane depth
     */
-    float getZfar(){ return zfar; }
+    float getZfar() const { return zfar; }
 
     /**
     *  \brief Get currently set planesweep number of planes
     *
     *  \return Planesweep number of planes
     */
-    unsigned int getNumberofPlanes(){ return numberplanes; }
+    unsigned int getNumberofPlanes() const { return numberplanes; }
 
     /**
     *  \brief Get currently set planesweep number of source images
     *
     *  \return Planesweep number of source images
     */
-    unsigned int getNumberofImages(){ return numberimages; }
+    unsigned int getNumberofImages() const { return numberimages; }
 
     /**
     *  \brief Get currently set planesweep NCC window size
     *
     *  \return Planesweep NCC window side length
     */
-    unsigned int getWindowSize(){ return winsize; }
+    unsigned int getWindowSize() const { return winsize; }
 
     /**
     *  \brief Get currently set planesweep STD threshold
     *
     *  \return Planesweep STD threshold
     */
-    float getSTDthreshold(){ return stdthresh; }
+    float getSTDthreshold() const { return stdthresh; }
 
     /**
     *  \brief Get currently set planesweep NCC threshold
     *
     *  \return Planesweep NCC threshold
     */
-    float getNCCthreshold(){ return nccthresh; }
+    float getNCCthreshold() const { return nccthresh; }
 
     /**
     *  \brief Get currently selected GPU threads per block limit
     *
     *  \return Threads per block limit
     */
-    unsigned int getMaxThreadsPerBlock(){ return maxThreadsPerBlock; }
+    unsigned int getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
 
     /**
     *  \brief Get currently set kernel block dimensions
     *
     *  \return Kernel block dimensions
     */
-    dim3 getThreadsPerBlock(){ return threads; }
-
-    // Images for planesweep:
-    /**
-    *  \brief Set reference view rotation matrix
-    *
-    *  \param R rotation matrix
-    */
-    void setRreference(double R[3][3]){ arrayToMatrix(R, HostRef.R); }
-
-    /**
-    *  \brief Set source view rotation matrix
-    *
-    *  \param number source view image index
-    *  \param R      rotation matrix
-    */
-    void setRsource(unsigned int number, double R[3][3]){ if (HostSrc.size() < number - 1) std::cout << "Not enough source images\n";
-        else arrayToMatrix(R, HostSrc[number].R); }
-
-    /**
-    *  \brief Set reference view translation vector
-    *
-    *  \param t translation vector
-    */
-    void setTreference(double t[3]){ TmatrixToArray(t, HostRef.t); }
-    
-    /**
-    *  \brief Set source view translation vector
-    *
-    *  \param number source view image index
-    *  \param t translation vector
-    */
-    void setTsource(unsigned int number, double t[3]){ if (HostSrc.size() < number - 1) std::cout << "Not enough source images\n";
-        else TarrayToMatrix(t, HostSrc[number].t); }
-    
-    /**
-    *  \brief Set reference view rotation matrix and translation vector in the for [R | t]
-    *
-    *  \param C [R | t] matrix
-    */
-    void setCreference(double C[3][4]){ CtoRT(C, HostRef.R, HostRef.t); }
-    
-    /**
-    *  \brief Set source view rotation matrix and translation vector in the for [R | t]
-    *
-    *  \param number source view image index
-    *  \param C [R | t] matrix
-    */
-    void setCsource(unsigned int number, double C[3][4]){ if (HostSrc.size() < number - 1) std::cout << "Not enough source images\n";
-        else CtoRT(C, HostSrc[number].R, HostSrc[number].t); }
-    
-    /**
-    *  \brief Unsigned char to float image conversion on GPU
-    *
-    *  \param argc number of command line arguments
-    *  \param argv pointers to command line argument strings
-    *
-    *  \details Converts all unsigned char reference and source images to float and deletes unsigned char images.
-    * Command line arguments are used to change GPU
-    */
-    void Convert8uTo32f(int argc, char **argv);
-
-    // array-matrix conversions for R, t and C
-    /**
-    *  \brief 3x3 Array to \a boost matrix conversion
-    *
-    *  \param A input array
-    *  \param B \a boost matrix returned by reference of size (3,3)
-    */
-    void arrayToMatrix(double A[3][3], ublas::matrix<double> &B){ B.resize(3,3, false); for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) B(i,j) = A[i][j]; }
-    
-    /**
-    *  \brief \a boost matrix to 3x3 array conversion
-    *
-    *  \param A  3x3 array returned by reference
-    *  \param B \a boost matrix of size at least (3,3)
-    *
-    *  \details If \a B is bigger than (3,3), only the elements in first 3 rows and columns are copied
-    */
-    void matrixToArray(double A[3][3], ublas::matrix<double> &B){ for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) A[i][j] = B(i,j);}
-    
-    /**
-    *  \brief Translation vector array to \a boost matrix conversion
-    *
-    *  \param T input translation vector array
-    *  \param t \a boost matrix returned by reference of size (3,1)
-    */
-    void TarrayToMatrix(double T[3], ublas::matrix<double> &t){ t.resize(3,1, false); t(0,0) = T[0]; t(1,0) = T[1]; t(2,0) = T[2]; }
-    
-    /**
-    *  \brief \a boost matrix to translation vector array conversion
-    *
-    *  \param T translation vector array returned by reference
-    *  \param t \a boost matrix of size at least (3,1)
-    *
-    *  \details If \a t is bigger than (3,1), only the elements in first 3 rows and first column are copied
-    */
-    void TmatrixToArray(double T[3], ublas::matrix<double> &t){ T[0] = t(0,0); T[1] = t(1,0); T[2] = t(2,0); }
-    
-    /**
-    *  \brief [R | t] array to \a boost matrix split and conversion
-    *
-    *  \param C input [R | t] array
-    *  \param R \a boost rotation matrix of size (3,3) returned by reference
-    *  \param t \a boost translation vector of size (3,1) returned by reference
-    */
-    void CtoRT(double C[3][4], ublas::matrix<double> &R, ublas::matrix<double> &t);
-    
-    /**
-    *  \brief \a boost matrix [R | t] split
-    *
-    *  \param C input \a boost [R | t] matrix
-    *  \param R \a boost rotation matrix of size (3,3) returned by reference
-    *  \param t \a boost translation vector of size (3,1) returned reference
-    *
-    *  \details If \a C size is greater than (3,4), only the elements in first 3 rows and 4 columns are copied.
-    */
-    void CmatrixToRT(ublas::matrix<double> &C, ublas::matrix<double> &R, ublas::matrix<double> &t);
-
+    dim3 getThreadsPerBlock() const { return threads; }
 
 protected:
     // K and inverse K matrices for camera
-    ublas::matrix<double> K;
-    ublas::matrix<double> invK;
-
-    // vector normal to plane (0, 0, 1)T
-    ublas::matrix<double> n;
+    Matrix3D K;
+    Matrix3D invK;
 
     // stored depthmaps
     camImage<float> depthmap;
@@ -723,19 +589,6 @@ protected:
     bool alternativemethod = false;
 
     /**
-    *  \brief Matrix inversion function
-    *
-    *  \tparam T matrix type
-    *  \param input   matrix to invert
-    *  \param inverse inverse matrix returned by reference
-    *  \return Success/failure of the function
-    *
-    *  \details Uses \a lu_factorize and \a lu_substitute in \a uBLAS to invert a matrix
-    */
-    template<class T>
-    bool InvertMatrix (const ublas::matrix<T>& input, ublas::matrix<T>& inverse);
-
-    /**
     *  \brief Depthmap normalization function for easy representation as grayscale image
     *
     *  \param input  depthmap input
@@ -761,13 +614,6 @@ protected:
                           const unsigned int &index);
 
 private:
-
-    /**
-    *  \brief Camera calibration matrix \f$K\f$ inversion function
-    *
-    *  \details Only works for upper triangular matrices
-    */
-    void invertK();
 
     // CUDA initialization functions
     int cudaDevInit(int argc, const char **argv);
