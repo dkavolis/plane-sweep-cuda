@@ -75,7 +75,7 @@ namespace KITTI
         const QString & CalibrationIMU2VeloFileName() const { return imu2velo; }
         const QString & CalibrationVelo2CamFileName() const { return velo2cam; }
 
-    private:
+    protected:
         QString cdir,
                 bdir,
                 cam2cam,
