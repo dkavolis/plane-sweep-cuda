@@ -379,6 +379,36 @@ float3 operator*(Transformation3D t, float3 x)
     return t * make_float4(x.x, x.y, x.z, 1);
 }
 
+__host__ __device__ inline
+Transformation3D operator*(Transformation3D t, Matrix4D m)
+{
+    m = m.trans();
+    Transformation3D r;
+    float4 r0 = make_float4(t.R(0), t.T.x),
+            r1 = make_float4(t.R(1), t.T.y),
+            r2 = make_float4(t.R(2), t.T.z);
+    r.T = Vector3D(dot(r0, m.r4), dot(r1, m.r4), dot(r2, m.r4));
+    r.R.r[0] = make_float3(dot(r0, m.r1), dot(r0, m.r2), dot(r0, m.r3));
+    r.R.r[1] = make_float3(dot(r1, m.r1), dot(r1, m.r2), dot(r1, m.r3));
+    r.R.r[2] = make_float3(dot(r2, m.r1), dot(r2, m.r2), dot(r2, m.r3));
+    return r;
+}
+
+__host__ __device__ inline
+Transformation3D operator*(Matrix3D m, Transformation3D t)
+{
+    Transformation3D r;
+    r.R = m * t.R;
+    r.T = m * t.T;
+    return r;
+}
+
+__host__ __device__ inline
+void operator*=(Transformation3D & t, Matrix4D m)
+{
+    t = t * m;
+}
+
 inline __host__ __device__ float5 make_float5(float s)
 {
     return make_float5(s, s, s, s, s);
