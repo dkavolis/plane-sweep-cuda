@@ -8,9 +8,6 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
-#include <helper_cuda.h>
-#include <cuda_runtime_api.h>
-#include <cuda.h>
 #include <helper_math.h>
 #include "memory.h"
 
