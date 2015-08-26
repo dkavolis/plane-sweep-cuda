@@ -17,6 +17,7 @@
 #include <chrono>
 #include <QVector>
 #include <QRgb>
+#include <dev_functions.h>
 
 PCLViewer::PCLViewer (int argc, char **argv, QWidget *parent) :
     QMainWindow (parent),
@@ -343,9 +344,9 @@ void PCLViewer::LoadImages()
     ui->refView->setScene(scene);
 
     // All required camera matrices (found in 'calibration.txt')
-    Matrix3D K = Matrix3D(  0.709874*640, (1-0.977786)*640,   0.493648*640,
-                            0,            0.945744*480,       0.514782*480,
-                            0,            0,                  1);
+    Matrix3D K( 0.709874*640, (1-0.977786)*640,   0.493648*640,
+                0,            0.945744*480,       0.514782*480,
+                0,            0,                  1);
 
     ps.setK(K);
     QVector<Matrix3D> Rsrc(9);
@@ -413,7 +414,7 @@ void PCLViewer::LoadImages()
     QImage sources;
     ps.HostSrc.resize(9);
     for (int i = 0; i < 9; i++){
-        src = QDir::currentPath();
+        src = SOURCE_DIR;
         src += loc;
         src += QString::number(i + 1);
         src += ".png";
@@ -469,7 +470,7 @@ void PCLViewer::on_pushButton_pressed()
                 i = x + y * depth8u->width;
                 z = depth->data[i];
 
-                cloud->points[i].z = -z;
+                cloud->points[i].z = sign(k(1,1)) * z;
                 cloud->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
                 cloud->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
 
@@ -586,7 +587,7 @@ void PCLViewer::on_denoiseBtn_clicked()
                 i = x + y * dendepth8u->width;
 
                 z = dendepth->data[i];
-                clouddenoised->points[i].z = -z;
+                clouddenoised->points[i].z = sign(k(1,1)) * z;
                 clouddenoised->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
                 clouddenoised->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
 
@@ -671,7 +672,7 @@ void PCLViewer::on_tgv_button_pressed()
                 i = x + y * tgvdepth8u->width;
 
                 z = tgvdepth->data[i];
-                cloudtgv->points[i].z = -z;
+                cloudtgv->points[i].z = sign(k(1,1)) * z;
                 cloudtgv->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
                 cloudtgv->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
 
@@ -1051,7 +1052,7 @@ void PCLViewer::on_reconstruct_button_clicked()
     uchar3 color;
 
     // Copy data to host
-    checkCudaErrors(fd.copyTo(f.voxelPtr(), f.pitch()));
+    fd.copyTo(f.voxelPtr(), f.pitch());
 
     // Only show voxels which are occluded but not too far from the surface
     for (int z = 0; z < fd.depth(); z++)
