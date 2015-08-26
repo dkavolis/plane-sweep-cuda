@@ -154,7 +154,7 @@ public:
      *  \param len      number of elements to copy
      */
     __host__ inline
-    static void Device2DeviceCopy(T * pDst, T * pSrc, size_t len)
+    static void Device2DeviceCopy(T * pDst, const T * pSrc, size_t len)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToDevice));
     }
@@ -167,7 +167,7 @@ public:
      *  \param len      number of elements to copy
      */
     __host__ inline
-    static void Device2HostCopy(T *pDst, T *pSrc, size_t len)
+    static void Device2HostCopy(T *pDst, const T *pSrc, size_t len)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToHost));
     }
@@ -180,7 +180,7 @@ public:
      *  \param len      number of elements to copy
      */
     __host__ inline
-    static void Host2DeviceCopy(T *pDst, T *pSrc, size_t len)
+    static void Host2DeviceCopy(T *pDst, const T *pSrc, size_t len)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToDevice));
     }
@@ -193,7 +193,7 @@ public:
      *  \param len      number of elements to copy 
      */
     __host__ inline
-    static void Host2HostCopy(T *pDst, T *pSrc, size_t len)
+    static void Host2HostCopy(T *pDst, const T *pSrc, size_t len)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToHost));
     }
@@ -209,7 +209,7 @@ public:
      *  \param height   height in number of elements
      */
     __host__ inline
-    static void Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Device2DeviceCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToDevice));
     }
@@ -225,7 +225,7 @@ public:
      *  \param height   height in number of elements
      */
     __host__ inline
-    static void Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Device2HostCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToHost));
     }
@@ -241,7 +241,7 @@ public:
      *  \param height   height in number of elements
      */
     __host__ inline
-    static void Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Host2DeviceCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToDevice));
     }
@@ -257,7 +257,7 @@ public:
      *  \param height   height in number of elements
      */
     __host__ inline
-    static void Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Host2HostCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToHost));
     }
@@ -274,7 +274,7 @@ public:
      *  \param depth    depth in number of elements
      */
     __host__ inline
-    static void Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Device2DeviceCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToDevice));
     }
@@ -291,7 +291,7 @@ public:
      *  \param depth    depth in number of elements
      */
     __host__ inline
-    static void Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Device2HostCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToHost));
     }
@@ -308,7 +308,7 @@ public:
      *  \param depth    depth in number of elements
      */
     __host__ inline
-    static void Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Host2DeviceCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToDevice));
     }
@@ -325,7 +325,7 @@ public:
      *  \param depth    depth in number of elements
      */
     __host__ inline
-    static void Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Host2HostCopy(T *pDst, size_t DstPitch, const T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToHost));
     }
