@@ -1,15 +1,6 @@
 // Kernels for depthmap fusion (WIP):
 #include "fusion.cu.h"
-
-__device__
-int getGlobalIdx(){
-    int blockId = blockIdx.x + blockIdx.y * gridDim.x
-            + gridDim.x * gridDim.y * blockIdx.z;
-    int threadId = blockId * (blockDim.x * blockDim.y * blockDim.z)
-            + (threadIdx.z * (blockDim.x * blockDim.y))
-            + (threadIdx.y * blockDim.x) + threadIdx.x;
-    return threadId;
-}
+#include "dev_functions.h"
 
 template<unsigned char _bins>
 __global__ void FusionUpdateHistogram_kernel(fusionData<_bins> f, const float * __restrict__ depthmap, const Matrix3D K,
