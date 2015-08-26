@@ -78,15 +78,10 @@ public:
     __host__ inline
     static void CleanUp(T * ptr)
     {
-        if (memT == Standard) {
-            delete[] ptr;
-            return;
-        }
-        if (memT == Host) {
-            CHECK_CUDA_ERRORS_AUTO(cudaFreeHost(ptr));
-            return;
-        }
-        CHECK_CUDA_ERRORS_AUTO(cudaFree(ptr));
+        if (memT == Standard) delete[] ptr;
+        else if (memT == Host) CHECK_CUDA_ERRORS_AUTO(cudaFreeHost(ptr));
+        else CHECK_CUDA_ERRORS_AUTO(cudaFree(ptr));
+        ptr = 0;
     }
 
     /**
@@ -98,14 +93,12 @@ public:
     __host__ inline
     static void Malloc(T *&ptr, size_t len)
     {
-        if (memT == Standard) {
-            ptr = new T[len];
-        }
+        if (memT == Standard) ptr = new T[len];
         if (memT == Device) CHECK_CUDA_ERRORS_AUTO(cudaMalloc((void **)&ptr, len * sizeof(T)));
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, len * sizeof(T), cudaMemAttachGlobal));
+        if (memT == Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, len * sizeof(T), cudaMemAttachGlobal));
 #endif
-        CHECK_CUDA_ERRORS_AUTO(cudaMallocHost((void **)&ptr, len * sizeof(T)));
+        if (memT == Host) CHECK_CUDA_ERRORS_AUTO(cudaMallocHost((void **)&ptr, len * sizeof(T)));
     }
 
     /**
@@ -121,13 +114,11 @@ public:
     {
         if (memT == Device) CHECK_CUDA_ERRORS_AUTO(cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h));
         pitch = w * sizeof(T);
-        if (memT == Standard) {
-            ptr = new T[w * h];
-        }
+        if (memT == Standard) ptr = new T[w * h];
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, pitch * h, cudaMemAttachGlobal));
+        if (memT == Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, pitch * h, cudaMemAttachGlobal));
 #endif
-        CHECK_CUDA_ERRORS_AUTO(cudaMallocHost((void **)&ptr, pitch * h));
+        if (memT == Host) CHECK_CUDA_ERRORS_AUTO(cudaMallocHost((void **)&ptr, pitch * h));
     }
 
     /**
@@ -147,9 +138,7 @@ public:
     {
         if (memT == Device) CHECK_CUDA_ERRORS_AUTO(cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h * d));
         pitch = w * sizeof(T);
-        if (memT == Standard) {
-            ptr = new T[w*h*d];
-        }
+        if (memT == Standard) ptr = new T[w*h*d];
 #if CUDA_VERSION_MAJOR >= 6
         if (memT == MemoryKind::Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, pitch * h * d, cudaMemAttachGlobal));
 #endif
