@@ -8,6 +8,7 @@
 #include <helper_cuda.h>
 #include <cuda_runtime_api.h>
 #include <cuda.h>
+#include "cuda_exception.h"
 
 /** \addtogroup memory Memory Management
  *
@@ -44,12 +45,12 @@ public:
     /** \brief Operator \a new overload to allocate managed memory instead of host. */
     void *operator new(size_t len) {
         void *ptr;
-        cudaMallocManaged((void **)&ptr, len, cudaMemAttachGlobal);
+        CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, len, cudaMemAttachGlobal));
         return ptr;
     }
 
     void operator delete(void *ptr) {
-        cudaFree(ptr);
+        CHECK_CUDA_ERRORS_AUTO(cudaFree(ptr));
     }
 #endif // CUDA_VERSION_MAJOR >= 6
 };
@@ -71,64 +72,62 @@ public:
      *  \brief Deallocate memory pointed to by \a ptr
      *
      *  \param ptr pointer to memory to deallocate
-     *  \return Returns \a cudaError_t (CUDA error code)
      *
      *  \details Pointer has to point to a memory location indicated by \p memT
      */
     __host__ inline
-    static cudaError_t CleanUp(T * ptr)
+    static void CleanUp(T * ptr)
     {
         if (memT == Standard) {
             delete[] ptr;
-            return cudaSuccess;
+            return;
         }
-        if (memT == Host) return cudaFreeHost(ptr);
-        return cudaFree(ptr);
+        if (memT == Host) {
+            CHECK_CUDA_ERRORS_AUTO(cudaFreeHost(ptr));
+            return;
+        }
+        CHECK_CUDA_ERRORS_AUTO(cudaFree(ptr));
     }
 
     /**
-     *  \brief Allocate 1D memory and return pointer \a ptr to it
+     *  \brief Allocate 1D memory and CHECK_CUDA_ERRORS_AUTO(pointer \a ptr to it
      *
      *  \param ptr   pointer to allocated memory returned by reference
      *  \param len   number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Malloc(T *&ptr, size_t len)
+    static void Malloc(T *&ptr, size_t len)
     {
         if (memT == Standard) {
             ptr = new T[len];
-            return cudaSuccess;
         }
-        if (memT == Device) return cudaMalloc((void **)&ptr, len * sizeof(T));
+        if (memT == Device) CHECK_CUDA_ERRORS_AUTO(cudaMalloc((void **)&ptr, len * sizeof(T)));
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) return cudaMallocManaged((void **)&ptr, len * sizeof(T), cudaMemAttachGlobal);
+        if (memT == MemoryKind::Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, len * sizeof(T), cudaMemAttachGlobal));
 #endif
-        return cudaMallocHost((void **)&ptr, len * sizeof(T));
+        CHECK_CUDA_ERRORS_AUTO(cudaMallocHost((void **)&ptr, len * sizeof(T)));
     }
 
     /**
-     *  \brief Allocate 2D memory and return pointer \a ptr to it
+     *  \brief Allocate 2D memory and CHECK_CUDA_ERRORS_AUTO(pointer \a ptr to it
      *
      *  \param ptr   pointer to allocated memory returned by reference
      *  \param w     width in number of elements
      *  \param h     height in number of elements
      *  \param pitch step size in bytes returned by reference
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Malloc(T *&ptr, size_t w, size_t h, size_t &pitch)
+    static void Malloc(T *&ptr, size_t w, size_t h, size_t &pitch)
     {
-        if (memT == Device) return cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h);
+        if (memT == Device) CHECK_CUDA_ERRORS_AUTO(cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h));
         pitch = w * sizeof(T);
         if (memT == Standard) {
             ptr = new T[w * h];
-            return cudaSuccess;
         }
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) return cudaMallocManaged((void **)&ptr, pitch * h, cudaMemAttachGlobal);
+        if (memT == MemoryKind::Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, pitch * h, cudaMemAttachGlobal));
 #endif
-        return cudaMallocHost((void **)&ptr, pitch * h);
+        CHECK_CUDA_ERRORS_AUTO(cudaMallocHost((void **)&ptr, pitch * h));
     }
 
     /**
@@ -140,26 +139,22 @@ public:
      *  \param d      depth in number of elements
      *  \param pitch  step size in bytes returned by reference
      *  \param spitch single slice size in bytes returned by reference
-     *  \return Returns \a cudaError_t (CUDA error code)
      *
-     *  \details Allocate 3D memory and return pointer \a ptr to it.
+     *  \details Allocate 3D memory and CHECK_CUDA_ERRORS_AUTO(pointer \a ptr to it.
      */
     __host__ inline
-    static cudaError_t Malloc(T *&ptr, size_t w, size_t h, size_t d, size_t &pitch, size_t &spitch)
+    static void Malloc(T *&ptr, size_t w, size_t h, size_t d, size_t &pitch, size_t &spitch)
     {
-        cudaError_t err;
-        if (memT == Device) err = cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h * d);
+        if (memT == Device) CHECK_CUDA_ERRORS_AUTO(cudaMallocPitch((void **)&ptr, &pitch, w * sizeof(T), h * d));
         pitch = w * sizeof(T);
         if (memT == Standard) {
             ptr = new T[w*h*d];
-            err = cudaSuccess;
         }
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) err = cudaMallocManaged((void **)&ptr, pitch * h * d, cudaMemAttachGlobal);
+        if (memT == MemoryKind::Managed) CHECK_CUDA_ERRORS_AUTO(cudaMallocManaged((void **)&ptr, pitch * h * d, cudaMemAttachGlobal));
 #endif
-        if (memT == Host) err = cudaMallocHost((void **)&ptr, pitch * h * d);
+        if (memT == Host) CHECK_CUDA_ERRORS_AUTO(cudaMallocHost((void **)&ptr, pitch * h * d));
         spitch = h * pitch;
-        return err;
     }
 
     /**
@@ -168,12 +163,11 @@ public:
      *  \param pDst     pointer to destination memory
      *  \param pSrc     pointer to source memory
      *  \param len      number of elements to copy
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Device2DeviceCopy(T * pDst, T * pSrc, size_t len)
+    static void Device2DeviceCopy(T * pDst, T * pSrc, size_t len)
     {
-        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToDevice);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToDevice));
     }
 
     /**
@@ -182,12 +176,11 @@ public:
      *  \param pDst     pointer to destination memory
      *  \param pSrc     pointer to source memory
      *  \param len      number of elements to copy
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Device2HostCopy(T *pDst, T *pSrc, size_t len)
+    static void Device2HostCopy(T *pDst, T *pSrc, size_t len)
     {
-        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToHost);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyDeviceToHost));
     }
 
     /**
@@ -196,12 +189,11 @@ public:
      *  \param pDst     pointer to destination memory
      *  \param pSrc     pointer to source memory
      *  \param len      number of elements to copy
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Host2DeviceCopy(T *pDst, T *pSrc, size_t len)
+    static void Host2DeviceCopy(T *pDst, T *pSrc, size_t len)
     {
-        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToDevice);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToDevice));
     }
 
     /**
@@ -209,13 +201,12 @@ public:
      *
      *  \param pDst     pointer to destination memory
      *  \param pSrc     pointer to source memory
-     *  \param len      number of elements to copy
-     *  \return Returns \a cudaError_t (CUDA error code)
+     *  \param len      number of elements to copy 
      */
     __host__ inline
-    static cudaError_t Host2HostCopy(T *pDst, T *pSrc, size_t len)
+    static void Host2HostCopy(T *pDst, T *pSrc, size_t len)
     {
-        return cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToHost);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy(pDst, pSrc, len * sizeof(T), cudaMemcpyHostToHost));
     }
 
     /**
@@ -227,12 +218,11 @@ public:
      *  \param SrcPitch step size in bytes of source memory
      *  \param width    width in number of elements
      *  \param height   height in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToDevice);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToDevice));
     }
 
     /**
@@ -244,12 +234,11 @@ public:
      *  \param SrcPitch step size in bytes of source memory
      *  \param width    width in number of elements
      *  \param height   height in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToHost);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyDeviceToHost));
     }
 
     /**
@@ -261,12 +250,11 @@ public:
      *  \param SrcPitch step size in bytes of source memory
      *  \param width    width in number of elements
      *  \param height   height in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToDevice);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToDevice));
     }
 
     /**
@@ -278,12 +266,11 @@ public:
      *  \param SrcPitch step size in bytes of source memory
      *  \param width    width in number of elements
      *  \param height   height in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
+    static void Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToHost);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height, cudaMemcpyHostToHost));
     }
 
     /**
@@ -296,12 +283,11 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Device2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToDevice);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToDevice));
     }
 
     /**
@@ -314,12 +300,11 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Device2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToHost);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyDeviceToHost));
     }
 
     /**
@@ -332,12 +317,11 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Host2DeviceCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToDevice);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToDevice));
     }
 
     /**
@@ -350,12 +334,11 @@ public:
      *  \param width    width in number of elements
      *  \param height   height in number of elements
      *  \param depth    depth in number of elements
-     *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    static cudaError_t Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
+    static void Host2HostCopy(T *pDst, size_t DstPitch, T *pSrc, size_t SrcPitch, size_t width, size_t height, size_t depth)
     {
-        return cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToHost);
+        CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(pDst, DstPitch, pSrc, SrcPitch, width * sizeof(T), height * depth, cudaMemcpyHostToHost));
     }
 };
 

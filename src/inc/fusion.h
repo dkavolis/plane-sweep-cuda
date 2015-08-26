@@ -931,13 +931,19 @@ public:
      *  \return Returns \a cudaError_t (CUDA error code)
      */
     __host__ inline
-    cudaError_t copyTo(fusionvoxel<_histBins> * data, size_t npitch)
+    void copyTo(fusionvoxel<_histBins> * data, size_t npitch)
     {
-        if (memT == Device) return Device2HostCopy(data, npitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
+        if (memT == Device) {
+            Device2HostCopy(data, npitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
+            return;
+        }
 #if CUDA_VERSION_MAJOR >= 6
-        if (memT == MemoryKind::Managed) return Device2HostCopy(data, npitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
+        if (memT == MemoryKind::Managed) {
+            Device2HostCopy(data, npitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
+            return;
+        }
 #endif // CUDA_VERSION_MAJOR >= 6
-        return Host2HostCopy(data, npitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
+         Host2HostCopy(data, npitch, stg.ptr, stg.pitch, stg.width, stg.height, stg.depth);
     }
 
     /**
