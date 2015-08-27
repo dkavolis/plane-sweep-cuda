@@ -26,16 +26,9 @@ SET(CUDA_NVCC_FLAGS -DCUDA_VERSION_MAJOR=${CUDA_VERSION_MAJOR})
 
 # includes from CUDA samples:
 include_directories(
-    "common\\inc"
-    "common\\UtilNPP"
-    "common\\FreeImage\\include"
+    "common/inc"
     ${CMAKE_CURRENT_BINARY_DIR}     # generated header files from *.ui
     )
-link_directories(
-    "common\\FreeImage\\lib\\x64"
-    )
-
-set(FREEIMAGE_LIB "${CMAKE_CURRENT_SOURCE_DIR}/common/FreeImage/lib/x64/FreeImage64.lib")
 
 if(${VTK_VERSION} VERSION_GREATER "6" AND VTK_QT_VERSION VERSION_GREATER "4")
   # Instruct CMake to run moc automatically when needed.
