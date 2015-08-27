@@ -25,6 +25,7 @@ public:
 
     virtual const char* what() const
     {
+        if (mmsg.empty()) return "";
         std::ostringstream ss;
         if (!mfile.empty()) ss << mfile << ": line " << mline << ": " << mmsg;
         else ss << mmsg;
