@@ -7,9 +7,9 @@
 
 #include "defines.h"
 #include "structs.h"
-#include <iostream>
 #include <cuda_runtime_api.h>
 #include <vector>
+#include "cam_image.h"
 
 typedef unsigned char uchar;
 
@@ -27,132 +27,17 @@ typedef unsigned char uchar;
 class PlaneSweep
 {
 public:
-    /** \brief Simple class to hold image data and camera position matrices on host */
-    template <typename T>
-    struct camImage {
-    public:
-        T * data;
-        unsigned int pitch;
-        uchar channels;
-        unsigned int width;
-        unsigned int height;
-        /** \brief Rotation matrix */
-        Matrix3D R;
-        /** \brief Translation vector */
-        Vector3D t;
-
-        /** \brief Default constructor */
-        camImage() :
-            data(nullptr),
-            allocated(false)
-        {}
-
-        /**
-         *  \brief Resize image
-         *
-         *  \param w             width of data
-         *  \param h             height of data
-         *  \param allocate_data does data need to be allocated?
-         *
-         *  \details <b>Deletes any previous data</b>
-         */
-        void setSize(unsigned int w, unsigned int h, bool allocate_data = true){
-            width = w;
-            height = h;
-            pitch = w * sizeof(T);
-            delete[] data;
-            if (allocate_data) data = new T[w * h];
-            allocated = allocate_data;
-        }
-
-        /**
-        *  \brief Perfom deep copy of \a data
-        *
-        *  \param d        pointer to data to be copied
-        *  \param elements number of elements to copy
-        *
-        *  \details Any previous data is deleted and new memory allocated
-        */
-        void CopyFrom(const T * d, unsigned int elements){
-            delete[] data;
-            data = new T[elements];
-            std::copy(d, d + elements, data);
-            allocated = true;
-        }
-
-        /**
-        *  \brief Perform deep copy of \a pSrc
-        *
-        *  \param pSrc      pointer to data to be copied
-        *  \param nSrcPitch step size in bytes of source data
-        *  \param nWidth    width of data
-        *  \param nHeight   height of data
-        *
-        *  \details Any previous data is deleted and new memory allocated
-        */
-        void CopyFrom(const T *pSrc, size_t nSrcPitch, size_t nWidth, size_t nHeight)
-        {
-            delete[] data;
-            data = new T[nWidth * nHeight];
-            T * ptr = data;
-            pitch = nWidth * sizeof(T);
-            width = nWidth;
-            height = nHeight;
-
-            for (size_t iLine = 0; iLine < nHeight; ++iLine)
-            {
-                // copy one line worth of data
-                std::copy_n(pSrc, nWidth, data);
-                // move data pointers to next line
-                data = (T *)((uchar *)data + pitch);
-                pSrc = (T *)((uchar *)pSrc + nSrcPitch);
-            }
-
-            // return pointer to beginning
-            data = ptr;
-
-            allocated = true;
-        }
-
-        /**
-        *  \brief Copy operator
-        *
-        *  \details Performs deep copy of image data
-        */
-        camImage<T>& operator=(const camImage<T>& i){
-            if (this == &i) return *this;
-
-            CopyFrom(i.data, i.pitch, i.width, i.height);
-            channels = i.channels;
-            R = i.R;
-            t = i.t;
-            return *this;
-        }
-
-        /** \brief Default destructor.
-        * If data was allocated by this camImage, it is deallocated. */
-        ~camImage(){
-            if (allocated) {
-                delete[] data;
-                data = nullptr;
-            }
-        }
-
-    private:
-        bool allocated;
-    };
-
     /** \brief Reference image in float format */
-    camImage<float> HostRef;
+    CamImage<float> HostRef;
 
     /** \brief Source images in float format */
-    std::vector<camImage<float>> HostSrc;
+    std::vector<CamImage<float>> HostSrc;
 
     /** \brief Reference image in unsigned char format */
-    camImage<uchar> HostRef8u;
+    CamImage<uchar> HostRef8u;
 
     /** \brief Source images in unsigned char format */
-    std::vector<camImage<uchar>> HostSrc8u;
+    std::vector<CamImage<uchar>> HostSrc8u;
 
     /** \brief Default constructor */
     PlaneSweep();
@@ -250,7 +135,7 @@ public:
 
     /** \brief \b WIP Should increase accuracy of planesweep depthmap by using sparse accurate depthmap \p depth
      * Works well with anisotropic diffusion tensor and upto about x16 upscaling of sparse depthmap. */
-    bool TGVdenoiseFromSparse(int argc, char **argv, const camImage<float> &depth, const unsigned int niters,
+    bool TGVdenoiseFromSparse(int argc, char **argv, const CamImage<float> &depth, const unsigned int niters,
                               const double alpha0, const double alpha1, const double tau, const double sigma, const double theta,
                               const double beta, const double gamma);
     
@@ -420,7 +305,7 @@ public:
     *
     *  \details Depthmap returned is the last one calculated by running \a RunAlgorithm()
     */
-    camImage<float> * getDepthmap(){ return &depthmap; }
+    CamImage<float> * getDepthmap(){ return &depthmap; }
 
     /**
     *  \brief Get pointer to denoised planesweep depthmap
@@ -429,7 +314,7 @@ public:
     *
     *  \details Depthmap returned is the last one calculated by running \a RunAlgorithm() and \a CudaDenoise() or \a Denoise() after that
     */
-    camImage<float> * getDepthmapDenoised(){ return &depthmapdenoised; }
+    CamImage<float> * getDepthmapDenoised(){ return &depthmapdenoised; }
 
     /**
     *  \brief Get pointer to denoised planesweep depthmap on device memory
@@ -448,7 +333,7 @@ public:
     *
     *  \details Depthmap returned is the last one calculated by running \a RunAlgorithm() and scaled to range [0,255] from [znear,zfar]
     */
-    camImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
+    CamImage<uchar> * getDepthmap8u(){ return &depthmap8u; }
 
     /**
     *  \brief Get pointer to denoised normalized planesweep depthmap
@@ -457,7 +342,7 @@ public:
     *
     *  \details Depthmap returned is the last one calculated by running \a RunAlgorithm() and \a CudaDenoise() or \a Denoise() after that and scaled to range [0,255] from [znear,zfar]
     */
-    camImage<uchar> * getDepthmap8uDenoised(){ return &depthmap8udenoised; }
+    CamImage<uchar> * getDepthmap8uDenoised(){ return &depthmap8udenoised; }
 
     /**
     *  \brief Get pointer to TGV depthmap
@@ -466,7 +351,7 @@ public:
     *
     *  \details Depthmap returned is the last one calculated by running \a TGV()
     */
-    camImage<float> * getDepthmapTGV(){ return &depthmapTGV; }
+    CamImage<float> * getDepthmapTGV(){ return &depthmapTGV; }
 
     /**
     *  \brief Get pointer to normalized TGV depthmap
@@ -475,7 +360,7 @@ public:
     *
     *  \details Depthmap returned is the last one calculated by running \a TGV() and scaled to range [0,255] from [znear,zfar]
     */
-    camImage<uchar> * getDepthmap8uTGV(){ return &depthmap8uTGV; }
+    CamImage<uchar> * getDepthmap8uTGV(){ return &depthmap8uTGV; }
 
     /**
     *  \brief Get 3D coordinates of each camera pixel
@@ -486,7 +371,7 @@ public:
     *
     *  \details Coordinates are computed at the time of the call.
     */
-    void get3Dcoordinates(camImage<float> * &x, camImage<float> * &y, camImage<float> * &z);
+    void get3Dcoordinates(CamImage<float> * &x, CamImage<float> * &y, CamImage<float> * &z);
 
     /**
     *  \brief Get currently set planesweep near plane depth
@@ -557,18 +442,18 @@ protected:
     Matrix3D invK;
 
     // stored depthmaps
-    camImage<float> depthmap;
-    camImage<float> depthmapdenoised;
-    camImage<uchar> depthmap8u;
-    camImage<uchar> depthmap8udenoised;
-    camImage<float> depthmapTGV;
-    camImage<uchar> depthmap8uTGV;
+    CamImage<float> depthmap;
+    CamImage<float> depthmapdenoised;
+    CamImage<uchar> depthmap8u;
+    CamImage<uchar> depthmap8udenoised;
+    CamImage<float> depthmapTGV;
+    CamImage<uchar> depthmap8uTGV;
 
     // pointer to depthmap on the device after TVL1 denoising
     float * d_depthmap;
 
     // stored coordinates
-    camImage<float> coord_x, coord_y, coord_z;
+    CamImage<float> coord_x, coord_y, coord_z;
 
     // plane sweep parameters
     float znear = DEFAULT_Z_NEAR;
@@ -596,7 +481,7 @@ protected:
     *
     *  \details Depthmap is scaled to range [0,255] from [znear,zfar]
     */
-    void ConvertDepthtoUChar(const camImage<float> &input, camImage<uchar> &output);
+    void ConvertDepthtoUChar(const CamImage<float> &input, CamImage<uchar> &output);
 
     /**
     *  \brief Single planesweep thread operating on single source view (all pointers point to memory on the GPU):

@@ -220,22 +220,22 @@ private:
     QPixmap tgvdepthim;
 
     // pointers to depthmaps
-    PlaneSweep::camImage<float> * depth;
-    PlaneSweep::camImage<uchar> * depth8u;
+    CamImage<float> * depth;
+    CamImage<uchar> * depth8u;
 
-    PlaneSweep::camImage<float> * dendepth;
-    PlaneSweep::camImage<uchar> * dendepth8u;
+    CamImage<float> * dendepth;
+    CamImage<uchar> * dendepth8u;
 
-    PlaneSweep::camImage<float> * tgvdepth;
-    PlaneSweep::camImage<uchar> * tgvdepth8u;
+    CamImage<float> * tgvdepth;
+    CamImage<uchar> * tgvdepth8u;
 
     // pointers to world coordinates
-    PlaneSweep::camImage<float> * cx;
-    PlaneSweep::camImage<float> * cy;
-    PlaneSweep::camImage<float> * cz;
+    CamImage<float> * cx;
+    CamImage<float> * cy;
+    CamImage<float> * cz;
 
     // sparse depthmap
-    PlaneSweep::camImage<float> sparsedepth;
+    CamImage<float> sparsedepth;
 
     // variables to track if reference image has changed before last depthmap generation
     // for each method

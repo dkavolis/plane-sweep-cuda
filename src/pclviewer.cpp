@@ -405,8 +405,8 @@ void PCLViewer::LoadImages()
     tsrc[8] = Vector3D( 0.33934,       -0.250995,    0.796756);
 
     // setup reference image
-    ps.HostRef.setSize(w, h);
-    rgb2gray<float>(ps.HostRef.data, refim);
+    ps.HostRef.reset(w, h);
+    rgb2gray<float>(ps.HostRef.data(), refim);
     ps.HostRef.R = Rref; ps.HostRef.t = tref;
 
     // setup source images
@@ -419,8 +419,8 @@ void PCLViewer::LoadImages()
         src += QString::number(i + 1);
         src += ".png";
         sources.load(src);
-        ps.HostSrc[i].setSize(w,h);
-        rgb2gray<float>(ps.HostSrc[i].data, sources);
+        ps.HostSrc[i].reset(w,h);
+        rgb2gray<float>(ps.HostSrc[i].data(), sources);
         ps.HostSrc[i].R = Rsrc[i]; ps.HostSrc[i].t = tsrc[i];
     }
 
@@ -444,12 +444,12 @@ void PCLViewer::on_pushButton_pressed()
 
         // resize cloud if reference image has changed
         if (refchanged) {
-            if ((cloud->height != depth8u->height) || (cloud->width != depth8u->width))
+            if ((cloud->height != depth8u->height()) || (cloud->width != depth8u->width()))
             {
                 // The number of points in the cloud
-                cloud->points.resize(depth8u->width * depth8u->height);
-                cloud->width = depth8u->width;
-                cloud->height = depth8u->height;
+                cloud->points.resize(depth8u->width() * depth8u->height());
+                cloud->width = depth8u->width();
+                cloud->height = depth8u->height();
             }
         }
 
@@ -463,12 +463,12 @@ void PCLViewer::on_pushButton_pressed()
         ui->cbar->setRangeMax(ui->zFar->value());
 
         // Fill the cloud with points
-        for (size_t x = 0; x < depth8u->width; ++x)
-            for (size_t y = 0; y < depth8u->height; ++y)
+        for (size_t x = 0; x < depth8u->width(); ++x)
+            for (size_t y = 0; y < depth8u->height(); ++y)
             {
 
-                i = x + y * depth8u->width;
-                z = depth->data[i];
+                i = x + y * depth8u->width();
+                z = depth->data()[i];
 
                 cloud->points[i].z = sign(k(1,1)) * z;
                 cloud->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
@@ -486,7 +486,7 @@ void PCLViewer::on_pushButton_pressed()
             }
 
         // Show grayscale depthmap
-        QImage img((const uchar *)depth8u->data, depth8u->width, depth8u->height, QImage::Format_Indexed8);
+        QImage img(depth8u->data(), depth8u->width(), depth8u->height(), QImage::Format_Indexed8);
         img.setColorTable(ctable);
 
         depthim = QPixmap::fromImage(img);
@@ -560,12 +560,12 @@ void PCLViewer::on_denoiseBtn_clicked()
         // resize cloud if reference image has changed
         if (refchangedtvl1)
         {
-            if ((clouddenoised->height != dendepth8u->height) || (clouddenoised->width != dendepth8u->width))
+            if ((clouddenoised->height != dendepth8u->height()) || (clouddenoised->width != dendepth8u->width()))
             {
                 // The number of points in the cloud
-                clouddenoised->points.resize(dendepth8u->width * dendepth8u->height);
-                clouddenoised->width = dendepth8u->width;
-                clouddenoised->height = dendepth8u->height;
+                clouddenoised->points.resize(dendepth8u->width() * dendepth8u->height());
+                clouddenoised->width = dendepth8u->width();
+                clouddenoised->height = dendepth8u->height();
             }
         }
 
@@ -580,13 +580,13 @@ void PCLViewer::on_denoiseBtn_clicked()
         ui->cbardenoised->setRangeMax(ui->zFar->value());
 
         // Fill the cloud
-        for (size_t x = 0; x < dendepth8u->width; ++x)
-            for (size_t y = 0; y < dendepth8u->height; ++y)
+        for (size_t x = 0; x < dendepth8u->width(); ++x)
+            for (size_t y = 0; y < dendepth8u->height(); ++y)
             {
 
-                i = x + y * dendepth8u->width;
+                i = x + y * dendepth8u->width();
 
-                z = dendepth->data[i];
+                z = dendepth->data()[i];
                 clouddenoised->points[i].z = sign(k(1,1)) * z;
                 clouddenoised->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
                 clouddenoised->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
@@ -602,7 +602,7 @@ void PCLViewer::on_denoiseBtn_clicked()
             }
 
         // show grayscale depthmap
-        QImage img((const uchar *)dendepth8u->data, dendepth8u->width, dendepth8u->height, QImage::Format_Indexed8);
+        QImage img(dendepth8u->data(), dendepth8u->width(), dendepth8u->height(), QImage::Format_Indexed8);
         img.setColorTable(ctable);
 
         dendepthim = QPixmap::fromImage(img);
@@ -647,11 +647,11 @@ void PCLViewer::on_tgv_button_pressed()
         if (refchangedtgv)
         {
             // The number of points in the cloud
-            if ((cloudtgv->height != tgvdepth8u->height) || (cloudtgv->width != tgvdepth8u->width))
+            if ((cloudtgv->height != tgvdepth8u->height()) || (cloudtgv->width != tgvdepth8u->width()))
             {
-                cloudtgv->points.resize(tgvdepth8u->width * tgvdepth8u->height);
-                cloudtgv->width = tgvdepth8u->width;
-                cloudtgv->height = tgvdepth8u->height;
+                cloudtgv->points.resize(tgvdepth8u->width() * tgvdepth8u->height());
+                cloudtgv->width = tgvdepth8u->width();
+                cloudtgv->height = tgvdepth8u->height();
             }
         }
 
@@ -666,12 +666,12 @@ void PCLViewer::on_tgv_button_pressed()
         ui->cbarTGV->setRangeMax(ui->zFar->value());
 
         // Fill the cloud with points
-        for (size_t x = 0; x < tgvdepth8u->width; ++x)
-            for (size_t y = 0; y < tgvdepth8u->height; ++y)
+        for (size_t x = 0; x < tgvdepth8u->width(); ++x)
+            for (size_t y = 0; y < tgvdepth8u->height(); ++y)
             {
-                i = x + y * tgvdepth8u->width;
+                i = x + y * tgvdepth8u->width();
 
-                z = tgvdepth->data[i];
+                z = tgvdepth->data()[i];
                 cloudtgv->points[i].z = sign(k(1,1)) * z;
                 cloudtgv->points[i].x = z * (k(0,0) * x + k(0,1) * y + k(0,2));
                 cloudtgv->points[i].y = z * (k(1,0) * x + k(1,1) * y + k(1,2));
@@ -687,7 +687,7 @@ void PCLViewer::on_tgv_button_pressed()
             }
 
         // show grayscale depthmap
-        QImage img((const uchar *)tgvdepth8u->data, tgvdepth8u->width, tgvdepth8u->height, QImage::Format_Indexed8);
+        QImage img(tgvdepth8u->data(), tgvdepth8u->width(), tgvdepth8u->height(), QImage::Format_Indexed8);
         img.setColorTable(ctable);
 
         tgvdepthim = QPixmap::fromImage(img);
@@ -806,7 +806,7 @@ void PCLViewer::on_loadfromdir_clicked()
 
     refim.load(imname);
     int w = refim.width(), h = refim.height();
-    ps.HostRef.setSize(w, h);
+    ps.HostRef.reset(w, h);
 
     // show reference image
     image = QPixmap::fromImage(refim);
@@ -816,7 +816,7 @@ void PCLViewer::on_loadfromdir_clicked()
 
     ps.HostRef.R = R;
     ps.HostRef.t = t;
-    rgb2gray<float>(ps.HostRef.data, refim);
+    rgb2gray<float>(ps.HostRef.data(), refim);
 
     int nsrc = ui->imNumber->value() - 1;
 
@@ -834,10 +834,10 @@ void PCLViewer::on_loadfromdir_clicked()
             ps.HostSrc.resize(ps.HostSrc.size() + 1);
             reader.computeRT(R, t, cam_dir, cam_pos, cam_up);
             src.load(imname);
-            ps.HostSrc.back().setSize(w,h);
+            ps.HostSrc.back().reset(w,h);
             ps.HostSrc.back().R = R;
             ps.HostSrc.back().t = t;
-            rgb2gray<float>(ps.HostSrc.back().data, src);
+            rgb2gray<float>(ps.HostSrc.back().data(), src);
         }
     }
 
@@ -1037,7 +1037,7 @@ void PCLViewer::on_reconstruct_button_clicked()
         ptr = ps.getDepthmapDenoisedPtr();
 
         // Fuse the depthmap
-        FusionUpdateIteration<8>(fd, ptr, K, R, T, threshold, tau, lambda, sigma, ps.HostRef.width, ps.HostRef.height, blocks, threads);
+        FusionUpdateIteration<8>(fd, ptr, K, R, T, threshold, tau, lambda, sigma, ps.HostRef.width(), ps.HostRef.height(), blocks, threads);
 
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cerr << "Time of 1 fusion iteration: " <<
@@ -1166,17 +1166,17 @@ bool PCLViewer::loadSparseDepthmap(const QString & fileName)
     n = line.split(' ', QString::SkipEmptyParts);
 
     int w = refim.width(), h = refim.height();
-    sparsedepth.setSize(w, h);
+    sparsedepth.reset(w, h);
     float depth;
     float u, v;
 
-    for (int y = 0; y < h; y = y + 1){
-        for (int x = 0; x < w; x = x + 1){
+    for (int y = 0; y < h; y = y + 4){
+        for (int x = 0; x < w; x = x + 4){
             // correct for radial depth
             u = (x - 320.5) / 481.2043;
             v = (y - 240.5) / 479.9998;
             depth = n.at(x + w * y).trimmed().toFloat();
-            sparsedepth.data[x + w * y] = depth / sqrt(pow(u, 2) + pow(v, 2) + 1);
+            sparsedepth.data()[x + w * y] = depth / sqrt(pow(u, 2) + pow(v, 2) + 1);
         }
     }
 
