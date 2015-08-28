@@ -246,12 +246,14 @@ public:
 
     template<typename TR>
     inline __device__ __host__
-    TR getBilinear(float u, float v) const
+    TR getBilinear(float u, float v, TR ooboundsretval = TR()) const
     {
         const float ix = floorf(u);
         const float iy = floorf(v);
         const float fx = u - ix;
         const float fy = v - iy;
+
+        if ((ix < 0) || (iy < 0) || (iy+1 > h_-1) || (ix+1 > w_-1)) return ooboundsretval;
 
         const T* bl = rowPtr(iy)  + (size_t)ix;
         const T* tl = rowPtr(iy+1)+ (size_t)ix;
@@ -313,28 +315,28 @@ public:
 
     template<typename TR>
     inline __device__ __host__
-    TR getBilinear(const float2& p) const
+    TR getBilinear(const float2& p, TR ooboundsretval = TR()) const
     {
-        return getBilinear<TR>(p.x, p.y);
+        return getBilinear<TR>(p.x, p.y, ooboundsretval);
     }
 
     template<typename TR>
     inline __device__ __host__
-    TR getBilinear(const double2& p) const
+    TR getBilinear(const double2& p, TR ooboundsretval = TR()) const
     {
-        return getBilinear<TR>(p.x, p.y);
+        return getBilinear<TR>(p.x, p.y, ooboundsretval);
     }
 
     inline __device__ __host__
-    T getBilinear(const float2& p) const
+    T getBilinear(const float2& p, T ooboundsretval = T()) const
     {
-        return getBilinear<T>(p.x, p.y);
+        return getBilinear<T>(p.x, p.y, ooboundsretval);
     }
 
     inline __device__ __host__
-    T getBilinear(const double2& p) const
+    T getBilinear(const double2& p, T ooboundsretval = T()) const
     {
-        return getBilinear<T>(p.x, p.y);
+        return getBilinear<T>(p.x, p.y, ooboundsretval);
     }
 
     inline  __device__ __host__
