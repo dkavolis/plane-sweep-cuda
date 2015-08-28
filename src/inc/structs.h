@@ -10,6 +10,7 @@
 
 #include <helper_math.h>
 #include "memory.h"
+#include <iostream>
 
 // Forward declarations of structs contained in this file:
 template<unsigned char _nBins>  struct histogram;
@@ -751,6 +752,15 @@ struct Matrix3D
     {
         return r[row];
     }
+
+    friend __host__
+    std::ostream & operator << (std::ostream &rOutputStream, const Matrix3D &m)
+    {
+        rOutputStream << "[" << m(0,0) << m(0,1) << m(0,2) << "; " <<
+                         m(1,0) << m(1,1) << m(1,2) << "; " <<
+                         m(2,0) << m(2,1) << m(2,2) << "]\n";
+        return rOutputStream;
+    }
 };
 
 /** \brief Matrix3D structure with overloaded \n new and \a delete operators from class \p Manage */
@@ -1423,6 +1433,16 @@ struct Matrix4D
     operator Transformation3D() const
     {
         return Transformation3D(subMatrix(3,3), Vector3D(at(0,3), at(1,3), at(2,3)));
+    }
+
+    friend __host__
+    std::ostream & operator << (std::ostream &rOutputStream, const Matrix4D &m)
+    {
+        rOutputStream << "[" << m(0,0) << m(0,1) << m(0,2) << m(0,3) << "; " <<
+                         m(1,0) << m(1,1) << m(1,2) << m(1,3) << "; " <<
+                         m(2,0) << m(2,1) << m(2,2) << m(2,3) << "; " <<
+                         m(3,0) << m(3,1) << m(3,2) << m(3,3) << "]\n";
+        return rOutputStream;
     }
 };
 
