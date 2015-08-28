@@ -30,7 +30,7 @@ struct static_cast_func
 int PlaneSweep::cudaDevInit(int argc, const char **argv)
 {
     int Count;
-    checkCudaErrors(cudaGetDeviceCount(&Count));
+    CHECK_CUDA_ERRORS_AUTO(cudaGetDeviceCount(&Count));
 
     if (Count == 0)
     {
@@ -55,24 +55,6 @@ int PlaneSweep::cudaDevInit(int argc, const char **argv)
     //    std::cerr << "Warp size = " << deviceProps.warpSize << std::endl << std::endl;
 
     return dev;
-}
-
-bool PlaneSweep::printfNPPinfo()
-{
-    const NppLibraryVersion *libVer   = nppGetLibVersion();
-
-    //    printf("NPP Library Version %d.%d.%d\n", libVer->major, libVer->minor, libVer->build);
-
-    int driverVersion, runtimeVersion;
-    cudaDriverGetVersion(&driverVersion);
-    cudaRuntimeGetVersion(&runtimeVersion);
-
-    //    printf("  CUDA Driver  Version: %d.%d\n", driverVersion/1000, (driverVersion%100)/10);
-    //    printf("  CUDA Runtime Version: %d.%d\n", runtimeVersion/1000, (runtimeVersion%100)/10);
-
-    // Min spec is SM 1.0 devices
-    bool Val = checkCudaCapabilities(1, 0);
-    return Val;
 }
 
 PlaneSweep::PlaneSweep() :
@@ -102,12 +84,6 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
     try
     {
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
-        {
-            cudaReset();
-            return false;
-        }
-
-        if (printfNPPinfo() == false)
         {
             cudaReset();
             return false;
@@ -333,12 +309,6 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
             return false;
         }
 
-        if (printfNPPinfo() == false)
-        {
-            cudaReset();
-            return false;
-        }
-
         int h = depthmap.height(), w = depthmap.width();
         CHECK_CUDA_ERRORS_AUTO(cudaFree(d_depthmap));
 
@@ -418,12 +388,6 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
     {
 
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
-        {
-            cudaReset();
-            return false;
-        }
-
-        if (printfNPPinfo() == false)
         {
             cudaReset();
             return false;
@@ -640,12 +604,6 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const CamImage<floa
     {
 
         if (cudaDevInit(argc, (const char **)argv) == NO_CUDA_DEVICE)
-        {
-            cudaReset();
-            return false;
-        }
-
-        if (printfNPPinfo() == false)
         {
             cudaReset();
             return false;

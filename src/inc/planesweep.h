@@ -105,7 +105,7 @@ public:
     bool CudaDenoise(int argc, char **argv, const unsigned int niters = DEFAULT_TVL1_ITERATIONS, const double lambda = DEFAULT_TVL1_LAMBDA,
                      const double tau = DEFAULT_TVL1_TAU, const double sigma = DEFAULT_TVL1_SIGMA, const double theta = DEFAULT_TVL1_THETA,
                      const double beta = DEFAULT_TVL1_BETA, const double gamma = DEFAULT_TVL1_GAMMA);
-    
+
     /**
     *  \brief TGV Multiview Stereo
     *
@@ -138,7 +138,7 @@ public:
     bool TGVdenoiseFromSparse(int argc, char **argv, const CamImage<float> &depth, const unsigned int niters,
                               const double alpha0, const double alpha1, const double tau, const double sigma, const double theta,
                               const double beta, const double gamma);
-    
+
     /**
     *  \brief Calculate relative rotation and translation from reference to source views
     *
@@ -502,7 +502,6 @@ private:
 
     // CUDA initialization functions
     int cudaDevInit(int argc, const char **argv);
-    bool printfNPPinfo();
 
     /** \brief Cuda GPU reset function. Use this function to reallocate memory on the device when it
     * encountered an error and needed a reset */
