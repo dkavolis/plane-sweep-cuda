@@ -2,6 +2,7 @@
 #define DEVICE_FUNCTIONS_H
 
 #include "structs.h"
+#include "image.h"
 #include <device_launch_parameters.h>
 
 //////////////////////////////////////////////////////////////
@@ -88,162 +89,85 @@ int sign(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
-template<typename Tfrom, typename Tto>
 __host__ __device__ inline
-Tto convertDatatype(Tfrom d)
+float2 gradFwd(const Image<float>& img, float val, int x, int y)
 {
-    return (Tto)d;
+
+    float2 d = make_float2(0,0);
+    if(x < img.width() - 1) d.x = img(x + 1, y) - val;
+    if(y < img.height() - 1) d.y = img(x, y + 1) - val;
+    return d;
 }
 
-template<>
 __host__ __device__ inline
-uchar4 convertDatatype(unsigned char p)
+float divBwd(const Image<float2>& img, float2 val, int x, int y)
 {
-    return make_uchar4(p,p,p,255);
+    float div = val.x + val.y;
+    if(x > 0) div -= img(x - 1, y).x;
+    if(y > 0) div -= img(x , y - 1).y;
+    return div;
 }
 
-template<>
-__host__ __device__ inline
-uchar3 convertDatatype(unsigned char p)
+ __host__ __device__ inline
+float2 divBwd(const Image<float4>& img, float4 val, int x, int y)
 {
-    return make_uchar3(p, p, p);
+    float2 div = make_float2(val.x + val.z, val.z + val.y);
+
+    if (0 < x){
+        div.x -= img(x - 1, y).x;
+        div.y -= img(x - 1, y).z;
+    }
+
+    if (0 < y){
+        div.x -= img(x, y - 1).z;
+        div.y -= img(x, y - 1).y;
+    }
+
+    return div;
 }
 
-template<>
 __host__ __device__ inline
-unsigned char convertDatatype(uchar3 p)
+float4 epsilon(const Image<float2>& img, float2 val, int x, int y)
 {
-    const unsigned sum = p.x + p.y + p.z;
-    return sum / 3;
+    float4 d = make_float4(0);
+
+    if (x < img.width() - 1) {
+        const float2 px = img(x+1,y);
+        d.x = px.x - val.x;
+        d.z = px.y - val.y;
+    }
+
+    if (y < img.height() - 1) {
+        const float2 py = img(x,y+1);
+        d.w = py.x - val.x;
+        d.y = py.y - val.y;
+    }
+
+    return make_float4(d.x, d.y, (d.z+d.w)/2.0f, (d.z+d.w)/2.0f );
 }
 
-template<>
-__host__ __device__ inline
-unsigned char convertDatatype(uchar4 p)
+inline __host__ __device__
+float project(float val)
 {
-    const unsigned sum = p.x + p.y + p.z + p.w;
-    return sum / 4;
+    return val / fmaxf(1.0f, fabs(val));
 }
 
-template<>
-__host__ __device__ inline
-uchar4 convertDatatype(uchar3 p)
+inline __host__ __device__
+float2 project(float2 val)
 {
-    return make_uchar4(p.x,p.y,p.z,255);
+    return val / fmaxf(1.0f, length(val));
 }
 
-template<>
-__host__ __device__ inline
-uchar3 convertDatatype(uint3 p)
+inline __host__ __device__
+float3 project(float3 val)
 {
-    return make_uchar3(
-        (unsigned char)(p.x),
-        (unsigned char)(p.y),
-        (unsigned char)(p.z)
-        );
+    return val / fmaxf(1.0f, length(val));
 }
 
-template<>
-__host__ __device__ inline
-uint3 convertDatatype(uchar3 p)
+inline __host__ __device__
+float4 project(float4 val)
 {
-    return make_uint3(
-        (unsigned int)(p.x),
-        (unsigned int)(p.y),
-        (unsigned int)(p.z)
-        );
-}
-
-template<>
-__host__ __device__ inline
-uchar4 convertDatatype(uint4 p)
-{
-    return make_uchar4(
-        (unsigned char)(p.x),
-        (unsigned char)(p.y),
-        (unsigned char)(p.z),
-        (unsigned char)(p.w)
-        );
-}
-
-template<>
-__host__ __device__ inline
-uint4 convertDatatype(uchar4 p)
-{
-    return make_uint4(
-        (unsigned int)(p.x),
-        (unsigned int)(p.y),
-        (unsigned int)(p.z),
-        (unsigned int)(p.w)
-        );
-}
-
-template<>
-__host__ __device__ inline
-uchar4 convertDatatype(float4 p)
-{
-    return make_uchar4(
-        (unsigned char)(p.x*255.0f),
-        (unsigned char)(p.y*255.0f),
-        (unsigned char)(p.z*255.0f),
-        (unsigned char)(p.w*255.0f)
-        );
-}
-
-template<>
-__host__ __device__ inline
-uchar3 convertDatatype(uchar4 p)
-{
-    return make_uchar3(p.x,p.y,p.z);
-}
-
-template<>
-__host__ __device__ inline
-float4 convertDatatype(float p)
-{
-    return make_float4(p,p,p,1.0f);
-}
-
-template<>
-__host__ __device__ inline
-float3 convertDatatype(uchar3 p)
-{
-    return make_float3(p.x, p.y, p.z);
-}
-
-template<>
-__host__ __device__ inline
-float convertDatatype(uchar3 p)
-{
-    return (p.x+p.y+p.z) / (3.0f*255.0f);
-}
-
-template<>
-__host__ __device__ inline
-float4 convertDatatype(uchar4 p)
-{
-    return make_float4(p.x, p.y, p.z, p.w) / 255.f;
-}
-
-template<>
-__host__ __device__ inline
-float4 convertDatatype(uchar3 p)
-{
-    return make_float4(make_float3(p.x, p.y, p.z)/255.f,1.0);
-}
-
-template<>
-__host__ __device__ inline
-float3 convertDatatype(float p)
-{
-    return make_float3(p);
-}
-
-template<>
-__host__ __device__ inline
-float convertDatatype(float3 p)
-{
-    return (p.x + p.y + p.z) / 3.0f;
+    return val / fmaxf(1.0f, length(val));
 }
 
 /** @} */ // group general
