@@ -2,7 +2,7 @@
 #define IMAGE_H
 
 #include "memory.h"
-#include "dev_functions.h"
+#include "type_convert.h"
 
 template<typename T, MemoryKind memT = Device>
 struct Image : MemoryManagement<T, memT>
@@ -15,8 +15,8 @@ public:
     }
 
     inline __host__ __device__
-    Image( Image<T,memT>& img )
-        : pitch_(img.pitch()), ptr_(img.data()), w_(img.width()), h_(img.height()), managed_(false)
+    Image( const Image<T,memT>& img )
+        : pitch_(img.pitch_), ptr_(img.ptr_), w_(img.w_), h_(img.h_), managed_(false)
     {}
 
     inline __host__
@@ -96,25 +96,25 @@ public:
         bool hto = !dto;
         bool dfrom = (memFrom == Device) || (memFrom == Managed);
         bool hfrom = !dfrom;
-        if (dto && dfrom) return Device2DeviceCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_);
-        if (dto && hfrom) return Host2DeviceCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_);
-        if (hto && dfrom) return Device2HostCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_);
-        if (hto && hfrom) return Host2HostCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_);
+        if (dto && dfrom) { Device2DeviceCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_); return; }
+        if (dto && hfrom) { Host2DeviceCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_); return; }
+        if (hto && dfrom) { Device2HostCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_); return; }
+        if (hto && hfrom) { Host2HostCopy(ptr_, pitch_, img.data(), img.pitch(), w_, h_); return; }
     }
 
     template<MemoryKind memTo>
     inline __host__
-    void copyTo(const Image<T,memTo> & img) const
+    void copyTo(Image<T,memTo> & img) const
     {
         ASSERT_AUTO(((w_ == img.width()) && (h_ == img.height())));
         bool dto = (memTo == Device) || (memTo == Managed);
         bool hto = !dto;
         bool dfrom = (memT == Device) || (memT == Managed);
         bool hfrom = !dfrom;
-        if (dto && dfrom) return Device2DeviceCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_);
-        if (dto && hfrom) return Host2DeviceCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_);
-        if (hto && dfrom) return Device2HostCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_);
-        if (hto && hfrom) return Host2HostCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_);
+        if (dto && dfrom) { Device2DeviceCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_); return; }
+        if (dto && hfrom) { Host2DeviceCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_); return; }
+        if (hto && dfrom) { Device2HostCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_); return; }
+        if (hto && hfrom) { Host2HostCopy(img.data(), img.pitch(), ptr_, pitch_, w_, h_); return; }
     }
 
     inline __host__
@@ -210,6 +210,12 @@ public:
     const T& get(int x = 0, int y = 0) const
     {
         return rowPtr(y)[x];
+    }
+
+    inline __device__ __host__
+    T& get(int x = 0, int y = 0)
+    {
+        return rowPtr(y)[y];
     }
 
     inline  __device__ __host__
