@@ -399,7 +399,7 @@ public:
         return *this;
     }
 
-private:
+protected:
     size_t pitch_;
     T* ptr_;
     size_t w_;

@@ -129,7 +129,7 @@ float2 divBwd(const Image<float4>& img, float4 val, int x, int y)
 __host__ __device__ inline
 float4 epsilon(const Image<float2>& img, float2 val, int x, int y)
 {
-    float4 d = make_float4(0);
+    float4 d = make_float4(0, 0, 0, 0);
 
     if (x < img.width() - 1) {
         const float2 px = img(x+1,y);
