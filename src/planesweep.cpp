@@ -95,7 +95,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         int w = HostRef.width();
         int h = HostRef.height();
         Image<float> deviceRef(w, h);
-        deviceRef.copyFrom(HostRef.data(), HostRef.pitch());
+        deviceRef.copyFrom(HostRef);
 
         if (threads.x * threads.y == 0) threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
         blocks = dim3(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
@@ -134,7 +134,7 @@ bool PlaneSweep::RunAlgorithm(int argc, char **argv)
         CHECK_CUDA_ERRORS_AUTO(cudaPeekAtLastError());
 
         // Copy depthmap to host
-        devDepthmap.copyTo(depthmap.data(), depthmap.pitch());
+        devDepthmap.copyTo(depthmap);
         ConvertDepthtoUChar(depthmap, depthmap8u);
         depthavailable = true;
 
@@ -189,7 +189,7 @@ void PlaneSweep::PlaneSweepThread(float *globDepth, float *globN, const float *R
     Image<float> devWarped(w, h);
 
     // Copy source view to device
-    devSrc.copyFrom(HostSrc[index].data(), HostSrc[index].pitch());
+    devSrc.copyFrom(HostSrc[index]);
 
     // Calculate relative rotation and translation:
     RelativeMatrices(Rrel, trel, HostRef.R, HostRef.t, HostSrc[index].R, HostSrc[index].t);
@@ -327,9 +327,9 @@ bool PlaneSweep::CudaDenoise(int argc, char ** argv, const unsigned int niters, 
         Image<float> rawInput(w,h);
         Image<float> T11(w,h), T12(w,h), T21(w,h), T22(w,h), ref(w,h);
 
-        ref.copyFrom(HostRef.data(), HostRef.pitch());
+        ref.copyFrom(HostRef);
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(d_depthmap, pitch, depthmap.data(), depthmap.pitch(), w * sizeof(float), h, cudaMemcpyHostToDevice));
-        rawInput.copyFrom(depthmap.data(), depthmap.pitch());
+        rawInput.copyFrom(depthmap);
 
         element_scale(ref.data(), 1/255.f, w, h, blocks, threads);
         Anisotropic_diffusion_tensor(T11.data(), T12.data(), T21.data(), T22.data(), ref.data(), beta, gamma, w, h, blocks, threads);
@@ -415,7 +415,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         ubar = u;
 
         // Copy reference image to device memory and normalize
-        Ref.copyFrom(HostRef.data(), HostRef.pitch());
+        Ref.copyFrom(HostRef);
         element_scale(Ref.data(), 1/255.f, w, h, blocks, threads);
         Anisotropic_diffusion_tensor(T1.data(), T2.data(), T3.data(), T4.data(), Ref.data(), beta, gamma, w, h, blocks, threads);
 
@@ -432,7 +432,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
             Iu[i].reset(w,h);
 
             // Copy source image to device memory and normalize
-            Src[i].copyFrom(HostSrc[i].data(), HostSrc[i].pitch());
+            Src[i].copyFrom(HostSrc[i]);
             element_scale(Src[i].data(), 1/255.f, w, h, blocks, threads);
 
             // Calculate relative rotation and translation
@@ -510,7 +510,7 @@ bool PlaneSweep::TGV(int argc, char **argv, const unsigned int niters, const uns
         }
 
         // Copy result to host memory
-        u.copyTo(depthmapTGV.data(), depthmapTGV.pitch());
+        u.copyTo(depthmapTGV);
 
         // Convert to uchar so it can be easily displayed as gray image
         ConvertDepthtoUChar(depthmapTGV, depthmap8uTGV);
@@ -561,7 +561,7 @@ void PlaneSweep::get3Dcoordinates(CamImage<float> *&x, CamImage<float> *&y, CamI
         Image<float> Px(w,h), Py(w,h), X(w,h);
 
         // copy depthmap to device
-        X.copyFrom(depthmapdenoised.data(), depthmapdenoised.pitch());
+        X.copyFrom(depthmapdenoised);
 
         // calculate world coordinates
         compute3D(Px.data(), Py.data(), X.data(), Rr, t, invK, w, h, blocks, threads);
@@ -570,9 +570,9 @@ void PlaneSweep::get3Dcoordinates(CamImage<float> *&x, CamImage<float> *&y, CamI
         coord_x.reset(w, h);
         coord_y.reset(w, h);
         coord_z.reset(w, h);
-        Px.copyTo(coord_x.data(), coord_x.pitch());
-        Py.copyTo(coord_y.data(), coord_y.pitch());
-        X.copyTo(coord_z.data(), coord_z.pitch());
+        Px.copyTo(coord_x);
+        Py.copyTo(coord_y);
+        X.copyTo(coord_z);
         x = &coord_x; y = &coord_y; z = &coord_z;
     }
     catch (const std::exception& e)
@@ -623,15 +623,15 @@ bool PlaneSweep::TGVdenoiseFromSparse(int argc, char **argv, const CamImage<floa
         if (threads.x * threads.y == 0) threads = dim3(DEFAULT_BLOCK_XDIM, maxThreadsPerBlock/DEFAULT_BLOCK_XDIM);
         blocks = dim3(ceil(w/(float)threads.x), ceil(h/(float)threads.y));
 
-        Ds.copyFrom(depth.data(), depth.pitch());
+        Ds.copyFrom(depth);
         calculateWeights_sparseDepth(weights.data(), Ds.data(), w, h, blocks, threads);
         element_scale(Ds.data(), 1.f / zfar, w, h, blocks, threads);
-        ubar.copyFrom(depthmap.data(), depthmap.pitch());
+        ubar.copyFrom(depthmap);
         element_scale(ubar.data(), 1.f / zfar, w, h, blocks, threads);
         //        ubar = u;
         CHECK_CUDA_ERRORS_AUTO(cudaMemcpy2D(d_depthmap, pitch, ubar.data(), ubar.pitch(), w * sizeof(float), h, cudaMemcpyDeviceToDevice));
 
-        ref.copyFrom(HostRef.data(), HostRef.pitch());
+        ref.copyFrom(HostRef);
         element_scale(ref.data(), 1.f / 255.f, w, h, blocks, threads);
 
         Anisotropic_diffusion_tensor(T1.data(), T2.data(), T3.data(), T4.data(), ref.data(), beta, gamma, w, h, blocks, threads);
